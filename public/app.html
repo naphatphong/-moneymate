@@ -358,25 +358,13 @@ const THAI_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.
 const TODAY = new Date(2024,4,10); // 10 พ.ค. 2567 — reference "today" for this demo
 
 let state = {
-  openingBalance: 5000,
-  budget: 6000,
+  openingBalance: 0,
+  budget: 0,
   notif: true,
   reportPeriod: 'month',
   listFilter: 'all',
   txs: [
-    {id:1, type:'income', cat:'income', title:'เงินเดือน', amount:3500, date:new Date(2024,4,1)},
-    {id:2, type:'expense', cat:'food', title:'อาหารเช้า', amount:60, date:new Date(2024,4,2)},
-    {id:3, type:'expense', cat:'travel', title:'ค่ารถเมล์', amount:15, date:new Date(2024,4,2)},
-    {id:4, type:'expense', cat:'entertainment', title:'สตรีมมิ่งเพลง', amount:129, date:new Date(2024,4,3)},
-    {id:5, type:'expense', cat:'entertainment', title:'ดูหนัง', amount:280, date:new Date(2024,4,4)},
-    {id:6, type:'expense', cat:'travel', title:'ค่ารถไฟฟ้า', amount:320, date:new Date(2024,4,5)},
-    {id:7, type:'expense', cat:'other', title:'ค่าปรับห้องสมุด', amount:40, date:new Date(2024,4,5)},
-    {id:8, type:'expense', cat:'shopping', title:'เสื้อยืด', amount:259, date:new Date(2024,4,6)},
-    {id:9, type:'expense', cat:'food', title:'ข้าวมันไก่', amount:80, date:new Date(2024,4,7,12,30)},
-    {id:10, type:'expense', cat:'food', title:'กาแฟ', amount:55, date:new Date(2024,4,7,8,45)},
-    {id:11, type:'expense', cat:'shopping', title:'ของใช้ส่วนตัว', amount:96, date:new Date(2024,4,8)},
-    {id:12, type:'expense', cat:'other', title:'บริจาค', amount:100, date:new Date(2024,4,9)},
-    {id:13, type:'expense', cat:'food', title:'มื้อเย็นกับเพื่อน', amount:220, date:new Date(2024,4,9)},
+
   ]
 };
 let nextId = 14;
