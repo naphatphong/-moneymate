@@ -358,16 +358,13 @@ const THAI_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.
 const TODAY = new Date(2024,4,10); // 10 พ.ค. 2567 — reference "today" for this demo
 
 let state = {
-  openingBalance: 5000,
-  budget: 0,
+  openingBalance: 0,
+  budget: 6000,
   notif: true,
   reportPeriod: 'month',
   listFilter: 'all',
-  txs: [
-   {id:1, type:'income', cat:'income', title:'ลุกตู่เเจก', amount:5000, date:new Date(2024,4,1)},
-  ]
+  txs: [] // โหลดจากเซิร์ฟเวอร์ตอนล็อคอินเข้ามา (ดู loadData) — ข้อมูลถูกเก็บถาวรในฐานข้อมูล ไม่หายเวลารีเฟรช
 };
-let nextId = 14;
 let modalType = 'expense';
 let modalCat = 'food';
 
@@ -397,10 +394,44 @@ async function checkAuthAndEnter(){
     document.getElementById('profileName').textContent = data.user.username;
     document.getElementById('profileEmail').textContent = data.user.email;
     document.getElementById('profileAvatar').textContent = data.user.username.charAt(0).toUpperCase();
+    await loadData();
+    document.getElementById('notifToggle').classList.toggle('on', state.notif);
     document.getElementById('view-shell').classList.add('ready');
     goTab('dashboard');
   }catch(err){
     window.location.href = 'login.html';
+  }
+}
+
+// โหลดยอดเงิน/งบประมาณ และรายการทั้งหมดของบัญชีนี้จากฐานข้อมูล
+async function loadData(){
+  try{
+    const [settingsRes, txRes] = await Promise.all([
+      fetch('/api/settings'),
+      fetch('/api/transactions')
+    ]);
+
+    if(settingsRes.ok){
+      const sData = await settingsRes.json();
+      state.openingBalance = parseFloat(sData.settings.opening_balance);
+      state.budget = parseFloat(sData.settings.budget);
+      state.notif = sData.settings.notif;
+    }
+
+    if(txRes.ok){
+      const tData = await txRes.json();
+      state.txs = tData.transactions.map(t => ({
+        id: t.id,
+        type: t.type,
+        cat: t.cat,
+        title: t.title,
+        amount: parseFloat(t.amount),
+        date: new Date(t.tx_date)
+      }));
+    }
+  }catch(err){
+    console.error(err);
+    showToast('โหลดข้อมูลไม่สำเร็จ ลองรีเฟรชอีกครั้ง');
   }
 }
 async function logout(){
@@ -557,12 +588,25 @@ function editBudget(){
   el.replaceWith(input);
   input.focus(); input.select();
 }
-function commitBudget(v){
+async function commitBudget(v){
   const n = parseFloat(v);
-  if(!isNaN(n) && n>0) state.budget = n;
+  if(isNaN(n) || n<=0){ renderDashboard(); return; }
+  try{
+    const res = await fetch('/api/settings', {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ budget: n })
+    });
+    const data = await res.json();
+    if(!res.ok){ showToast(data.error || 'อัปเดตงบประมาณไม่สำเร็จ'); renderDashboard(); return; }
+    state.budget = n;
+    showToast('อัปเดตงบประมาณเรียบร้อย');
+  }catch(err){
+    console.error(err);
+    showToast('เกิดข้อผิดพลาด กรุณาลองใหม่');
+  }
   renderDashboard();
   if(document.getElementById('tab-reports').classList.contains('active')) renderReports();
-  showToast('อัปเดตงบประมาณเรียบร้อย');
 }
 
 /* ===================== ADD TRANSACTION MODAL ===================== */
@@ -589,32 +633,69 @@ function renderCatGrid(){
     `<div class="cat-chip ${modalCat===k?'selected':''}" onclick="selectCat('${k}')"><span class="em">${CATS[k].em}</span>${CATS[k].label}</div>`).join('');
 }
 function selectCat(k){ modalCat=k; renderCatGrid(); }
-function submitTransaction(){
+async function submitTransaction(){
   const amt = parseFloat(document.getElementById('txAmount').value);
   if(isNaN(amt) || amt<=0){ document.getElementById('txError').style.display='block'; return; }
   document.getElementById('txError').style.display='none';
   const title = document.getElementById('txTitle').value.trim();
   const dateVal = document.getElementById('txDate').value;
   const date = dateVal ? new Date(dateVal+'T00:00:00') : new Date(TODAY);
-  state.txs.push({
-    id: nextId++,
+
+  const payload = {
     type: modalType,
     cat: modalType==='income' ? 'income' : modalCat,
     title: title || (modalType==='income' ? 'รายรับ' : CATS[modalCat].label),
     amount: amt,
-    date
-  });
-  closeAddModal();
-  renderDashboard();
-  if(document.getElementById('tab-list').classList.contains('active')) renderList();
-  if(document.getElementById('tab-reports').classList.contains('active')) renderReports();
-  showToast(modalType==='income' ? 'บันทึกรายรับเรียบร้อย' : 'บันทึกรายจ่ายเรียบร้อย');
+    date: date.toISOString()
+  };
+
+  const saveBtn = document.querySelector('#addModal .btn-primary');
+  if(saveBtn) saveBtn.disabled = true;
+
+  try{
+    const res = await fetch('/api/transactions', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if(!res.ok){ showToast(data.error || 'บันทึกไม่สำเร็จ กรุณาลองใหม่'); return; }
+
+    state.txs.push({
+      id: data.transaction.id,
+      type: data.transaction.type,
+      cat: data.transaction.cat,
+      title: data.transaction.title,
+      amount: parseFloat(data.transaction.amount),
+      date: new Date(data.transaction.tx_date)
+    });
+
+    closeAddModal();
+    renderDashboard();
+    if(document.getElementById('tab-list').classList.contains('active')) renderList();
+    if(document.getElementById('tab-reports').classList.contains('active')) renderReports();
+    showToast(modalType==='income' ? 'บันทึกรายรับเรียบร้อย' : 'บันทึกรายจ่ายเรียบร้อย');
+  }catch(err){
+    console.error(err);
+    showToast('เกิดข้อผิดพลาด กรุณาลองใหม่');
+  }finally{
+    if(saveBtn) saveBtn.disabled = false;
+  }
 }
 
 /* ===================== MISC ===================== */
-function toggleNotif(){
+async function toggleNotif(){
   state.notif = !state.notif;
   document.getElementById('notifToggle').classList.toggle('on', state.notif);
+  try{
+    await fetch('/api/settings', {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ notif: state.notif })
+    });
+  }catch(err){
+    console.error(err);
+  }
 }
 let toastTimer;
 function showToast(msg){
