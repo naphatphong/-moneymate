@@ -1,0 +1,185 @@
+MoneyMate fix — app.html
+
+Apply these exact replacements to public/app.html.
+
+1) Replace:
+const TODAY = new Date(2024,4,10); // 10 พ.ค. 2567 — reference "today" for this demo
+
+with:
+const TODAY = new Date();
+
+2) Replace the demo txs array/state section:
+  txs: [
+    ...all demo transactions...
+  ]
+and:
+let nextId = 14;
+
+with:
+  txs: []
+};
+
+Do not remove reportPeriod/listFilter/openingBalance/budget/notif.
+
+3) Replace the entire checkAuthAndEnter() function with:
+
+async function checkAuthAndEnter(){
+  try{
+    const res = await fetch('/api/me');
+    if(!res.ok) throw new Error('unauthorized');
+
+    const data = await res.json();
+
+    document.getElementById('profileName').textContent = data.user.username;
+    document.getElementById('profileEmail').textContent = data.user.email;
+    document.getElementById('profileAvatar').textContent =
+      data.user.username.charAt(0).toUpperCase();
+
+    const txRes = await fetch('/api/transactions');
+    if(!txRes.ok) throw new Error('โหลดรายการไม่สำเร็จ');
+
+    const txData = await txRes.json();
+
+    state.txs = (txData.transactions || []).map(tx => ({
+      ...tx,
+      amount: Number(tx.amount),
+      date: new Date(tx.date)
+    }));
+
+    const settingsRes = await fetch('/api/settings');
+    if(!settingsRes.ok) throw new Error('โหลดการตั้งค่าไม่สำเร็จ');
+
+    const settingsData = await settingsRes.json();
+
+    if(settingsData.settings){
+      state.openingBalance = Number(settingsData.settings.openingBalance);
+      state.budget = Number(settingsData.settings.budget);
+      state.notif = Boolean(settingsData.settings.notif);
+    }
+
+    document.getElementById('notifToggle')
+      .classList.toggle('on', state.notif);
+
+    document.getElementById('view-shell').classList.add('ready');
+    goTab('dashboard');
+
+  }catch(err){
+    console.error(err);
+    window.location.href = 'login.html';
+  }
+}
+
+4) Replace commitBudget(v) with:
+
+async function commitBudget(v){
+  const n = parseFloat(v);
+  if(isNaN(n) || n <= 0) return;
+
+  try{
+    const res = await fetch('/api/settings',{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({budget:n})
+    });
+
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'บันทึกงบประมาณไม่สำเร็จ');
+
+    state.budget = Number(data.settings.budget);
+    renderDashboard();
+
+    if(document.getElementById('tab-reports').classList.contains('active')){
+      renderReports();
+    }
+
+    showToast('อัปเดตงบประมาณเรียบร้อย');
+  }catch(err){
+    console.error(err);
+    showToast(err.message || 'บันทึกงบประมาณไม่สำเร็จ');
+  }
+}
+
+5) Replace submitTransaction() with:
+
+async function submitTransaction(){
+  const amt = parseFloat(document.getElementById('txAmount').value);
+
+  if(isNaN(amt) || amt <= 0){
+    document.getElementById('txError').style.display='block';
+    return;
+  }
+
+  document.getElementById('txError').style.display='none';
+
+  const title = document.getElementById('txTitle').value.trim();
+  const dateVal = document.getElementById('txDate').value;
+  const date = dateVal ? new Date(dateVal+'T00:00:00') : new Date();
+
+  try{
+    const res = await fetch('/api/transactions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        type:modalType,
+        cat:modalType==='income' ? 'income' : modalCat,
+        title:title || (modalType==='income' ? 'รายรับ' : CATS[modalCat].label),
+        amount:amt,
+        date:date.toISOString()
+      })
+    });
+
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'บันทึกรายการไม่สำเร็จ');
+
+    state.txs.push({
+      ...data.transaction,
+      amount:Number(data.transaction.amount),
+      date:new Date(data.transaction.date)
+    });
+
+    closeAddModal();
+    renderDashboard();
+
+    if(document.getElementById('tab-list').classList.contains('active')){
+      renderList();
+    }
+
+    if(document.getElementById('tab-reports').classList.contains('active')){
+      renderReports();
+    }
+
+    showToast(modalType==='income'
+      ? 'บันทึกรายรับเรียบร้อย'
+      : 'บันทึกรายจ่ายเรียบร้อย');
+
+  }catch(err){
+    console.error(err);
+    showToast(err.message || 'บันทึกรายการไม่สำเร็จ');
+  }
+}
+
+6) Replace toggleNotif() with:
+
+async function toggleNotif(){
+  const newValue = !state.notif;
+
+  try{
+    const res = await fetch('/api/settings',{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({notif:newValue})
+    });
+
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'บันทึกการตั้งค่าไม่สำเร็จ');
+
+    state.notif = Boolean(data.settings.notif);
+
+    document.getElementById('notifToggle')
+      .classList.toggle('on', state.notif);
+
+  }catch(err){
+    console.error(err);
+    showToast(err.message || 'บันทึกการตั้งค่าไม่สำเร็จ');
+  }
+}
