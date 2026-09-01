@@ -143,6 +143,108 @@ app.get('/api/protected-example', requireLogin, (req, res) => {
   return res.json({ message: `สวัสดีคุณ ${req.session.username}, นี่คือข้อมูลลับที่เห็นได้เฉพาะสมาชิก` });
 });
 
+// ----- API: ดึงรายการรายรับ-รายจ่ายทั้งหมดของผู้ใช้ที่ล็อคอินอยู่ -----
+app.get('/api/transactions', requireLogin, async (req, res) => {
+  try {
+    const transactions = await db.getTransactions(req.session.userId);
+    return res.json({ transactions });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
+// ----- API: เพิ่มรายการรายรับ-รายจ่าย -----
+app.post('/api/transactions', requireLogin, async (req, res) => {
+  try {
+    const { type, cat, title, amount, date } = req.body;
+
+    if (type !== 'income' && type !== 'expense') {
+      return res.status(400).json({ error: 'ประเภทรายการไม่ถูกต้อง' });
+    }
+
+    const amt = parseFloat(amount);
+    if (isNaN(amt) || amt <= 0) {
+      return res.status(400).json({ error: 'กรุณาระบุจำนวนเงินให้ถูกต้อง' });
+    }
+
+    const txDate = date ? new Date(date) : new Date();
+    if (isNaN(txDate.getTime())) {
+      return res.status(400).json({ error: 'วันที่ไม่ถูกต้อง' });
+    }
+
+    const transaction = await db.createTransaction({
+      userId: req.session.userId,
+      type,
+      cat: type === 'income' ? 'income' : (cat || 'other'),
+      title: (title || '').trim(),
+      amount: amt,
+      date: txDate
+    });
+
+    return res.status(201).json({ transaction });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
+// ----- API: ลบรายการรายรับ-รายจ่าย -----
+app.delete('/api/transactions/:id', requireLogin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'รหัสรายการไม่ถูกต้อง' });
+    }
+
+    const deleted = await db.deleteTransaction(id, req.session.userId);
+    if (!deleted) {
+      return res.status(404).json({ error: 'ไม่พบรายการนี้' });
+    }
+
+    return res.json({ message: 'ลบรายการแล้ว' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
+// ----- API: ดึงค่าตั้งค่า (ยอดเงินตั้งต้น / งบประมาณ / แจ้งเตือน) -----
+app.get('/api/settings', requireLogin, async (req, res) => {
+  try {
+    const settings = await db.getSettings(req.session.userId);
+    return res.json({ settings });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
+// ----- API: อัปเดตค่าตั้งค่า -----
+app.put('/api/settings', requireLogin, async (req, res) => {
+  try {
+    const { openingBalance, budget, notif } = req.body;
+
+    if (budget !== undefined && (isNaN(parseFloat(budget)) || parseFloat(budget) <= 0)) {
+      return res.status(400).json({ error: 'งบประมาณไม่ถูกต้อง' });
+    }
+    if (openingBalance !== undefined && isNaN(parseFloat(openingBalance))) {
+      return res.status(400).json({ error: 'ยอดเงินตั้งต้นไม่ถูกต้อง' });
+    }
+
+    const settings = await db.updateSettings(req.session.userId, {
+      openingBalance: openingBalance !== undefined ? parseFloat(openingBalance) : undefined,
+      budget: budget !== undefined ? parseFloat(budget) : undefined,
+      notif: notif !== undefined ? !!notif : undefined
+    });
+
+    return res.json({ settings });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
 async function start() {
   if (!process.env.DATABASE_URL) {
     console.error('ไม่พบ DATABASE_URL — กรุณาตั้งค่าใน .env (ดูวิธีใน README.md)');
