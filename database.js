@@ -24,17 +24,15 @@ async function init() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS transactions (
       id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+      cat TEXT NOT NULL DEFAULT 'other',
+      title TEXT,
+      amount NUMERIC(12,2) NOT NULL,
+      tx_date TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
-  // เผื่อกรณีตาราง transactions มีอยู่ก่อนแล้วแต่คอลัมน์ไม่ครบ (เช่นจากการทดลองครั้งก่อน)
-  // ใช้ ADD COLUMN IF NOT EXISTS เติมคอลัมน์ที่ขาดโดยไม่ลบข้อมูลเดิม
-  await pool.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS type TEXT`);
-  await pool.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS cat TEXT NOT NULL DEFAULT 'other'`);
-  await pool.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS title TEXT`);
-  await pool.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS amount NUMERIC(12,2)`);
-  await pool.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS tx_date TIMESTAMPTZ`);
-  await pool.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()`);
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)
   `);
@@ -42,12 +40,12 @@ async function init() {
   // ตารางค่าตั้งค่าต่อผู้ใช้ (ยอดเงินตั้งต้น, งบประมาณ, การแจ้งเตือน)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS user_settings (
-      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE
+      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      opening_balance NUMERIC(12,2) NOT NULL DEFAULT 0,
+      budget NUMERIC(12,2) NOT NULL DEFAULT 6000,
+      notif BOOLEAN NOT NULL DEFAULT TRUE
     )
   `);
-  await pool.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS opening_balance NUMERIC(12,2) NOT NULL DEFAULT 0`);
-  await pool.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS budget NUMERIC(12,2) NOT NULL DEFAULT 6000`);
-  await pool.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS notif BOOLEAN NOT NULL DEFAULT TRUE`);
 }
 
 // ตรวจสอบว่ามี username หรือ email นี้ในระบบแล้วหรือยัง
