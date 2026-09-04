@@ -120,7 +120,7 @@ async function getSettings(userId) {
 
   const inserted = await pool.query(
     `INSERT INTO user_settings (user_id, opening_balance, budget, notif)
-     VALUES ($1, 0, 6000, true)
+     VALUES ($1, 0, 5000, true)
      ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id
      RETURNING *`,
     [userId]
