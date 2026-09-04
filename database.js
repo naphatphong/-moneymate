@@ -20,7 +20,7 @@ async function init() {
     )
   `);
 
-  // ตารางรายการรายรับ-รายจ่าย ผูกกับผู้ใช้แต่ละคน (ทำให้ข้อมูลไม่หายเวลารีเฟรช)
+  // ตารางรายการรายรับ-รายจ่าย ผูกกับผู้ใช้แต่ละคน (ทำให้ข้อมูลไม่หายเวลาลบบัญชี)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS transactions (
       id SERIAL PRIMARY KEY,
@@ -120,7 +120,7 @@ async function getSettings(userId) {
 
   const inserted = await pool.query(
     `INSERT INTO user_settings (user_id, opening_balance, budget, notif)
-     VALUES ($1, 5000, 6000, true)
+     VALUES ($1, 0, 6000, true)
      ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id
      RETURNING *`,
     [userId]
