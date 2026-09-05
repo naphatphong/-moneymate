@@ -5,653 +5,846 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MoneyMate</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --green-deep:#1F6E4F;
-    --green-mid:#2F8F65;
-    --green-mint:#DCF2E4;
-    --paper:#F4F5F2;
-    --ink:#16281F;
-    --ink-soft:#6B7A71;
-    --clay:#E2572B;
-    --clay-soft:#FDEBE3;
-    --line:#E7ECE5;
-    --card:#FFFFFF;
-    --purple:#8B5CF6;
-    --teal:#12A594;
-    --teal-soft:#E4F6F3;
-    --shadow:0 20px 45px -22px rgba(22,40,31,.28);
+    --bg:#0B1614;
+    --panel: rgba(20, 38, 34, 0.55);
+    --panel-solid:#101F1C;
+    --pill:#0E1B18;
+    --line: rgba(255,255,255,0.09);
+    --text:#EDEDE7;
+    --text-soft:#8FA39B;
+    --emerald:#2FBF8F;
+    --emerald-dim: rgba(47,191,143,0.16);
+    --amber:#E8B04B;
+    --coral:#E8836F;
+    --blue:#5AA9E6;
+    --purple:#B98CE0;
+    --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --spring-soft: cubic-bezier(0.22, 1, 0.36, 1);
   }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
+  *{ box-sizing:border-box; }
+  html{ -webkit-tap-highlight-color: transparent; }
   body{
-    background:linear-gradient(180deg,#EFF6F1,#F4F5F2 220px);
-    font-family:'Sarabun',sans-serif;color:var(--ink);min-height:100vh;
+    margin:0; min-height:100vh; background:var(--bg);
+    font-family:'Inter',sans-serif; color:var(--text);
+    position:relative; overflow-x:hidden;
   }
-  button{font-family:inherit;}
-  input,select{font-family:inherit;}
-
-  .app-frame{
-    max-width:440px;margin:0 auto;min-height:100vh;background:var(--paper);
-    position:relative;box-shadow:var(--shadow);display:flex;flex-direction:column;
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
   }
-  @media (min-width:441px){
-    body{padding:28px 12px;}
-    .app-frame{min-height:calc(100vh - 56px);border-radius:28px;overflow:hidden;}
+  button{ font-family:'Inter',sans-serif; }
+
+  .orb{ position:fixed; border-radius:50%; filter: blur(90px); z-index:0; opacity:0.5; pointer-events:none; }
+  .orb.o1{ width:340px; height:340px; background: radial-gradient(circle, var(--emerald), transparent 70%); top:-100px; left:-90px; }
+  .orb.o2{ width:380px; height:380px; background: radial-gradient(circle, var(--amber), transparent 70%); bottom:-140px; right:-110px; opacity:0.22; }
+
+  .glass{
+    background: var(--panel);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border:1px solid var(--line);
+    border-radius:20px;
   }
 
-  /* ===================== HOME ===================== */
-  #view-home{display:flex;flex-direction:column;align-items:center;justify-content:space-between;flex:1;padding:48px 30px 34px;text-align:center;}
-  .home-top{display:flex;flex-direction:column;align-items:center;}
-  .app-name{font-family:'Prompt',sans-serif;font-weight:800;font-size:28px;margin:18px 0 8px;}
-  .app-name span{color:var(--green-deep);}
-  .app-tagline{font-size:14.5px;color:var(--ink-soft);line-height:1.7;}
-  .home-actions{width:100%;max-width:320px;}
-  .btn{width:100%;padding:15px 0;border-radius:16px;font-family:'Prompt';font-size:15px;font-weight:600;border:none;cursor:pointer;margin-bottom:11px;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .12s ease, opacity .12s ease;}
-  .btn:active{transform:scale(.97);}
-  .btn-primary{background:var(--green-deep);color:#fff;}
-  .btn-primary:hover{background:#195C42;}
-  .btn-outline{background:#fff;color:var(--green-deep);border:1.5px solid var(--green-deep);}
-  .btn-outline:hover{background:var(--green-mint);}
-  .divider{font-size:12px;color:var(--ink-soft);margin:2px 0 11px;}
-  .btn-google{background:#fff;color:var(--ink);border:1.5px solid var(--line);}
-  .btn-google:hover{background:#FAFAF8;}
-  .skyline{width:100%;opacity:.9;margin-top:6px;}
-
-  /* ===================== APP SHELL ===================== */
-  #view-shell{display:none;flex-direction:column;flex:1;min-height:100%;}
-  #view-shell.ready{display:flex;}
-  .app-header{
-    flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
-    padding:20px 20px 14px;background:var(--paper);position:sticky;top:0;z-index:20;
+  #authGate{
+    position:fixed; inset:0; background:var(--bg); z-index:100;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text-soft); font-size:0.9rem;
   }
-  .header-title{font-family:'Prompt';font-weight:700;font-size:18px;}
-  .icon-btn{width:36px;height:36px;border-radius:12px;background:#fff;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--ink);cursor:pointer;position:relative;flex:0 0 36px;}
-  .icon-btn:hover{background:#F3F6F3;}
-  .icon-btn .dot{position:absolute;top:6px;right:6px;width:7px;height:7px;background:var(--clay);border-radius:50%;border:1.5px solid #fff;}
 
-  .app-main{flex:1;overflow-y:auto;padding:2px 20px 100px;}
-  .tab-view{display:none;}
-  .tab-view.active{display:block;animation:fadein .18s ease;}
-  @keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+  /* ============ APP SHELL ============ */
+  #app{ display:none; }
+  #app.ready{ display:block; }
+  .shell{ position:relative; z-index:1; display:flex; min-height:100vh; }
 
-  /* Dashboard */
-  .balance-card{background:linear-gradient(135deg,var(--green-deep),var(--green-mid) 140%);border-radius:22px;padding:20px;color:#fff;margin-bottom:14px;position:relative;overflow:hidden;}
-  .balance-card::after{content:"";position:absolute;right:-30px;top:-30px;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.08);}
-  .balance-label{font-size:12.5px;opacity:.85;margin-bottom:6px;}
-  .balance-amount{font-family:'Prompt';font-size:29px;font-weight:700;}
-  .balance-sub{font-size:11.5px;opacity:.85;margin-top:8px;}
-
-  .budget-box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:15px 17px;margin-bottom:14px;}
-  .budget-cols{display:flex;justify-content:space-between;margin-bottom:10px;}
-  .budget-item .label{font-size:11.5px;color:var(--ink-soft);margin-bottom:3px;}
-  .budget-item .value{font-family:'Prompt';font-weight:700;font-size:16px;color:var(--ink);cursor:pointer;border-bottom:1px dashed transparent;}
-  .budget-item .value.editable:hover{border-bottom-color:var(--green-deep);}
-  .budget-item input{font-family:'Prompt';font-weight:700;font-size:16px;color:var(--ink);width:90px;border:1px solid var(--green-mid);border-radius:8px;padding:2px 6px;}
-  .progress-track{height:9px;border-radius:999px;background:#EAF1EC;overflow:hidden;margin-bottom:8px;}
-  .progress-fill{height:100%;border-radius:999px;background:var(--green-deep);transition:width .3s ease;}
-  .progress-fill.over{background:var(--clay);}
-  .budget-caption{font-size:12px;color:var(--ink-soft);text-align:center;}
-
-  .quick-actions{display:flex;gap:12px;margin-bottom:18px;}
-  .qa-btn{flex:1;border-radius:16px;padding:13px 10px;display:flex;flex-direction:column;align-items:center;gap:7px;font-family:'Prompt';font-size:12.5px;font-weight:600;border:none;cursor:pointer;}
-  .qa-income{background:var(--green-mint);color:var(--green-deep);}
-  .qa-expense{background:var(--clay-soft);color:var(--clay);}
-  .qa-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;}
-  .qa-income .qa-icon{background:var(--green-deep);}
-  .qa-expense .qa-icon{background:var(--clay);}
-
-  .section-title{font-family:'Prompt';font-weight:600;font-size:14px;margin:2px 0 10px;display:flex;justify-content:space-between;align-items:center;}
-  .section-title .link{font-size:12px;font-weight:600;color:var(--green-deep);cursor:pointer;background:none;border:none;font-family:'Prompt';}
-
-  .tx-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);}
-  .tx-icon{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:0 0 38px;font-size:16px;}
-  .tx-info{flex:1;min-width:0;}
-  .tx-title{font-size:13.5px;font-weight:600;color:var(--ink);}
-  .tx-meta{font-size:11.5px;color:var(--ink-soft);}
-  .tx-amount{font-family:'Prompt';font-size:13.5px;font-weight:700;white-space:nowrap;}
-  .tx-amount.neg{color:var(--clay);}
-  .tx-amount.pos{color:var(--green-deep);}
-  .empty-note{text-align:center;color:var(--ink-soft);font-size:13px;padding:30px 0;}
-
-  /* List tab */
-  .list-filters{display:flex;gap:8px;margin-bottom:14px;}
-  .filter-chip{padding:7px 16px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;font-family:'Prompt';}
-  .filter-chip.active{background:var(--green-deep);color:#fff;border-color:var(--green-deep);}
-  .date-group-label{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:14px 0 4px;font-family:'Prompt';}
-
-  /* Reports */
-  .seg-control{display:flex;background:#EBEDE7;border-radius:13px;padding:4px;margin-bottom:16px;}
-  .seg-option{flex:1;text-align:center;padding:9px 0;font-family:'Prompt';font-size:12.5px;font-weight:600;color:var(--ink-soft);border-radius:10px;cursor:pointer;border:none;background:none;}
-  .seg-option.active{background:var(--green-deep);color:#fff;}
-
-  .donut-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:17px;margin-bottom:14px;}
-  .donut-card-title{font-family:'Prompt';font-size:13px;font-weight:600;margin-bottom:12px;}
-  .donut-row{display:flex;align-items:center;gap:16px;}
-  .donut{width:104px;height:104px;border-radius:50%;flex:0 0 104px;display:flex;align-items:center;justify-content:center;position:relative;}
-  .donut::before{content:"";position:absolute;width:66px;height:66px;background:var(--card);border-radius:50%;}
-  .donut-center{position:relative;font-family:'Prompt';font-size:11px;font-weight:700;text-align:center;line-height:1.35;}
-  .legend-list{flex:1;display:flex;flex-direction:column;gap:7px;}
-  .legend-row{display:flex;align-items:center;gap:7px;font-size:11.5px;}
-  .legend-dot{width:8px;height:8px;border-radius:50%;flex:0 0 8px;}
-  .legend-row .lname{flex:1;color:var(--ink-soft);}
-  .legend-row .lval{font-weight:700;text-align:right;font-family:'Prompt';font-size:11px;}
-
-  .line-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:17px 17px 8px;margin-bottom:14px;}
-  .line-card-title{font-family:'Prompt';font-size:13px;font-weight:600;margin-bottom:10px;}
-
-  .alert-box{border-radius:15px;padding:14px 15px;margin-bottom:12px;display:flex;gap:9px;align-items:flex-start;}
-  .alert-box.warn{background:var(--clay-soft);border:1px solid #F5CBB6;}
-  .alert-box.ok{background:var(--green-mint);border:1px solid #BEE3CD;}
-  .alert-box .icon{font-size:17px;line-height:1.1;}
-  .alert-title{font-family:'Prompt';font-weight:700;font-size:12.5px;margin-bottom:2px;}
-  .alert-box.warn .alert-title{color:#B8391A;}
-  .alert-box.ok .alert-title{color:var(--green-deep);}
-  .alert-text{font-size:11.5px;line-height:1.5;}
-  .alert-box.warn .alert-text{color:#8A3821;}
-  .alert-box.ok .alert-text{color:#1E4A38;}
-
-  .tip-box{background:var(--teal-soft);border:1px solid #BFE6E0;border-radius:15px;padding:14px 15px;display:flex;gap:9px;align-items:flex-start;}
-  .tip-box .icon{color:var(--teal);font-size:17px;line-height:1.1;}
-  .tip-title{font-family:'Prompt';font-weight:700;font-size:12.5px;color:#0C7A6E;margin-bottom:2px;}
-  .tip-text{font-size:11.5px;color:#0C5E56;line-height:1.5;}
-
-  /* Profile */
-  .profile-head{display:flex;flex-direction:column;align-items:center;padding:18px 0 22px;}
-  .avatar-lg{width:74px;height:74px;border-radius:50%;background:var(--green-mint);display:flex;align-items:center;justify-content:center;font-family:'Prompt';font-weight:700;color:var(--green-deep);font-size:26px;margin-bottom:10px;}
-  .profile-name{font-family:'Prompt';font-weight:700;font-size:16px;}
-  .profile-sub{font-size:12.5px;color:var(--ink-soft);}
-  .profile-row{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:15px;padding:14px 16px;margin-bottom:10px;font-size:13.5px;font-weight:500;cursor:pointer;}
-  .profile-row .r-left{display:flex;align-items:center;gap:12px;}
-  .toggle{width:40px;height:22px;border-radius:999px;background:var(--line);position:relative;cursor:pointer;flex:0 0 40px;}
-  .toggle.on{background:var(--green-deep);}
-  .toggle .knob{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s ease;}
-  .toggle.on .knob{left:20px;}
-  .btn-logout{width:100%;padding:13px 0;border-radius:15px;background:var(--clay-soft);color:var(--clay);border:none;font-family:'Prompt';font-weight:600;font-size:13.5px;cursor:pointer;margin-top:8px;}
-
-  /* Bottom nav */
-  .bottom-nav{
-    position:sticky;bottom:0;flex:0 0 auto;display:flex;align-items:center;justify-content:space-around;
-    border-top:1px solid var(--line);background:#fff;padding:8px 6px 10px;z-index:20;
+  .sidebar{
+    display:none; width:220px; flex-shrink:0; padding:28px 18px;
+    flex-direction:column; border-right:1px solid var(--line);
+    background: rgba(10,20,18,0.4);
   }
-  .nav-item{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;color:var(--ink-soft);font-family:'Prompt';font-weight:500;background:none;border:none;cursor:pointer;padding:4px 8px;}
-  .nav-item.active{color:var(--green-deep);}
-  .nav-dot{width:24px;height:24px;display:flex;align-items:center;justify-content:center;}
-  .nav-item.center{margin-top:-22px;}
-  .nav-item.center .nav-dot{width:44px;height:44px;border-radius:15px;background:var(--green-deep);color:#fff;box-shadow:0 10px 18px -6px rgba(31,110,79,.55);}
-  .nav-item.center:hover .nav-dot{background:#195C42;}
+  .sidebar .brand{ font-family:'Fraunces'; font-style:italic; font-weight:600; font-size:1.4rem; margin-bottom:36px; padding-left:6px; }
+  .sidebar .brand .accent{ color:var(--emerald); }
+  .sidebar nav{ display:flex; flex-direction:column; gap:4px; }
+  .sidebar .nitem{
+    display:flex; align-items:center; gap:12px; padding:11px 14px; border-radius:12px;
+    font-size:0.9rem; color:var(--text-soft); cursor:pointer; transition: all 0.25s var(--spring);
+  }
+  .sidebar .nitem svg{ width:17px; height:17px; stroke:currentColor; fill:none; stroke-width:1.8; flex-shrink:0; }
+  .sidebar .nitem:hover{ background: rgba(255,255,255,0.04); color:var(--text); }
+  .sidebar .nitem.active{ background: var(--emerald-dim); color:var(--emerald); transform: translateX(3px); }
+  .sidebar .spacer{ flex:1; }
+  .sidebar .user{ display:flex; align-items:center; gap:10px; padding:10px 8px; border-top:1px solid var(--line); margin-top:12px; padding-top:16px; cursor:pointer; }
+  .sidebar .user .av{ width:32px;height:32px;border-radius:50%; background:linear-gradient(135deg,var(--emerald),var(--amber)); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-family:'Fraunces'; font-weight:600; font-size:0.9rem; color:#06231B; }
+  .sidebar .user .name{ font-size:0.85rem; font-weight:500; }
+  .sidebar .user .role{ font-size:0.72rem; color:var(--text-soft); }
 
-  /* Modal */
-  .modal-overlay{position:fixed;inset:0;background:rgba(22,40,31,.45);display:none;align-items:flex-end;justify-content:center;z-index:100;}
-  .modal-overlay.open{display:flex;}
-  .modal-sheet{background:#fff;width:100%;max-width:440px;border-radius:24px 24px 0 0;padding:22px 22px 26px;max-height:88vh;overflow-y:auto;animation:slideup .2s ease;}
-  @keyframes slideup{from{transform:translateY(30px);opacity:0;}to{transform:translateY(0);opacity:1;}}
-  .modal-handle{width:40px;height:4px;background:var(--line);border-radius:999px;margin:0 auto 16px;}
-  .modal-title{font-family:'Prompt';font-weight:700;font-size:16px;margin-bottom:16px;}
-  .type-toggle{display:flex;background:#EFEFE7;border-radius:13px;padding:4px;margin-bottom:16px;}
-  .type-opt{flex:1;text-align:center;padding:10px 0;border-radius:10px;font-family:'Prompt';font-weight:600;font-size:13px;color:var(--ink-soft);cursor:pointer;}
-  .type-opt.active-expense{background:var(--clay);color:#fff;}
-  .type-opt.active-income{background:var(--green-deep);color:#fff;}
-  .field-label{font-size:12px;color:var(--ink-soft);font-weight:600;margin:12px 0 6px;font-family:'Prompt';}
-  .cat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
-  .cat-chip{border:1.5px solid var(--line);border-radius:13px;padding:10px 4px;text-align:center;font-size:11.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;background:#fff;}
-  .cat-chip .em{font-size:18px;display:block;margin-bottom:4px;}
-  .cat-chip.selected{border-color:var(--green-deep);background:var(--green-mint);color:var(--green-deep);}
-  .field-input{width:100%;border:1.5px solid var(--line);border-radius:13px;padding:12px 14px;font-size:14px;color:var(--ink);}
-  .field-input:focus{outline:none;border-color:var(--green-deep);}
-  .field-error{color:var(--clay);font-size:11.5px;margin-top:4px;display:none;}
-  .modal-actions{margin-top:20px;}
-  .btn-cancel{background:#fff;color:var(--ink-soft);border:1.5px solid var(--line);}
+  .main{ flex:1; min-width:0; padding:22px 16px 110px; max-width:1100px; margin:0 auto; width:100%; }
 
-  .toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--ink);color:#fff;padding:11px 20px;border-radius:999px;font-size:13px;font-family:'Prompt';font-weight:500;opacity:0;pointer-events:none;transition:opacity .2s ease, transform .2s ease;z-index:200;white-space:nowrap;}
-  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .topbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:22px; gap:12px; }
+  .topbar .tag{ font-size:0.78rem; color:var(--text-soft); }
+  .topbar .greet{ display:none; font-family:'Fraunces'; font-style:italic; font-size:1.3rem; }
+  .topbar-right{ display:flex; align-items:center; gap:10px; }
+
+  .add-btn-desktop{
+    display:none; align-items:center; gap:6px;
+    background: var(--emerald); color:#06231B; border:none;
+    padding:10px 18px; border-radius:12px; font-weight:600; font-size:0.85rem; cursor:pointer;
+    transition: transform 0.28s var(--spring), box-shadow 0.2s;
+  }
+  .add-btn-desktop:hover{ box-shadow: 0 8px 24px -8px rgba(47,191,143,0.55); }
+  .add-btn-desktop:active{ transform: scale(0.95); }
+
+  .lang-toggle{
+    position:relative; display:flex; background: rgba(255,255,255,0.06); border:1px solid var(--line);
+    border-radius:999px; padding:3px; width:84px; cursor:pointer; user-select:none; flex-shrink:0;
+  }
+  .lang-toggle .thumb{ position:absolute; top:3px; left:3px; width:38px; height:26px; background: var(--emerald); border-radius:999px; transition: transform 0.42s var(--spring); }
+  .lang-toggle.en .thumb{ transform: translateX(38px); }
+  .lang-toggle .opt{ position:relative; z-index:1; width:38px; height:26px; display:flex; align-items:center; justify-content:center; font-size:0.72rem; font-weight:600; color:var(--text-soft); }
+  .lang-toggle:not(.en) .opt.th{ color:#06231B; }
+  .lang-toggle.en .opt.en{ color:#06231B; }
+
+  .bell{
+    width:38px;height:38px;border-radius:50%; background:var(--panel);
+    backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border:1px solid var(--line); display:flex;align-items:center;justify-content:center; font-size:0.95rem; flex-shrink:0;
+    cursor:pointer; position:relative;
+    animation: bell-drop 0.6s var(--spring) 0.15s both;
+  }
+  .bell .ping{ position:absolute; top:8px; right:9px; width:6px; height:6px; border-radius:50%; background:var(--coral); }
+  @keyframes bell-drop{ 0%{ transform: translateY(-16px) scale(0.7); opacity:0; } 100%{ transform: translateY(0) scale(1); opacity:1; } }
+
+  .dash-grid{ display:grid; grid-template-columns:1fr; gap:16px; margin-bottom:16px; }
+
+  .hero{ padding:26px 22px; animation: hero-in 0.55s var(--spring) 0.05s both; }
+  @keyframes hero-in{ 0%{ transform: scale(0.92) translateY(10px); opacity:0; } 100%{ transform: scale(1) translateY(0); opacity:1; } }
+  .hero .label{ font-size:0.82rem; color:var(--text-soft); margin-bottom:8px; }
+  .hero .figure{ font-family:'Fraunces'; font-style:italic; font-weight:500; font-size:3rem; line-height:1; font-variant-numeric: tabular-nums; }
+  .hero .figure .accent{ color: var(--emerald); }
+  .hero .sub{ font-size:0.82rem; color:var(--emerald); margin-top:10px; }
+  .hero .sub.negative{ color: var(--coral); }
+
+  .side-panels{ display:flex; flex-direction:column; gap:16px; }
+  .panel{ padding:16px 18px; }
+  .budget-head{ display:flex; justify-content:space-between; font-size:0.8rem; color:var(--text-soft); margin-bottom:10px; }
+  .budget-head b{ color:var(--text); font-weight:600; cursor:pointer; border-bottom:1px dashed transparent; }
+  .budget-head b:hover{ border-bottom-color:var(--text-soft); }
+  .budget-head input{
+    background:rgba(255,255,255,0.06); border:1px solid var(--emerald); border-radius:6px;
+    color:var(--text); font-family:'Inter'; font-weight:600; font-size:0.8rem; width:80px; padding:2px 6px; outline:none;
+  }
+  .track{ height:6px; background: rgba(255,255,255,0.08); border-radius:6px; overflow:hidden; }
+  .fill{ height:100%; width:0%; background: linear-gradient(90deg, var(--emerald), var(--amber)); border-radius:6px; transition: width 1s var(--spring-soft) 0.2s, background 0.3s; }
+  .fill.over{ background: linear-gradient(90deg, var(--coral), #C24B3A); }
+
+  .mini-stat{ display:flex; align-items:center; justify-content:space-between; }
+  .mini-stat .t{ font-size:0.8rem; color:var(--text-soft); }
+  .mini-stat .v{ font-family:'Fraunces'; font-style:italic; font-size:1.3rem; color:var(--coral); }
+
+  .actions{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:24px; }
+  .actions button{
+    border-radius:14px; padding:14px 0; font-weight:600; font-size:0.92rem; cursor:pointer; border:1px solid var(--line);
+    transition: transform 0.28s var(--spring), background 0.2s, box-shadow 0.2s;
+  }
+  .actions button:active{ transform: scale(0.94); }
+  .actions .in{ background: transparent; color: var(--emerald); border-color: var(--emerald); }
+  .actions .in:hover{ background: var(--emerald-dim); }
+  .actions .out{ background: var(--emerald); color:#06231B; border-color: var(--emerald); }
+  .actions .out:hover{ box-shadow: 0 8px 24px -8px rgba(47,191,143,0.55); }
+
+  .content-grid{ display:grid; grid-template-columns:1fr; gap:16px; }
+
+  .section-title{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; }
+  .section-title h2{ font-family:'Fraunces'; font-style:italic; font-size:1.05rem; font-weight:600; margin:0; }
+  .section-title span{ font-size:0.76rem; color:var(--emerald); cursor:pointer; }
+
+  .empty-state{ padding:30px 10px; text-align:center; color:var(--text-soft); font-size:0.85rem; }
+
+  .list .row{
+    display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line);
+    opacity:0; transform: translateY(10px); animation: row-in 0.45s var(--spring-soft) forwards;
+  }
+  .list .row:last-child{ border-bottom:none; }
+  @keyframes row-in{ to{ opacity:1; transform: translateY(0); } }
+  .row .dot{ width:8px;height:8px;border-radius:50%; flex-shrink:0; }
+  .row .info{ flex:1; min-width:0; }
+  .row .name{ font-size:0.9rem; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row .meta{ font-size:0.74rem; color:var(--text-soft); }
+  .row .amt{ font-family:'Fraunces'; font-weight:600; font-variant-numeric: tabular-nums; font-size:0.94rem; white-space:nowrap; }
+  .row .amt.pos{ color: var(--emerald); }
+
+  .cat-breakdown{ display:flex; flex-direction:column; gap:14px; }
+  .cat-item{ display:flex; align-items:center; gap:10px; }
+  .cat-item .swatch{ width:10px;height:10px;border-radius:3px; flex-shrink:0; }
+  .cat-item .label{ flex:1; font-size:0.85rem; }
+  .cat-item .pct{ font-size:0.8rem; color:var(--text-soft); font-family:'Fraunces'; }
+
+  /* ---- profile view ---- */
+  .profile-card{ padding:26px 22px; display:flex; align-items:center; gap:16px; margin-bottom:16px; }
+  .profile-card .av{ width:56px;height:56px;border-radius:50%; background:linear-gradient(135deg,var(--emerald),var(--amber)); display:flex; align-items:center; justify-content:center; font-family:'Fraunces'; font-weight:600; font-size:1.4rem; color:#06231B; flex-shrink:0; }
+  .profile-card .uname{ font-family:'Fraunces'; font-style:italic; font-size:1.2rem; }
+  .profile-card .uemail{ font-size:0.8rem; color:var(--text-soft); margin-top:2px; }
+
+  .settings-row{ display:flex; justify-content:space-between; align-items:center; padding:14px 4px; border-bottom:1px solid var(--line); }
+  .settings-row:last-child{ border-bottom:none; }
+  .settings-row .t{ font-size:0.9rem; }
+
+  .switch{ position:relative; width:44px; height:26px; border-radius:999px; background:rgba(255,255,255,0.1); cursor:pointer; flex-shrink:0; transition: background 0.3s; }
+  .switch.on{ background: var(--emerald); }
+  .switch .knob{ position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff; transition: transform 0.35s var(--spring); }
+  .switch.on .knob{ transform: translateX(18px); }
+
+  .logout-btn{
+    width:100%; margin-top:20px; padding:13px 0; border-radius:12px; border:1px solid var(--coral);
+    background:transparent; color:var(--coral); font-weight:600; font-size:0.9rem; cursor:pointer;
+    transition: all 0.25s var(--spring);
+  }
+  .logout-btn:hover{ background: rgba(232,131,111,0.1); }
+  .logout-btn:active{ transform: scale(0.97); }
+
+  .view{ display:none; }
+  .view.active{ display:block; }
+
+  /* ============ MOBILE: gooey tab bar ============ */
+  .fab{
+    position:fixed; right:24px; bottom:104px; z-index:6;
+    width:54px; height:54px; border-radius:50%; background: var(--emerald); color:#06231B;
+    border:none; font-size:1.5rem; cursor:pointer; box-shadow: 0 10px 30px -8px rgba(47,191,143,0.6);
+    transition: transform 0.3s var(--spring);
+  }
+  .fab:active{ transform: scale(0.88) rotate(15deg); }
+
+  .toolbar-wrap{
+    position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
+    width:264px; height:70px; z-index:6;
+  }
+  .goo-group{ filter: url(#goo); position:absolute; inset:0; }
+  .pill{ position:absolute; left:0; right:0; bottom:0; height:56px; background: var(--pill); border-radius:28px; box-shadow: 0 14px 34px -12px rgba(0,0,0,0.65); }
+  .cutter{
+    position:absolute; top:0; width:50px; height:50px; border-radius:50%; background: var(--bg);
+    transform: translate(-50%, 0); transition: left 0.5s cubic-bezier(0.65, -0.4, 0.35, 1.4);
+  }
+  .bubble{
+    position:fixed; bottom:36px; z-index:7;
+    width:42px; height:42px; border-radius:50%; background: var(--emerald);
+    transform: translate(-50%, 0); transition: left 0.5s cubic-bezier(0.65, -0.4, 0.35, 1.4);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 6px 18px -4px rgba(47,191,143,0.6);
+  }
+  .bubble svg{ width:19px; height:19px; stroke:#06231B; fill:none; stroke-width:1.8; }
+  @keyframes pop-in{
+    0%{ transform: translate(-50%, 10px) scale(0.65); opacity:0.6; }
+    60%{ transform: translate(-50%, -3px) scale(1.08); }
+    100%{ transform: translate(-50%, 0) scale(1); }
+  }
+  .bubble.pop{ animation: pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+  .icon-row{ position:absolute; inset:0; bottom:0; height:56px; display:flex; align-items:center; justify-content:space-around; padding: 0 4px; z-index:1; }
+  .icon-row button{
+    background:none; border:none; cursor:pointer; width:42px; height:42px;
+    display:flex; align-items:center; justify-content:center; border-radius:50%;
+    color: var(--text-soft); transition: opacity 0.3s, transform 0.3s;
+  }
+  .icon-row button svg{ width:19px; height:19px; stroke:currentColor; fill:none; stroke-width:1.8; }
+  .icon-row button.is-active{ opacity:0; pointer-events:none; }
+  .icon-row button:not(.is-active):active{ transform: scale(0.85); }
+
+  /* ---- modal ---- */
+  .modal-overlay{
+    position:fixed; inset:0; background: rgba(4,10,9,0.55); backdrop-filter: blur(6px);
+    display:flex; align-items:flex-end; justify-content:center; z-index:20;
+    opacity:0; pointer-events:none; transition: opacity 0.3s;
+  }
+  .modal-overlay.open{ opacity:1; pointer-events:auto; }
+  .modal{
+    width:100%; max-width:420px; background: var(--panel-solid); border:1px solid var(--line);
+    border-radius:24px 24px 0 0; padding:26px 22px 30px; max-height:88vh; overflow-y:auto;
+    transform: translateY(30px) scale(0.96); opacity:0;
+    transition: transform 0.4s var(--spring), opacity 0.3s;
+  }
+  .modal-overlay.open .modal{ transform: translateY(0) scale(1); opacity:1; }
+  @media (min-width:640px){ .modal-overlay{ align-items:center; } .modal{ border-radius:22px; } }
+  .modal h3{ font-family:'Fraunces'; font-style:italic; font-weight:600; font-size:1.3rem; margin:0 0 18px; }
+  .type-switch{ display:flex; gap:8px; margin-bottom:18px; }
+  .type-switch button{
+    flex:1; padding:10px 0; border-radius:12px; border:1px solid var(--line); background:transparent;
+    color:var(--text-soft); font-weight:600; font-size:0.85rem; cursor:pointer; transition: all 0.25s var(--spring);
+  }
+  .type-switch button.active.exp{ background: var(--coral); border-color:var(--coral); color:#2B0B04; }
+  .type-switch button.active.inc{ background: var(--emerald); border-color:var(--emerald); color:#06231B; }
+  .cats{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:18px; }
+  .cats button{
+    padding:12px 4px; border-radius:12px; border:1px solid var(--line); background: rgba(255,255,255,0.03);
+    color:var(--text-soft); font-size:0.78rem; cursor:pointer; transition: all 0.25s var(--spring);
+  }
+  .cats button.active{ border-color: var(--emerald); color: var(--emerald); background: var(--emerald-dim); transform: scale(1.04); }
+  .field{ margin-bottom:16px; }
+  .field label{ display:block; font-size:0.78rem; color:var(--text-soft); margin-bottom:6px; }
+  .field input{
+    width:100%; background: rgba(255,255,255,0.04); border:1px solid var(--line); border-radius:12px;
+    padding:12px 14px; color:var(--text); font-size:0.95rem; font-family:'Inter'; outline:none; transition: border-color 0.2s;
+  }
+  .field input:focus{ border-color: var(--emerald); }
+  .field .err{ color:var(--coral); font-size:0.76rem; margin-top:6px; display:none; }
+  .modal-actions{ display:flex; gap:10px; }
+  .modal-actions button{ flex:1; padding:14px 0; border-radius:12px; font-weight:600; font-size:0.9rem; cursor:pointer; transition: transform 0.25s var(--spring); border:none; }
+  .modal-actions button:active{ transform: scale(0.95); }
+  .modal-actions .cancel{ background:transparent; border:1px solid var(--line); color:var(--text-soft); }
+  .modal-actions .save{ background: var(--emerald); border:1px solid var(--emerald); color:#06231B; }
+  .modal-actions .save:disabled{ opacity:0.6; cursor:default; }
+
+  .toast{
+    position:fixed; top:18px; left:50%; transform: translate(-50%, -60px);
+    background: var(--panel-solid); border:1px solid var(--line); padding:12px 20px; border-radius:14px;
+    font-size:0.85rem; color:var(--text); z-index:30; transition: transform 0.45s var(--spring);
+    display:flex; align-items:center; gap:8px; max-width:88vw;
+  }
+  .toast.show{ transform: translate(-50%, 0); }
+  .toast .check{ color: var(--emerald); font-weight:700; }
+  .toast .warn{ color: var(--coral); font-weight:700; }
+
+  @media (min-width:900px){
+    .sidebar{ display:flex; }
+    .main{ padding:32px 40px 60px; }
+    .toolbar-wrap, .bubble, .fab{ display:none; }
+    .add-btn-desktop{ display:flex; }
+    .topbar .greet{ display:block; }
+    .topbar .tag{ display:none; }
+    .hero .figure{ font-size:3.6rem; }
+    .dash-grid{ grid-template-columns: 1.5fr 1fr; align-items:stretch; }
+    .content-grid{ grid-template-columns: 1.6fr 1fr; align-items:start; }
+    .actions{ display:none; }
+  }
+  @media (min-width:1200px){ .main{ max-width:1180px; } }
 </style>
 </head>
 <body>
+<div id="authGate">กำลังตรวจสอบสิทธิ์…</div>
 
-<div class="app-frame" id="appFrame">
+<div class="orb o1"></div>
+<div class="orb o2"></div>
 
-  <!-- ============ APP SHELL ============ -->
-  <div id="view-shell">
-    <div class="app-header">
-      <div class="icon-btn" onclick="showToast('เมนู')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
-      <div class="header-title" id="headerTitle">หน้าหลัก</div>
-      <div class="icon-btn" onclick="showToast('ยังไม่มีการแจ้งเตือนใหม่')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3a5 5 0 00-5 5v3.4c0 .6-.2 1.2-.6 1.7L5 15h14l-1.4-1.9c-.4-.5-.6-1.1-.6-1.7V8a5 5 0 00-5-5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 18a2 2 0 004 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-        <div class="dot"></div>
+<div id="app">
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">Money<span class="accent">Mate</span></div>
+    <nav id="sidebarNav">
+      <div class="nitem active" data-view="home">
+        <svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9h14v-9"/></svg>
+        <span data-i18n="nav_home">หน้าหลัก</span>
+      </div>
+      <div class="nitem" data-view="activity">
+        <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+        <span data-i18n="nav_list">รายการ</span>
+      </div>
+      <div class="nitem" data-view="reports">
+        <svg viewBox="0 0 24 24"><path d="M4 19V10M12 19V5M20 19v-6"/></svg>
+        <span data-i18n="nav_report">รายงาน</span>
+      </div>
+      <div class="nitem" data-view="profile">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c1.2-4 4-6 7-6s5.8 2 7 6"/></svg>
+        <span data-i18n="nav_profile">โปรไฟล์</span>
+      </div>
+    </nav>
+    <div class="spacer"></div>
+    <div class="user" data-view="profile">
+      <div class="av" id="sidebarAvatar">?</div>
+      <div>
+        <div class="name" id="sidebarName">—</div>
+        <div class="role" data-i18n="account_tag_short">บัญชีหลัก</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <span class="tag" id="topTag">บัญชีหลัก</span>
+      <div class="greet" id="topGreet">สวัสดี</div>
+      <div class="topbar-right">
+        <button class="add-btn-desktop" id="fabDesktop">+ <span data-i18n="add_tx">เพิ่มรายการ</span></button>
+        <div class="lang-toggle" id="langToggle">
+          <div class="thumb"></div>
+          <div class="opt th">TH</div>
+          <div class="opt en">EN</div>
+        </div>
+        <div class="bell" id="bell">🔔<span class="ping" id="bellPing" style="display:none"></span></div>
       </div>
     </div>
 
-    <div class="app-main">
-
-      <!-- DASHBOARD TAB -->
-      <section class="tab-view active" id="tab-dashboard">
-        <div class="balance-card">
-          <div class="balance-label">ยอดเงินคงเหลือ</div>
-          <div class="balance-amount" id="balanceAmount">0.00 บาท</div>
-          <div class="balance-sub" id="balanceSub"></div>
+    <!-- ===== HOME ===== -->
+    <div class="view active" id="view-home">
+      <div class="dash-grid">
+        <div class="glass hero">
+          <div class="label" data-i18n="balance_label">ยอดเงินคงเหลือ</div>
+          <div class="figure"><span class="accent">฿</span><span id="balanceFigure">0.00</span></div>
+          <div class="sub" id="incomeSub">รายรับสะสม ฿0.00</div>
         </div>
-        <div class="budget-box">
-          <div class="budget-cols">
-            <div class="budget-item">
-              <div class="label">งบประมาณเดือนนี้</div>
-              <div class="value editable" id="budgetValueDisplay" onclick="editBudget()"></div>
+        <div class="side-panels">
+          <div class="glass panel">
+            <div class="budget-head">
+              <span data-i18n="budget_label">งบประมาณเดือนนี้</span>
+              <span><b id="budgetSpent">฿0</b> / <b id="budgetMax">฿0</b></span>
             </div>
-            <div class="budget-item" style="text-align:right;">
-              <div class="label">ใช้ไปแล้ว</div>
-              <div class="value" id="usedValueDisplay"></div>
-            </div>
+            <div class="track"><div class="fill" id="budgetFill"></div></div>
           </div>
-          <div class="progress-track"><div class="progress-fill" id="budgetProgress"></div></div>
-          <div class="budget-caption" id="budgetCaption"></div>
-        </div>
-        <div class="quick-actions">
-          <button class="qa-btn qa-income" onclick="openAddModal('income')">
-            <div class="qa-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-            เพิ่มรายรับ
-          </button>
-          <button class="qa-btn qa-expense" onclick="openAddModal('expense')">
-            <div class="qa-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12l7 7 7-7" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-            เพิ่มรายจ่าย
-          </button>
-        </div>
-        <div class="section-title">รายการล่าสุด <button class="link" onclick="goTab('list')">ดูทั้งหมด ›</button></div>
-        <div id="recentTxList"></div>
-      </section>
-
-      <!-- LIST TAB -->
-      <section class="tab-view" id="tab-list">
-        <div class="list-filters" id="listFilters"></div>
-        <div id="fullTxList"></div>
-      </section>
-
-      <!-- REPORTS TAB -->
-      <section class="tab-view" id="tab-reports">
-        <div class="seg-control" id="periodSeg"></div>
-        <div class="donut-card">
-          <div class="donut-card-title">สรุปการใช้จ่าย</div>
-          <div class="donut-row">
-            <div class="donut" id="donutChart"><div class="donut-center" id="donutCenter"></div></div>
-            <div class="legend-list" id="donutLegend"></div>
+          <div class="glass panel mini-stat">
+            <div class="t" data-i18n="expense_month_label">รายจ่ายเดือนนี้</div>
+            <div class="v" id="expenseMonthVal">฿0</div>
           </div>
         </div>
-        <div class="line-card">
-          <div class="line-card-title">แนวโน้มการใช้จ่ายรายสัปดาห์</div>
-          <svg width="100%" height="86" viewBox="0 0 250 86" id="trendSvg"></svg>
-        </div>
-        <div id="alertBox"></div>
-        <div class="tip-box">
-          <div class="icon">💡</div>
-          <div><div class="tip-title">คำแนะนำ</div><div class="tip-text" id="tipText"></div></div>
-        </div>
-      </section>
+      </div>
 
-      <!-- PROFILE TAB -->
-      <section class="tab-view" id="tab-profile">
-        <div class="profile-head">
-          <div class="avatar-lg" id="profileAvatar">?</div>
-          <div class="profile-name" id="profileName">-</div>
-          <div class="profile-sub" id="profileEmail"></div>
-        </div>
-        <div class="profile-row" onclick="showToast('แก้ไขโปรไฟล์')"><span>แก้ไขโปรไฟล์</span><span>›</span></div>
-        <div class="profile-row" onclick="editBudget(); goTab('dashboard');"><span>ตั้งค่างบประมาณรายเดือน</span><span>›</span></div>
-        <div class="profile-row">
-          <div class="r-left"><span>การแจ้งเตือน</span></div>
-          <div class="toggle on" id="notifToggle" onclick="toggleNotif()"><div class="knob"></div></div>
-        </div>
-        <button class="btn-logout" onclick="logout()">ออกจากระบบ</button>
-      </section>
+      <div class="actions">
+        <button class="in" id="btnIncome" data-i18n="add_income">+ รายรับ</button>
+        <button class="out" id="btnExpense" data-i18n="add_expense">− รายจ่าย</button>
+      </div>
 
+      <div class="content-grid">
+        <div>
+          <div class="section-title">
+            <h2 data-i18n="recent">รายการล่าสุด</h2>
+            <span data-i18n="see_all" data-goto="activity">ดูทั้งหมด</span>
+          </div>
+          <div class="glass panel list" id="recentList" style="padding:4px 18px;"></div>
+        </div>
+        <div>
+          <div class="section-title"><h2 data-i18n="breakdown">แยกตามหมวดหมู่</h2></div>
+          <div class="glass panel cat-breakdown" id="catBreakdown"></div>
+        </div>
+      </div>
     </div>
 
-    <div class="bottom-nav">
-      <button class="nav-item active" id="nav-dashboard" onclick="goTab('dashboard')"><div class="nav-dot">🏠</div>หน้าหลัก</button>
-      <button class="nav-item" id="nav-list" onclick="goTab('list')"><div class="nav-dot">📋</div>รายการ</button>
-      <button class="nav-item center" onclick="openAddModal('expense')"><div class="nav-dot">＋</div></button>
-      <button class="nav-item" id="nav-reports" onclick="goTab('reports')"><div class="nav-dot">📊</div>รายงาน</button>
-      <button class="nav-item" id="nav-profile" onclick="goTab('profile')"><div class="nav-dot">👤</div>โปรไฟล์</button>
+    <!-- ===== ACTIVITY ===== -->
+    <div class="view" id="view-activity">
+      <div class="section-title"><h2 data-i18n="nav_list">รายการ</h2></div>
+      <div class="glass panel list" id="fullList" style="padding:4px 18px;"></div>
     </div>
-  </div>
 
+    <!-- ===== REPORTS ===== -->
+    <div class="view" id="view-reports">
+      <div class="section-title"><h2 data-i18n="breakdown_full">สรุปรายจ่ายตามหมวดหมู่ (เดือนนี้)</h2></div>
+      <div class="glass panel cat-breakdown" id="catBreakdownFull" style="padding:18px 20px;"></div>
+    </div>
+
+    <!-- ===== PROFILE ===== -->
+    <div class="view" id="view-profile">
+      <div class="glass profile-card">
+        <div class="av" id="profileAvatar">?</div>
+        <div>
+          <div class="uname" id="profileName">—</div>
+          <div class="uemail" id="profileEmail">—</div>
+        </div>
+      </div>
+      <div class="glass panel">
+        <div class="settings-row">
+          <span class="t" data-i18n="notif_setting">แจ้งเตือน</span>
+          <div class="switch" id="notifSwitch"><div class="knob"></div></div>
+        </div>
+      </div>
+      <button class="logout-btn" id="btnLogout" data-i18n="logout">ออกจากระบบ</button>
+    </div>
+  </main>
 </div>
 
-<!-- ADD TRANSACTION MODAL -->
-<div class="modal-overlay" id="addModal">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-title">เพิ่มรายการ</div>
-    <div class="type-toggle">
-      <div class="type-opt" id="typeExpenseOpt" onclick="setModalType('expense')">รายจ่าย</div>
-      <div class="type-opt" id="typeIncomeOpt" onclick="setModalType('income')">รายรับ</div>
+<!-- mobile floating controls -->
+<button class="fab" id="fab">+</button>
+<div class="toolbar-wrap">
+  <div class="goo-group">
+    <div class="pill"></div>
+    <div class="cutter" id="cutter"></div>
+  </div>
+  <div class="icon-row" id="iconRow">
+    <button class="is-active" data-view="home" aria-label="หน้าหลัก">
+      <svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9h14v-9"/></svg>
+    </button>
+    <button data-view="activity" aria-label="รายการ">
+      <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+    </button>
+    <button data-view="reports" aria-label="รายงาน">
+      <svg viewBox="0 0 24 24"><path d="M4 19V10M12 19V5M20 19v-6"/></svg>
+    </button>
+    <button data-view="profile" aria-label="โปรไฟล์">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c1.2-4 4-6 7-6s5.8 2 7 6"/></svg>
+    </button>
+  </div>
+</div>
+<div class="bubble" id="bubble">
+  <svg id="bubbleIcon" viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9h14v-9"/></svg>
+</div>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <filter id="goo">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="blur" />
+      <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -11" result="goo" />
+      <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+    </filter>
+  </defs>
+</svg>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3 data-i18n="modal_title">เพิ่มรายการ</h3>
+    <div class="type-switch">
+      <button class="active exp" id="typeExp" data-i18n="expense">รายจ่าย</button>
+      <button id="typeInc" data-i18n="income">รายรับ</button>
     </div>
-    <div id="categoryField">
-      <div class="field-label">หมวดหมู่</div>
-      <div class="cat-grid" id="catGrid"></div>
+    <div class="cats" id="catGrid">
+      <button class="active" data-cat="food" data-i18n="cat_food_short">อาหาร</button>
+      <button data-cat="travel" data-i18n="cat_travel_short">เดินทาง</button>
+      <button data-cat="entertainment" data-i18n="cat_entertainment_short">บันเทิง</button>
+      <button data-cat="shopping" data-i18n="cat_shopping_short">ช้อปปิ้ง</button>
+      <button data-cat="other" data-i18n="cat_other_short">อื่นๆ</button>
     </div>
-    <div class="field-label">รายการ</div>
-    <input class="field-input" id="txTitle" placeholder="เช่น ข้าวมันไก่, ค่ารถเมล์">
-    <div class="field-label">จำนวนเงิน (บาท)</div>
-    <input class="field-input" id="txAmount" type="number" min="0" step="0.01" placeholder="0.00">
-    <div class="field-error" id="txError">กรุณาระบุจำนวนเงินให้ถูกต้อง</div>
-    <div class="field-label">วันที่</div>
-    <input class="field-input" id="txDate" type="date">
+    <div class="field">
+      <label data-i18n="field_title">รายการ</label>
+      <input type="text" id="txTitle" placeholder="เช่น ข้าวมันไก่, ค่ารถเมล์">
+    </div>
+    <div class="field">
+      <label data-i18n="field_amount">จำนวนเงิน (บาท)</label>
+      <input type="number" id="txAmount" placeholder="0.00" min="0" step="0.01">
+      <div class="err" id="txError" data-i18n="err_amount">กรุณาระบุจำนวนเงินให้ถูกต้อง</div>
+    </div>
+    <div class="field">
+      <label data-i18n="field_date">วันที่</label>
+      <input type="date" id="txDate">
+    </div>
     <div class="modal-actions">
-      <button class="btn btn-primary" onclick="submitTransaction()">บันทึกรายการ</button>
-      <button class="btn btn-cancel" onclick="closeAddModal()">ยกเลิก</button>
+      <button class="cancel" id="btnCancel" data-i18n="cancel">ยกเลิก</button>
+      <button class="save" id="btnSave" data-i18n="save">บันทึกรายการ</button>
     </div>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast"><span class="check" id="toastIcon">✓</span><span id="toastText">บันทึกรายการแล้ว</span></div>
+</div><!-- /#app -->
 
 <script>
-/* ===================== DATA ===================== */
-const CATS = {
-  food:{label:'อาหาร', em:'🍽️', color:'#E2572B'},
-  travel:{label:'เดินทาง', em:'🚌', color:'#8B5CF6'},
-  entertainment:{label:'บันเทิง', em:'🎬', color:'#12A594'},
-  shopping:{label:'ช้อปปิ้ง', em:'🛍️', color:'#4FC3E8'},
-  other:{label:'อื่นๆ', em:'📦', color:'#B98CE0'},
+/* ===================== i18n ===================== */
+const translations = {
+  account_tag_short: { th:"บัญชีหลัก", en:"Main account" },
+  balance_label: { th:"ยอดเงินคงเหลือ", en:"Current balance" },
+  budget_label: { th:"งบประมาณเดือนนี้", en:"Monthly budget" },
+  expense_month_label: { th:"รายจ่ายเดือนนี้", en:"Spent this month" },
+  add_income: { th:"+ รายรับ", en:"+ Income" },
+  add_expense: { th:"− รายจ่าย", en:"− Expense" },
+  add_tx: { th:"เพิ่มรายการ", en:"Add transaction" },
+  recent: { th:"รายการล่าสุด", en:"Recent activity" },
+  see_all: { th:"ดูทั้งหมด", en:"See all" },
+  breakdown: { th:"แยกตามหมวดหมู่", en:"By category" },
+  breakdown_full: { th:"สรุปรายจ่ายตามหมวดหมู่ (เดือนนี้)", en:"Spending by category (this month)" },
+  nav_home: { th:"หน้าหลัก", en:"Home" },
+  nav_list: { th:"รายการ", en:"Activity" },
+  nav_report: { th:"รายงาน", en:"Reports" },
+  nav_profile: { th:"โปรไฟล์", en:"Profile" },
+  modal_title: { th:"เพิ่มรายการ", en:"Add transaction" },
+  expense: { th:"รายจ่าย", en:"Expense" },
+  income: { th:"รายรับ", en:"Income" },
+  cat_food_short: { th:"อาหาร", en:"Food" },
+  cat_travel_short: { th:"เดินทาง", en:"Travel" },
+  cat_entertainment_short: { th:"บันเทิง", en:"Fun" },
+  cat_shopping_short: { th:"ช้อปปิ้ง", en:"Shopping" },
+  cat_other_short: { th:"อื่นๆ", en:"Other" },
+  field_title: { th:"รายการ", en:"Description" },
+  field_amount: { th:"จำนวนเงิน (บาท)", en:"Amount (THB)" },
+  field_date: { th:"วันที่", en:"Date" },
+  cancel: { th:"ยกเลิก", en:"Cancel" },
+  save: { th:"บันทึกรายการ", en:"Save transaction" },
+  err_amount: { th:"กรุณาระบุจำนวนเงินให้ถูกต้อง", en:"Please enter a valid amount" },
+  notif_setting: { th:"แจ้งเตือน", en:"Notifications" },
+  logout: { th:"ออกจากระบบ", en:"Log out" },
+  toast_saved: { th:"บันทึกรายการแล้ว", en:"Transaction saved" },
+  toast_error: { th:"เกิดข้อผิดพลาด กรุณาลองใหม่", en:"Something went wrong, please try again" },
+  toast_budget: { th:"อัปเดตงบประมาณแล้ว", en:"Budget updated" },
+  empty_list: { th:"ยังไม่มีรายการ", en:"No transactions yet" }
 };
-const THAI_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-const TODAY = new Date(2024,4,10); // 10 พ.ค. 2567 — reference "today" for this demo
+const catLabel = { food:'cat_food_short', travel:'cat_travel_short', entertainment:'cat_entertainment_short', shopping:'cat_shopping_short', other:'cat_other_short', income:'cat_income' };
+translations.cat_income = { th:"รายรับ", en:"Income" };
+const catColor = { food:'var(--amber)', travel:'var(--blue)', entertainment:'var(--purple)', shopping:'var(--coral)', other:'var(--text-soft)', income:'var(--emerald)' };
+const monthsTH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const monthsEN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-let state = {
-  openingBalance: 0,
-  budget: 0,
-  notif: true,
-  reportPeriod: 'month',
-  listFilter: 'all',
-  txs: [] // โหลดจากเซิร์ฟเวอร์ตอนล็อคอินเข้ามา (ดู loadData) — ข้อมูลถูกเก็บถาวรในฐานข้อมูล ไม่หายเวลารีเฟรช
-};
-let modalType = 'expense';
-let modalCat = 'food';
-
-/* ===================== HELPERS ===================== */
-function money(n){ return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-function thaiDate(d){ return `${d.getDate()} ${THAI_MONTHS[d.getMonth()]} ${d.getFullYear()+543}`; }
-function thaiTime(d){ if(d.getHours()===0 && d.getMinutes()===0) return ''; const h=String(d.getHours()).padStart(2,'0'), m=String(d.getMinutes()).padStart(2,'0'); return ` · ${h}:${m}`; }
-function iconFor(tx){ return tx.type==='income' ? '💰' : CATS[tx.cat].em; }
-function bgFor(tx){ return tx.type==='income' ? '#DCF2E4' : CATS[tx.cat].color+'22'; }
-
-function totalBalance(){
-  return state.txs.reduce((s,t)=> s + (t.type==='income'? t.amount : -t.amount), state.openingBalance);
+let lang = 'th';
+function t(key){ return translations[key] ? translations[key][lang] : key; }
+function applyI18n(){
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (translations[key]) el.textContent = translations[key][lang];
+  });
+  renderAll();
 }
-function monthExpense(){
-  return state.txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+document.getElementById('langToggle').addEventListener('click', () => {
+  lang = lang === 'th' ? 'en' : 'th';
+  document.getElementById('langToggle').classList.toggle('en', lang === 'en');
+  applyI18n();
+});
+
+/* ===================== state ===================== */
+let state = { user:null, openingBalance:0, budget:0, notif:true, txs:[] };
+
+function fmtMoney(n){
+  const v = Number(n) || 0;
+  return v.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
 }
-function sortedTxs(){
-  return [...state.txs].sort((a,b)=> b.date - a.date);
+function fmtMoneyShort(n){
+  const v = Number(n) || 0;
+  return '฿' + v.toLocaleString('en-US', { maximumFractionDigits:0 });
+}
+function fmtDate(d){
+  const dt = new Date(d);
+  const months = lang === 'th' ? monthsTH : monthsEN;
+  return lang === 'th' ? `${dt.getDate()} ${months[dt.getMonth()]}` : `${months[dt.getMonth()]} ${dt.getDate()}`;
+}
+function sameMonth(d, ref){
+  const a = new Date(d), b = ref;
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
 }
 
-/* ===================== AUTH / NAVIGATION ===================== */
+/* ===================== auth + data load ===================== */
 async function checkAuthAndEnter(){
   try{
     const res = await fetch('/api/me');
     if(!res.ok) throw new Error('unauthorized');
     const data = await res.json();
+    state.user = data.user;
+
     document.getElementById('profileName').textContent = data.user.username;
     document.getElementById('profileEmail').textContent = data.user.email;
-    document.getElementById('profileAvatar').textContent = data.user.username.charAt(0).toUpperCase();
+    const initial = data.user.username.charAt(0).toUpperCase();
+    document.getElementById('profileAvatar').textContent = initial;
+    document.getElementById('sidebarAvatar').textContent = initial;
+    document.getElementById('sidebarName').textContent = data.user.username;
+    document.getElementById('topGreet').textContent = (lang === 'th' ? 'สวัสดี ' : 'Hi, ') + data.user.username;
+
     await loadData();
-    document.getElementById('notifToggle').classList.toggle('on', state.notif);
-    document.getElementById('view-shell').classList.add('ready');
-    goTab('dashboard');
+    document.getElementById('notifSwitch').classList.toggle('on', state.notif);
+    document.getElementById('bellPing').style.display = state.notif ? 'block' : 'none';
+
+    document.getElementById('authGate').style.display = 'none';
+    document.getElementById('app').classList.add('ready');
+    renderAll();
+    initGooBar();
   }catch(err){
-    window.location.href = 'login.html';
+    window.location.href = '/login.html';
   }
 }
 
-// โหลดยอดเงิน/งบประมาณ และรายการทั้งหมดของบัญชีนี้จากฐานข้อมูล
 async function loadData(){
   try{
     const [settingsRes, txRes] = await Promise.all([
       fetch('/api/settings'),
       fetch('/api/transactions')
     ]);
-
     if(settingsRes.ok){
       const sData = await settingsRes.json();
-      state.openingBalance = parseFloat(sData.settings.opening_balance);
-      state.budget = parseFloat(sData.settings.budget);
-      state.notif = sData.settings.notif;
+      state.openingBalance = parseFloat(sData.settings.opening_balance) || 0;
+      state.budget = parseFloat(sData.settings.budget) || 0;
+      state.notif = !!sData.settings.notif;
     }
-
     if(txRes.ok){
       const tData = await txRes.json();
-      state.txs = tData.transactions.map(t => ({
-        id: t.id,
-        type: t.type,
-        cat: t.cat,
-        title: t.title,
-        amount: parseFloat(t.amount),
-        date: new Date(t.tx_date)
+      state.txs = tData.transactions.map(x => ({
+        id: x.id, type: x.type, cat: x.cat, title: x.title,
+        amount: parseFloat(x.amount), date: new Date(x.tx_date)
       }));
     }
   }catch(err){
     console.error(err);
-    showToast('โหลดข้อมูลไม่สำเร็จ ลองรีเฟรชอีกครั้ง');
+    showToast(t('toast_error'), true);
   }
 }
-async function logout(){
-  await fetch('/api/logout', { method:'POST' });
-  window.location.href = 'login.html';
-}
-const TAB_TITLES = {dashboard:'หน้าหลัก', list:'รายการทั้งหมด', reports:'รายงานการใช้จ่าย', profile:'โปรไฟล์'};
-function goTab(tab){
-  document.querySelectorAll('.tab-view').forEach(el=>el.classList.remove('active'));
-  document.getElementById('tab-'+tab).classList.add('active');
-  document.querySelectorAll('.bottom-nav .nav-item').forEach(el=>el.classList.remove('active'));
-  const navEl = document.getElementById('nav-'+tab);
-  if(navEl) navEl.classList.add('active');
-  document.getElementById('headerTitle').textContent = TAB_TITLES[tab];
-  document.getElementById('appFrame').scrollTop = 0;
-  document.querySelector('.app-main').scrollTop = 0;
-  if(tab==='list') renderList();
-  if(tab==='reports') renderReports();
-  if(tab==='dashboard') renderDashboard();
-}
 
-/* ===================== RENDER: DASHBOARD ===================== */
-function renderDashboard(){
-  const bal = totalBalance();
-  document.getElementById('balanceAmount').textContent = money(bal) + ' บาท';
-  const used = monthExpense();
-  const remain = state.budget - used;
-  const pct = Math.min(100, Math.round(used/state.budget*100));
-  document.getElementById('budgetValueDisplay').textContent = money(state.budget)+' บาท';
-  document.getElementById('usedValueDisplay').textContent = money(used)+' บาท';
-  const fill = document.getElementById('budgetProgress');
-  fill.style.width = pct+'%';
-  fill.classList.toggle('over', used > state.budget);
-  document.getElementById('budgetCaption').textContent = remain>=0
-    ? `เหลือ ${money(remain)} บาท (${pct}%)`
-    : `เกินงบประมาณ ${money(Math.abs(remain))} บาท`;
-  document.getElementById('balanceSub').textContent = `รายรับสะสม ${money(state.txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0))} บาท`;
+/* ===================== rendering ===================== */
+function renderAll(){
+  const income = state.txs.filter(x => x.type === 'income').reduce((s,x) => s+x.amount, 0);
+  const expense = state.txs.filter(x => x.type === 'expense').reduce((s,x) => s+x.amount, 0);
+  const balance = state.openingBalance + income - expense;
 
-  const recent = sortedTxs().slice(0,4);
-  document.getElementById('recentTxList').innerHTML = recent.map(txRow).join('') || '<div class="empty-note">ยังไม่มีรายการ</div>';
+  document.getElementById('balanceFigure').textContent = fmtMoney(balance);
+  const incomeSubEl = document.getElementById('incomeSub');
+  incomeSubEl.textContent = (lang === 'th' ? '↑ รายรับสะสม ฿' : '↑ Total income ฿') + fmtMoney(income);
+
+  const now = new Date();
+  const monthExpense = state.txs.filter(x => x.type==='expense' && sameMonth(x.date, now)).reduce((s,x)=>s+x.amount,0);
+  const pct = state.budget > 0 ? Math.min(100, (monthExpense/state.budget)*100) : 0;
+  document.getElementById('budgetSpent').textContent = fmtMoneyShort(monthExpense);
+  document.getElementById('budgetMax').textContent = fmtMoneyShort(state.budget);
+  const fillEl = document.getElementById('budgetFill');
+  fillEl.style.width = pct + '%';
+  fillEl.classList.toggle('over', monthExpense > state.budget && state.budget > 0);
+  document.getElementById('expenseMonthVal').textContent = fmtMoneyShort(monthExpense);
+
+  renderList('recentList', state.txs.slice(0, 4));
+  renderList('fullList', state.txs);
+  renderBreakdown('catBreakdown', 5);
+  renderBreakdown('catBreakdownFull', 99);
 }
 
-function txRow(t){
-  return `<div class="tx-item">
-    <div class="tx-icon" style="background:${bgFor(t)}">${iconFor(t)}</div>
-    <div class="tx-info"><div class="tx-title">${t.title||CATS[t.cat]?.label||'รายรับ'}</div><div class="tx-meta">${thaiDate(t.date)}${thaiTime(t.date)}</div></div>
-    <div class="tx-amount ${t.type==='income'?'pos':'neg'}">${t.type==='income'?'+':'-'}${money(t.amount)}</div>
-  </div>`;
+function renderList(elId, txs){
+  const el = document.getElementById(elId);
+  if(!txs.length){
+    el.innerHTML = `<div class="empty-state">${t('empty_list')}</div>`;
+    return;
+  }
+  el.innerHTML = txs.map((x,i) => {
+    const label = t(catLabel[x.cat] || 'cat_other_short');
+    const sign = x.type === 'income' ? '+' : '−';
+    return `<div class="row" style="animation-delay:${Math.min(i,6)*0.06}s">
+      <div class="dot" style="background:${catColor[x.cat] || 'var(--text-soft)'}"></div>
+      <div class="info"><div class="name">${escapeHtml(x.title || label)}</div><div class="meta">${label} · ${fmtDate(x.date)}</div></div>
+      <div class="amt ${x.type==='income'?'pos':''}">${sign}${fmtMoney(x.amount)}</div>
+    </div>`;
+  }).join('');
 }
 
-/* ===================== RENDER: LIST ===================== */
-function renderList(){
-  const filters = [['all','ทั้งหมด'],['income','รายรับ'],['expense','รายจ่าย']];
-  document.getElementById('listFilters').innerHTML = filters.map(([k,l])=>
-    `<button class="filter-chip ${state.listFilter===k?'active':''}" onclick="setListFilter('${k}')">${l}</button>`).join('');
+function renderBreakdown(elId, limit){
+  const el = document.getElementById(elId);
+  const now = new Date();
+  const monthTx = state.txs.filter(x => x.type==='expense' && sameMonth(x.date, now));
+  const total = monthTx.reduce((s,x)=>s+x.amount,0);
+  const byCat = {};
+  monthTx.forEach(x => { byCat[x.cat] = (byCat[x.cat]||0) + x.amount; });
+  const cats = Object.keys(byCat).sort((a,b) => byCat[b]-byCat[a]).slice(0, limit);
+  if(!cats.length){
+    el.innerHTML = `<div class="empty-state">${t('empty_list')}</div>`;
+    return;
+  }
+  el.innerHTML = cats.map(c => {
+    const pct = total > 0 ? Math.round((byCat[c]/total)*100) : 0;
+    return `<div class="cat-item">
+      <div class="swatch" style="background:${catColor[c]||'var(--text-soft)'}"></div>
+      <div class="label">${t(catLabel[c] || 'cat_other_short')}</div>
+      <div class="pct">${pct}%</div>
+    </div>`;
+  }).join('');
+}
 
-  let list = sortedTxs();
-  if(state.listFilter!=='all') list = list.filter(t=>t.type===state.listFilter);
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
 
-  let html='', lastDateKey='';
-  list.forEach(t=>{
-    const key = thaiDate(t.date);
-    if(key!==lastDateKey){ html += `<div class="date-group-label">${key}</div>`; lastDateKey=key; }
-    html += txRow(t);
+/* ===================== view switching ===================== */
+function goView(view){
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  document.querySelectorAll('.sidebar .nitem').forEach(n => n.classList.toggle('active', n.dataset.view === view));
+  const iconBtn = document.querySelector(`.icon-row button[data-view="${view}"]`);
+  if(iconBtn) moveGooTo(iconBtn, true);
+}
+document.querySelectorAll('.sidebar .nitem, .sidebar .user').forEach(el => {
+  el.addEventListener('click', () => goView(el.dataset.view));
+});
+document.querySelectorAll('[data-goto]').forEach(el => {
+  el.addEventListener('click', () => goView(el.dataset.goto));
+});
+
+/* ===================== gooey tab bar ===================== */
+const cutter = document.getElementById('cutter');
+const bubble = document.getElementById('bubble');
+const bubbleIcon = document.getElementById('bubbleIcon');
+const iconSvgs = {
+  home: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9h14v-9"/>',
+  activity: '<path d="M4 6h16M4 12h16M4 18h10"/>',
+  reports: '<path d="M4 19V10M12 19V5M20 19v-6"/>',
+  profile: '<circle cx="12" cy="8" r="3.4"/><path d="M5 20c1.2-4 4-6 7-6s5.8 2 7 6"/>'
+};
+
+function moveGooTo(btn, animate){
+  const wrap = document.querySelector('.toolbar-wrap');
+  const wrapRect = wrap.getBoundingClientRect();
+  const btnRect = btn.getBoundingClientRect();
+  const centerX = btnRect.left - wrapRect.left + btnRect.width / 2;
+  const pageX = btnRect.left + btnRect.width / 2;
+
+  cutter.style.left = centerX + 'px';
+  bubble.style.left = pageX + 'px';
+
+  document.querySelectorAll('.icon-row button').forEach(b => b.classList.remove('is-active'));
+  btn.classList.add('is-active');
+  bubbleIcon.innerHTML = iconSvgs[btn.dataset.view];
+
+  if(animate){
+    bubble.classList.remove('pop');
+    void bubble.offsetWidth;
+    bubble.classList.add('pop');
+  }
+}
+function initGooBar(){
+  const active = document.querySelector('.icon-row button.is-active') || document.querySelector('.icon-row button');
+  moveGooTo(active, false);
+}
+document.querySelectorAll('.icon-row button').forEach(btn => {
+  btn.addEventListener('click', () => goView(btn.dataset.view));
+});
+window.addEventListener('resize', () => {
+  const active = document.querySelector('.icon-row button.is-active');
+  if(active) moveGooTo(active, false);
+});
+
+/* ===================== add-transaction modal ===================== */
+let modalType = 'expense';
+let modalCat = 'food';
+const overlay = document.getElementById('modalOverlay');
+function openModal(){
+  document.getElementById('txDate').value = new Date().toISOString().slice(0,10);
+  overlay.classList.add('open');
+}
+function closeModal(){
+  overlay.classList.remove('open');
+  document.getElementById('txTitle').value = '';
+  document.getElementById('txAmount').value = '';
+  document.getElementById('txError').style.display = 'none';
+}
+document.getElementById('fab').addEventListener('click', openModal);
+document.getElementById('fabDesktop').addEventListener('click', openModal);
+document.getElementById('btnIncome').addEventListener('click', () => { setType('income'); openModal(); });
+document.getElementById('btnExpense').addEventListener('click', () => { setType('expense'); openModal(); });
+document.getElementById('btnCancel').addEventListener('click', closeModal);
+overlay.addEventListener('click', (e) => { if(e.target === overlay) closeModal(); });
+
+function setType(tp){
+  modalType = tp;
+  document.getElementById('typeExp').classList.toggle('active', tp === 'expense');
+  document.getElementById('typeInc').classList.toggle('active', tp === 'income');
+  document.getElementById('catGrid').style.display = tp === 'income' ? 'none' : 'grid';
+}
+document.getElementById('typeExp').addEventListener('click', () => setType('expense'));
+document.getElementById('typeInc').addEventListener('click', () => setType('income'));
+
+document.querySelectorAll('#catGrid button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#catGrid button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    modalCat = btn.dataset.cat;
   });
-  document.getElementById('fullTxList').innerHTML = html || '<div class="empty-note">ไม่พบรายการ</div>';
-}
-function setListFilter(f){ state.listFilter=f; renderList(); }
+});
 
-/* ===================== RENDER: REPORTS ===================== */
-function filteredExpenseTxs(){
-  if(state.reportPeriod==='week'){
-    const weekAgo = new Date(TODAY); weekAgo.setDate(weekAgo.getDate()-7);
-    return state.txs.filter(t=>t.type==='expense' && t.date>=weekAgo && t.date<=TODAY);
-  }
-  return state.txs.filter(t=>t.type==='expense'); // month & year: full seeded dataset
-}
-
-function renderReports(){
-  document.getElementById('periodSeg').innerHTML = ['week','month','year'].map(p=>
-    `<button class="seg-option ${state.reportPeriod===p?'active':''}" onclick="setPeriod('${p}')">${p==='week'?'สัปดาห์':p==='month'?'เดือน':'ปี'}</button>`).join('');
-
-  const list = filteredExpenseTxs();
-  const totals = {};
-  let grand = 0;
-  Object.keys(CATS).forEach(k=>totals[k]=0);
-  list.forEach(t=>{ totals[t.cat]=(totals[t.cat]||0)+t.amount; grand+=t.amount; });
-
-  // donut conic-gradient
-  let acc=0, stops=[];
-  Object.keys(CATS).forEach(k=>{
-    if(totals[k]>0){
-      const pct = grand>0 ? totals[k]/grand*100 : 0;
-      stops.push(`${CATS[k].color} ${acc}% ${acc+pct}%`);
-      acc += pct;
-    }
-  });
-  document.getElementById('donutChart').style.background = stops.length ? `conic-gradient(${stops.join(',')})` : '#EAF1EC';
-  document.getElementById('donutCenter').innerHTML = `${money(grand)}<br>บาท`;
-  document.getElementById('donutLegend').innerHTML = Object.keys(CATS).filter(k=>totals[k]>0).map(k=>{
-    const pct = grand>0 ? Math.round(totals[k]/grand*100) : 0;
-    return `<div class="legend-row"><span class="legend-dot" style="background:${CATS[k].color}"></span><span class="lname">${CATS[k].label} ${pct}%</span><span class="lval">${money(totals[k])} บาท</span></div>`;
-  }).join('') || '<div class="empty-note">ไม่มีรายจ่ายในช่วงนี้</div>';
-
-  // weekly trend (always based on full month buckets, day-of-month ranges)
-  const buckets=[0,0,0,0,0];
-  state.txs.filter(t=>t.type==='expense').forEach(t=>{
-    const day=t.date.getDate();
-    const idx = Math.min(4, Math.floor((day-1)/7));
-    buckets[idx]+=t.amount;
-  });
-  const maxV = Math.max(...buckets, 100);
-  const pts = buckets.map((v,i)=>({x:30+i*47, y: 66 - (v/maxV)*54}));
-  const poly = pts.map(p=>`${p.x},${p.y}`).join(' ');
-  const dots = pts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="2.6" fill="#1F6E4F"/>`).join('');
-  const labels = pts.map((p,i)=>`<text x="${p.x}" y="80" font-size="7" fill="#9AA79E" font-family="Sarabun" text-anchor="middle">สัปดาห์ ${i+1}</text>`).join('');
-  document.getElementById('trendSvg').innerHTML = `
-    <polyline points="${poly}" fill="none" stroke="#1F6E4F" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
-    ${dots}${labels}`;
-
-  // alert / tip
-  let topCat=null, topPct=0;
-  Object.keys(CATS).forEach(k=>{ const p = grand>0?totals[k]/grand*100:0; if(p>topPct){topPct=p; topCat=k;} });
-  const alertBox = document.getElementById('alertBox');
-  if(topCat && topPct>=35){
-    alertBox.innerHTML = `<div class="alert-box warn"><div class="icon">⚠️</div><div>
-      <div class="alert-title">แจ้งเตือน</div>
-      <div class="alert-text">คุณใช้จ่ายกับ "${CATS[topCat].label}" มากถึง ${Math.round(topPct)}% ของรายจ่ายทั้งหมด แนะนำให้ลดลงเพื่อคุมงบให้อยู่ในแผน</div>
-    </div></div>`;
-  } else {
-    alertBox.innerHTML = `<div class="alert-box ok"><div class="icon">✅</div><div>
-      <div class="alert-title">อยู่ในเกณฑ์ที่ดี</div>
-      <div class="alert-text">การใช้จ่ายของคุณกระจายตัวดี ไม่มีหมวดใดใช้เกินสัดส่วนที่เหมาะสม</div>
-    </div></div>`;
-  }
-  const tips = {
-    food:'ลองทำอาหารเองสัปดาห์ละ 2-3 วัน ช่วยประหยัดได้หลายร้อยบาทต่อเดือน',
-    travel:'ลองใช้บัตรโดยสารรายเดือนหรือวางแผนเส้นทางร่วมกับเพื่อน เพื่อลดค่าเดินทาง',
-    entertainment:'ลองแชร์บัญชีสตรีมมิ่งกับเพื่อนหรือครอบครัว เพื่อลดค่าใช้จ่ายรายเดือน',
-    shopping:'ลองทำลิสต์ก่อนช้อปปิ้งทุกครั้ง เพื่อลดการซื้อของที่ไม่จำเป็น',
-    other:'ลองจดรายจ่ายจิปาถะทุกวัน จะช่วยให้ควบคุมงบประมาณได้ดีขึ้น',
-  };
-  document.getElementById('tipText').textContent = topCat ? tips[topCat] : 'เริ่มบันทึกรายจ่ายเพื่อรับคำแนะนำที่เหมาะกับคุณ';
-}
-function setPeriod(p){ state.reportPeriod=p; renderReports(); }
-
-/* ===================== BUDGET INLINE EDIT ===================== */
-function editBudget(){
-  const el = document.getElementById('budgetValueDisplay');
-  const input = document.createElement('input');
-  input.type='number'; input.value=state.budget; input.min=0;
-  input.onblur = ()=>commitBudget(input.value);
-  input.onkeydown = (e)=>{ if(e.key==='Enter') input.blur(); };
-  el.replaceWith(input);
-  input.focus(); input.select();
-}
-async function commitBudget(v){
-  const n = parseFloat(v);
-  if(isNaN(n) || n<=0){ renderDashboard(); return; }
-  try{
-    const res = await fetch('/api/settings', {
-      method:'PUT',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ budget: n })
-    });
-    const data = await res.json();
-    if(!res.ok){ showToast(data.error || 'อัปเดตงบประมาณไม่สำเร็จ'); renderDashboard(); return; }
-    state.budget = n;
-    showToast('อัปเดตงบประมาณเรียบร้อย');
-  }catch(err){
-    console.error(err);
-    showToast('เกิดข้อผิดพลาด กรุณาลองใหม่');
-  }
-  renderDashboard();
-  if(document.getElementById('tab-reports').classList.contains('active')) renderReports();
-}
-
-/* ===================== ADD TRANSACTION MODAL ===================== */
-function openAddModal(type){
-  modalType = type; modalCat = 'food';
-  document.getElementById('txTitle').value='';
-  document.getElementById('txAmount').value='';
-  document.getElementById('txError').style.display='none';
-  document.getElementById('txDate').value = TODAY.toISOString().slice(0,10);
-  renderCatGrid();
-  setModalType(type);
-  document.getElementById('addModal').classList.add('open');
-}
-function closeAddModal(){ document.getElementById('addModal').classList.remove('open'); }
-function setModalType(type){
-  modalType=type;
-  document.getElementById('typeExpenseOpt').className = 'type-opt'+(type==='expense'?' active-expense':'');
-  document.getElementById('typeIncomeOpt').className = 'type-opt'+(type==='income'?' active-income':'');
-  document.getElementById('categoryField').style.display = type==='expense' ? 'block':'none';
-  document.getElementById('txTitle').placeholder = type==='expense' ? 'เช่น ข้าวมันไก่, ค่ารถเมล์' : 'เช่น เงินเดือน, เงินจากที่บ้าน';
-}
-function renderCatGrid(){
-  document.getElementById('catGrid').innerHTML = Object.keys(CATS).map(k=>
-    `<div class="cat-chip ${modalCat===k?'selected':''}" onclick="selectCat('${k}')"><span class="em">${CATS[k].em}</span>${CATS[k].label}</div>`).join('');
-}
-function selectCat(k){ modalCat=k; renderCatGrid(); }
-async function submitTransaction(){
+document.getElementById('btnSave').addEventListener('click', async () => {
   const amt = parseFloat(document.getElementById('txAmount').value);
-  if(isNaN(amt) || amt<=0){ document.getElementById('txError').style.display='block'; return; }
-  document.getElementById('txError').style.display='none';
+  if(isNaN(amt) || amt <= 0){
+    document.getElementById('txError').style.display = 'block';
+    return;
+  }
+  document.getElementById('txError').style.display = 'none';
   const title = document.getElementById('txTitle').value.trim();
   const dateVal = document.getElementById('txDate').value;
-  const date = dateVal ? new Date(dateVal+'T00:00:00') : new Date(TODAY);
+  const date = dateVal ? new Date(dateVal + 'T12:00:00') : new Date();
 
   const payload = {
     type: modalType,
-    cat: modalType==='income' ? 'income' : modalCat,
-    title: title || (modalType==='income' ? 'รายรับ' : CATS[modalCat].label),
+    cat: modalType === 'income' ? 'income' : modalCat,
+    title: title || t(catLabel[modalType === 'income' ? 'income' : modalCat]),
     amount: amt,
     date: date.toISOString()
   };
 
-  const saveBtn = document.querySelector('#addModal .btn-primary');
-  if(saveBtn) saveBtn.disabled = true;
-
+  const saveBtn = document.getElementById('btnSave');
+  saveBtn.disabled = true;
   try{
     const res = await fetch('/api/transactions', {
       method:'POST',
@@ -659,54 +852,111 @@ async function submitTransaction(){
       body: JSON.stringify(payload)
     });
     const data = await res.json();
-    if(!res.ok){ showToast(data.error || 'บันทึกไม่สำเร็จ กรุณาลองใหม่'); return; }
+    if(!res.ok){ showToast(data.error || t('toast_error'), true); return; }
 
-    state.txs.push({
-      id: data.transaction.id,
-      type: data.transaction.type,
-      cat: data.transaction.cat,
-      title: data.transaction.title,
-      amount: parseFloat(data.transaction.amount),
+    state.txs.unshift({
+      id: data.transaction.id, type: data.transaction.type, cat: data.transaction.cat,
+      title: data.transaction.title, amount: parseFloat(data.transaction.amount),
       date: new Date(data.transaction.tx_date)
     });
-
-    closeAddModal();
-    renderDashboard();
-    if(document.getElementById('tab-list').classList.contains('active')) renderList();
-    if(document.getElementById('tab-reports').classList.contains('active')) renderReports();
-    showToast(modalType==='income' ? 'บันทึกรายรับเรียบร้อย' : 'บันทึกรายจ่ายเรียบร้อย');
+    closeModal();
+    renderAll();
+    showToast(t('toast_saved'), false);
   }catch(err){
     console.error(err);
-    showToast('เกิดข้อผิดพลาด กรุณาลองใหม่');
+    showToast(t('toast_error'), true);
   }finally{
-    if(saveBtn) saveBtn.disabled = false;
+    saveBtn.disabled = false;
   }
-}
+});
 
-/* ===================== MISC ===================== */
-async function toggleNotif(){
-  state.notif = !state.notif;
-  document.getElementById('notifToggle').classList.toggle('on', state.notif);
+/* ===================== inline budget edit ===================== */
+document.querySelector('.budget-head').addEventListener('click', function(e){
+  const target = e.target.closest('#budgetMax');
+  if(!target) return;
+
+  const current = state.budget;
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.min = '1';
+  input.step = '0.01';
+  input.value = current;
+  target.replaceWith(input);
+  input.focus();
+  input.select();
+
+  let done = false;
+  const commit = async () => {
+    if(done) return;
+    done = true;
+    const n = parseFloat(input.value);
+    const span = document.createElement('b');
+    span.id = 'budgetMax';
+
+    if(isNaN(n) || n <= 0){
+      span.textContent = fmtMoneyShort(current);
+      input.replaceWith(span);
+      return;
+    }
+    span.textContent = fmtMoneyShort(n);
+    input.replaceWith(span);
+    try{
+      const res = await fetch('/api/settings', {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ budget: n })
+      });
+      if(res.ok){
+        state.budget = n;
+        showToast(t('toast_budget'), false);
+      }else{
+        state.budget = current;
+        showToast(t('toast_error'), true);
+      }
+    }catch(err){
+      state.budget = current;
+      showToast(t('toast_error'), true);
+    }
+    renderAll();
+  };
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (ev) => { if(ev.key === 'Enter') input.blur(); });
+});
+
+/* ===================== notif toggle ===================== */
+async function setNotif(val){
+  state.notif = val;
+  document.getElementById('notifSwitch').classList.toggle('on', val);
+  document.getElementById('bellPing').style.display = val ? 'block' : 'none';
   try{
     await fetch('/api/settings', {
-      method:'PUT',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ notif: state.notif })
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ notif: val })
     });
-  }catch(err){
-    console.error(err);
-  }
+  }catch(err){ console.error(err); }
 }
-let toastTimer;
-function showToast(msg){
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
+document.getElementById('notifSwitch').addEventListener('click', function(){
+  setNotif(!this.classList.contains('on'));
+});
+document.getElementById('bell').addEventListener('click', () => goView('profile'));
+
+/* ===================== logout ===================== */
+document.getElementById('btnLogout').addEventListener('click', async () => {
+  try{ await fetch('/api/logout', { method:'POST' }); }catch(err){}
+  window.location.href = '/login.html';
+});
+
+/* ===================== toast ===================== */
+let toastTimer = null;
+function showToast(msg, isError){
+  const toast = document.getElementById('toast');
+  document.getElementById('toastIcon').textContent = isError ? '!' : '✓';
+  document.getElementById('toastIcon').className = isError ? 'warn' : 'check';
+  document.getElementById('toastText').textContent = msg;
+  toast.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
 }
 
-/* init */
 checkAuthAndEnter();
 </script>
 </body>
