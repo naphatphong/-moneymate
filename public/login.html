@@ -77,16 +77,27 @@
   .message.error{ display:block; background: rgba(232,131,111,0.12); color: var(--coral); border:1px solid rgba(232,131,111,0.3); }
   .message.success{ display:block; background: var(--emerald-dim); color: var(--emerald); border:1px solid rgba(47,191,143,0.3); }
 
-  .field{ margin-bottom:18px; }
-  .field label{ display:block; font-size:0.78rem; color:var(--text-soft); margin-bottom:7px; }
+  .field{ margin-bottom:20px; }
   .field .input-wrap{ position:relative; }
   .field input{
     width:100%; background: rgba(255,255,255,0.045); border:1px solid var(--line); border-radius:12px;
-    padding:13px 14px; color:var(--text); font-size:0.95rem; font-family:'Inter'; outline:none;
+    padding:22px 14px 8px; color:var(--text); font-size:0.95rem; font-family:'Inter'; outline:none;
     transition: border-color 0.25s, background 0.25s;
+    height:54px;
   }
   .field input:focus{ border-color: var(--emerald); background: rgba(255,255,255,0.06); }
-  .field input::placeholder{ color: rgba(143,163,155,0.55); }
+  .field input::placeholder{ color:transparent; }
+
+  .field label{
+    position:absolute; left:14px; top:50%; transform:translateY(-50%);
+    font-size:0.95rem; color:var(--text-soft); pointer-events:none;
+    transition: all 0.22s var(--spring-soft);
+    background:transparent;
+  }
+  .field input:focus + label,
+  .field input:not(:placeholder-shown) + label{
+    top:11px; transform:translateY(0); font-size:0.68rem; color:var(--emerald);
+  }
 
   .toggle-pw{
     position:absolute; right:12px; top:50%; transform:translateY(-50%);
@@ -130,15 +141,15 @@
 
   <form id="loginForm">
     <div class="field">
-      <label for="username">ชื่อผู้ใช้หรืออีเมล</label>
       <div class="input-wrap">
-        <input type="text" id="username" name="username" placeholder="username หรือ you@email.com" required autocomplete="username">
+        <input type="text" id="username" name="username" placeholder=" " required autocomplete="username">
+        <label for="username">ชื่อผู้ใช้หรืออีเมล</label>
       </div>
     </div>
     <div class="field">
-      <label for="password">รหัสผ่าน</label>
       <div class="input-wrap">
-        <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
+        <input type="password" id="password" name="password" placeholder=" " required autocomplete="current-password">
+        <label for="password">รหัสผ่าน</label>
         <button type="button" class="toggle-pw" id="togglePw">แสดง</button>
       </div>
     </div>
