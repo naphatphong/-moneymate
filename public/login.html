@@ -3,58 +3,200 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>เข้าสู่ระบบ</title>
+<title>เข้าสู่ระบบ — MoneyMate</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B1614;
+    --panel: rgba(20, 38, 34, 0.55);
+    --panel-solid:#101F1C;
+    --line: rgba(255,255,255,0.09);
+    --text:#EDEDE7;
+    --text-soft:#8FA39B;
+    --emerald:#2FBF8F;
+    --emerald-dim: rgba(47,191,143,0.16);
+    --amber:#E8B04B;
+    --coral:#E8836F;
+    --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --spring-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  *{ box-sizing:border-box; }
+  html{ -webkit-tap-highlight-color: transparent; }
+  body{
+    margin:0; min-height:100vh; background:var(--bg);
+    font-family:'Inter',sans-serif; color:var(--text);
+    display:flex; align-items:center; justify-content:center;
+    position:relative; overflow:hidden;
+    padding:20px;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  .orb{ position:fixed; border-radius:50%; filter: blur(90px); z-index:0; opacity:0.5; pointer-events:none; }
+  .orb.o1{ width:340px; height:340px; background: radial-gradient(circle, var(--emerald), transparent 70%); top:-100px; left:-90px; }
+  .orb.o2{ width:380px; height:380px; background: radial-gradient(circle, var(--amber), transparent 70%); bottom:-140px; right:-110px; opacity:0.22; }
+
+  .glass{
+    background: var(--panel);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border:1px solid var(--line);
+    border-radius:22px;
+  }
+
+  .card{
+    position:relative; z-index:1;
+    width:100%; max-width:380px;
+    padding:36px 30px 30px;
+    animation: card-in 0.55s var(--spring) 0.05s both;
+  }
+  @keyframes card-in{
+    0%{ transform: scale(0.92) translateY(14px); opacity:0; }
+    100%{ transform: scale(1) translateY(0); opacity:1; }
+  }
+
+  .brand{
+    text-align:center; margin-bottom:6px;
+    font-family:'Fraunces'; font-style:italic; font-weight:600; font-size:1.7rem;
+  }
+  .brand .accent{ color: var(--emerald); }
+
+  .subtitle{
+    text-align:center; font-size:0.85rem; color:var(--text-soft);
+    margin: 0 0 28px;
+  }
+
+  .message{
+    display:none; font-size:0.82rem; padding:10px 14px; border-radius:12px;
+    margin-bottom:18px; text-align:center;
+    animation: msg-in 0.35s var(--spring-soft);
+  }
+  @keyframes msg-in{ 0%{ opacity:0; transform: translateY(-6px); } 100%{ opacity:1; transform: translateY(0); } }
+  .message.error{ display:block; background: rgba(232,131,111,0.12); color: var(--coral); border:1px solid rgba(232,131,111,0.3); }
+  .message.success{ display:block; background: var(--emerald-dim); color: var(--emerald); border:1px solid rgba(47,191,143,0.3); }
+
+  .field{ margin-bottom:18px; }
+  .field label{ display:block; font-size:0.78rem; color:var(--text-soft); margin-bottom:7px; }
+  .field .input-wrap{ position:relative; }
+  .field input{
+    width:100%; background: rgba(255,255,255,0.045); border:1px solid var(--line); border-radius:12px;
+    padding:13px 14px; color:var(--text); font-size:0.95rem; font-family:'Inter'; outline:none;
+    transition: border-color 0.25s, background 0.25s;
+  }
+  .field input:focus{ border-color: var(--emerald); background: rgba(255,255,255,0.06); }
+  .field input::placeholder{ color: rgba(143,163,155,0.55); }
+
+  .toggle-pw{
+    position:absolute; right:12px; top:50%; transform:translateY(-50%);
+    background:none; border:none; color:var(--text-soft); cursor:pointer;
+    font-size:0.76rem; padding:4px 6px; transition: color 0.2s;
+  }
+  .toggle-pw:hover{ color:var(--emerald); }
+
+  .submit{
+    width:100%; padding:14px 0; border-radius:12px; border:1px solid var(--emerald);
+    background: var(--emerald); color:#06231B; font-weight:600; font-size:0.95rem; cursor:pointer;
+    margin-top:6px; transition: transform 0.28s var(--spring), box-shadow 0.2s, opacity 0.2s;
+  }
+  .submit:hover{ box-shadow: 0 10px 28px -10px rgba(47,191,143,0.6); }
+  .submit:active{ transform: scale(0.96); }
+  .submit:disabled{ opacity:0.6; cursor:default; transform:none; box-shadow:none; }
+
+  .switch-link{
+    text-align:center; font-size:0.83rem; color:var(--text-soft); margin-top:22px;
+  }
+  .switch-link a{ color: var(--emerald); text-decoration:none; font-weight:600; }
+  .switch-link a:hover{ text-decoration:underline; }
+
+  .spinner{
+    display:inline-block; width:14px; height:14px; border-radius:50%;
+    border:2px solid rgba(6,35,27,0.35); border-top-color:#06231B;
+    animation: spin 0.7s linear infinite; margin-right:8px; vertical-align:-2px;
+  }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+</style>
 </head>
 <body>
-  <div class="card">
-    <h1>เข้าสู่ระบบ</h1>
-    <p class="subtitle">ยินดีต้อนรับกลับมา กรุณาเข้าสู่ระบบเพื่อดำเนินการต่อ</p>
+<div class="orb o1"></div>
+<div class="orb o2"></div>
 
-    <div id="msg" class="message"></div>
+<div class="glass card">
+  <div class="brand">Money<span class="accent">Mate</span></div>
+  <p class="subtitle">ยินดีต้อนรับกลับมา กรุณาเข้าสู่ระบบเพื่อดำเนินการต่อ</p>
 
-    <form id="loginForm">
-      <div class="field">
-        <label for="username">ชื่อผู้ใช้หรืออีเมล</label>
-        <input type="text" id="username" name="username" required>
+  <div id="msg" class="message"></div>
+
+  <form id="loginForm">
+    <div class="field">
+      <label for="username">ชื่อผู้ใช้หรืออีเมล</label>
+      <div class="input-wrap">
+        <input type="text" id="username" name="username" placeholder="username หรือ you@email.com" required autocomplete="username">
       </div>
-      <div class="field">
-        <label for="password">รหัสผ่าน</label>
-        <input type="password" id="password" name="password" required>
+    </div>
+    <div class="field">
+      <label for="password">รหัสผ่าน</label>
+      <div class="input-wrap">
+        <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
+        <button type="button" class="toggle-pw" id="togglePw">แสดง</button>
       </div>
-      <button type="submit" class="submit" id="submitBtn">เข้าสู่ระบบ</button>
-    </form>
+    </div>
+    <button type="submit" class="submit" id="submitBtn">เข้าสู่ระบบ</button>
+  </form>
 
-    <p class="switch-link">ยังไม่มีบัญชี? <a href="register.html">สมัครสมาชิก</a></p>
-  </div>
+  <p class="switch-link">ยังไม่มีบัญชี? <a href="register.html">สมัครสมาชิก</a></p>
+</div>
 
-  <script src="js/auth.js"></script>
-  <script>
-    const form = document.getElementById('loginForm');
-    const msg = document.getElementById('msg');
-    const btn = document.getElementById('submitBtn');
+<script>
+  const form = document.getElementById('loginForm');
+  const msg = document.getElementById('msg');
+  const btn = document.getElementById('submitBtn');
+  const pwInput = document.getElementById('password');
+  const togglePw = document.getElementById('togglePw');
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      msg.style.display = 'none';
-      btn.disabled = true;
-      btn.textContent = 'กำลังเข้าสู่ระบบ...';
+  togglePw.addEventListener('click', () => {
+    const isPw = pwInput.type === 'password';
+    pwInput.type = isPw ? 'text' : 'password';
+    togglePw.textContent = isPw ? 'ซ่อน' : 'แสดง';
+  });
 
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value;
+  function showMessage(text, type){
+    msg.textContent = text;
+    msg.className = 'message ' + type;
+  }
 
-      try {
-        const data = await postJSON('/api/login', { username, password });
-        showMessage(msg, 'เข้าสู่ระบบสำเร็จ กำลังพาไปหน้าหลัก...', 'success');
-        setTimeout(() => { window.location.href = 'app.html'; }, 800);
-      } catch (err) {
-        showMessage(msg, err.message, 'error');
-        btn.disabled = false;
-        btn.textContent = 'เข้าสู่ระบบ';
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    msg.className = 'message';
+    msg.textContent = '';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>กำลังเข้าสู่ระบบ...';
+
+    const username = document.getElementById('username').value.trim();
+    const password = pwInput.value;
+
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      let data = {};
+      try { data = await res.json(); } catch (e2) {}
+
+      if (!res.ok) {
+        throw new Error(data.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
       }
-    });
-  </script>
+
+      showMessage('เข้าสู่ระบบสำเร็จ กำลังพาไปหน้าหลัก...', 'success');
+      setTimeout(() => { window.location.href = 'app.html'; }, 700);
+    } catch (err) {
+      showMessage(err.message, 'error');
+      btn.disabled = false;
+      btn.textContent = 'เข้าสู่ระบบ';
+    }
+  });
+</script>
 </body>
 </html>
