@@ -3,84 +3,221 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MoneyMate</title>
+<title>MoneyMate — หน้าแรก</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --green-deep:#1F6E4F;
-    --green-mid:#2F8F65;
-    --green-mint:#DCF2E4;
-    --paper:#F4F5F2;
-    --ink:#16281F;
-    --ink-soft:#6B7A71;
-    --line:#E7ECE5;
-    --shadow:0 20px 45px -22px rgba(22,40,31,.28);
+    --bg:#0B1614;
+    --panel: rgba(20, 38, 34, 0.55);
+    --line: rgba(255,255,255,0.09);
+    --text:#EDEDE7;
+    --text-soft:#8FA39B;
+    --emerald:#2FBF8F;
+    --emerald-dim: rgba(47,191,143,0.16);
+    --amber:#E8B04B;
+    --coral:#E8836F;
+    --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --spring-soft: cubic-bezier(0.22, 1, 0.36, 1);
   }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
+  *{ box-sizing:border-box; }
+  html{ -webkit-tap-highlight-color: transparent; }
   body{
-    background:linear-gradient(180deg,#EFF6F1,#F4F5F2 220px);
-    font-family:'Sarabun',sans-serif;color:var(--ink);min-height:100vh;
+    margin:0; min-height:100vh; background:var(--bg);
+    font-family:'Inter',sans-serif; color:var(--text);
+    position:relative; overflow-x:hidden;
+    display:flex; align-items:center; justify-content:center;
+    padding:24px 16px;
   }
-  button{font-family:inherit;}
-
-  .app-frame{
-    max-width:440px;margin:0 auto;min-height:100vh;background:var(--paper);
-    position:relative;box-shadow:var(--shadow);display:flex;flex-direction:column;
-  }
-  @media (min-width:441px){
-    body{padding:28px 12px;}
-    .app-frame{min-height:calc(100vh - 56px);border-radius:28px;overflow:hidden;}
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
   }
 
-  #view-home{display:flex;flex-direction:column;align-items:center;justify-content:space-between;flex:1;padding:48px 30px 34px;text-align:center;}
-  .home-top{display:flex;flex-direction:column;align-items:center;}
-  .app-name{font-family:'Prompt',sans-serif;font-weight:800;font-size:28px;margin:18px 0 8px;}
-  .app-name span{color:var(--green-deep);}
-  .app-tagline{font-size:14.5px;color:var(--ink-soft);line-height:1.7;}
-  .home-actions{width:100%;max-width:320px;}
-  .btn{width:100%;padding:15px 0;border-radius:16px;font-family:'Prompt';font-size:15px;font-weight:600;border:none;cursor:pointer;margin-bottom:11px;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .12s ease, opacity .12s ease;}
-  .btn:active{transform:scale(.97);}
-  .btn-primary{background:var(--green-deep);color:#fff;}
-  .btn-primary:hover{background:#195C42;}
-  .btn-outline{background:#fff;color:var(--green-deep);border:1.5px solid var(--green-deep);}
-  .btn-outline:hover{background:var(--green-mint);}
-  .skyline{width:100%;opacity:.9;margin-top:6px;}
+  /* ---- starfield + orbs ---- */
+  .stars{ position:fixed; inset:0; z-index:0; pointer-events:none; }
+  .star{ position:absolute; width:2px; height:2px; background:var(--text-soft); border-radius:50%; opacity:0.5; animation: twinkle 3s ease-in-out infinite; }
+  @keyframes twinkle{ 0%,100%{ opacity:0.15; } 50%{ opacity:0.7; } }
+
+  .orb{ position:fixed; border-radius:50%; filter: blur(100px); z-index:0; opacity:0.45; pointer-events:none; }
+  .orb.o1{ width:380px; height:380px; background: radial-gradient(circle, var(--emerald), transparent 70%); top:-120px; left:-100px; }
+  .orb.o2{ width:420px; height:420px; background: radial-gradient(circle, var(--amber), transparent 70%); bottom:-160px; right:-120px; opacity:0.2; }
+
+  /* ---- ambient flying ships in background ---- */
+  .bg-ship{ position:fixed; z-index:0; pointer-events:none; opacity:0.5; }
+  .bg-ship svg{ width:46px; height:auto; filter: drop-shadow(0 0 6px rgba(47,191,143,0.5)); }
+  .bg-ship.s1{ top:14%; animation: flyBy 7s linear infinite; animation-delay: 0.2s; }
+  .bg-ship.s2{ top:68%; animation: flyBy 9s linear infinite; animation-delay: 3s; opacity:0.3; }
+  .bg-ship.s3{ top:40%; animation: flyBy 11s linear infinite; animation-delay: 6s; opacity:0.22; }
+  @keyframes flyBy{
+    0%{ left:-10%; transform: translateY(0) rotate(0deg); }
+    50%{ transform: translateY(-14px) rotate(-2deg); }
+    100%{ left:110%; transform: translateY(0) rotate(0deg); }
+  }
+
+  .wrap{ position:relative; z-index:1; width:100%; max-width:920px; }
+  .layout{ display:flex; flex-direction:column; gap:40px; align-items:center; text-align:center; }
+
+  /* ---- animated hero title ---- */
+  .hero-title{
+    font-family:'Fraunces'; font-style:italic; font-weight:600;
+    font-size:clamp(2.6rem, 8vw, 4.6rem); line-height:1.05; margin:0 0 18px;
+  }
+  .hero-title .char{
+    display:inline-block; opacity:0; transform: translateY(24px);
+    animation: charIn 0.6s var(--spring) forwards;
+  }
+  .hero-title .accent{
+    background: linear-gradient(100deg, var(--emerald) 30%, #7CE8C4 45%, var(--emerald) 60%);
+    background-size: 220% 100%;
+    -webkit-background-clip: text; background-clip:text; color:transparent;
+    animation: charIn 0.6s var(--spring) forwards, shimmer 3.5s linear infinite 1.4s;
+  }
+  @keyframes charIn{ to{ opacity:1; transform:translateY(0); } }
+  @keyframes shimmer{ 0%{ background-position: 200% 0; } 100%{ background-position: -200% 0; } }
+
+  .hero-sub{
+    font-size:1rem; color:var(--text-soft); max-width:420px; line-height:1.7;
+    opacity:0; animation: fadeUp 0.6s var(--spring-soft) 1.1s forwards;
+  }
+  @keyframes fadeUp{ from{ opacity:0; transform:translateY(14px); } to{ opacity:1; transform:translateY(0); } }
+
+  /* ---- hero chart preview card ---- */
+  .preview{
+    position:relative; width:100%; max-width:400px;
+    background: var(--panel);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border:1px solid var(--line); border-radius:24px;
+    padding:24px 22px;
+    opacity:0; transform: scale(0.9) translateY(20px);
+    animation: cardIn 0.7s var(--spring) 1.3s forwards;
+    text-align:left;
+  }
+  @keyframes cardIn{ to{ opacity:1; transform:scale(1) translateY(0); } }
+
+  .preview .label{ font-size:0.78rem; color:var(--text-soft); margin-bottom:4px; }
+  .preview .balance{
+    font-family:'Fraunces'; font-style:italic; font-weight:500; font-size:2.1rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .preview .delta{ font-size:0.8rem; color:var(--emerald); margin-top:4px; }
+
+  .chart-wrap{ margin-top:16px; position:relative; }
+  .chart-wrap svg{ width:100%; height:auto; display:block; }
+  #chartLine{
+    stroke-dasharray: 500;
+    stroke-dashoffset: 500;
+    animation: drawLine 1.8s var(--spring-soft) 2.1s forwards;
+  }
+  @keyframes drawLine{ to{ stroke-dashoffset: 0; } }
+  .chart-area{ opacity:0; animation: fadeUp 0.8s ease 2.6s forwards; }
+
+  .chip{
+    position:absolute; background: var(--panel); border:1px solid var(--line);
+    backdrop-filter: blur(12px);
+    border-radius:12px; padding:7px 12px; font-size:0.76rem; font-weight:600;
+    opacity:0; transform: translateY(10px) scale(0.9);
+    animation: chipIn 0.5s var(--spring) forwards;
+  }
+  @keyframes chipIn{ to{ opacity:1; transform:translateY(0) scale(1); } }
+  .chip.income{ color:var(--emerald); top:6px; right:10px; animation-delay:2.9s; }
+  .chip.expense{ color:var(--coral); bottom:38px; left:14px; animation-delay:3.15s; }
+
+  /* ---- CTAs ---- */
+  .ctas{
+    display:flex; gap:12px; width:100%; max-width:360px;
+    opacity:0; animation: fadeUp 0.6s var(--spring-soft) 1.6s forwards;
+  }
+  .ctas a{
+    flex:1; text-decoration:none; text-align:center;
+    display:flex; align-items:center; justify-content:center;
+    padding:15px 0; border-radius:14px; font-weight:600; font-size:0.95rem; line-height:1;
+    box-sizing:border-box;
+    transition: transform 0.28s var(--spring), box-shadow 0.2s, background 0.2s;
+  }
+  .ctas a:active{ transform: scale(0.95); }
+  .cta-primary{ background: var(--emerald); color:#06231B; }
+  .cta-primary:hover{ box-shadow: 0 12px 30px -10px rgba(47,191,143,0.6); }
+  .cta-outline{ background:transparent; color:var(--emerald); border:1px solid var(--emerald); }
+  .cta-outline:hover{ background: var(--emerald-dim); }
+
+  @media (min-width:860px){
+    .layout{ flex-direction:row; text-align:left; align-items:center; justify-content:space-between; gap:60px; }
+    .hero-block{ flex:1; display:flex; flex-direction:column; align-items:flex-start; }
+    .hero-sub{ max-width:440px; }
+    .ctas{ justify-content:flex-start; }
+    .preview{ flex-shrink:0; }
+  }
 </style>
 </head>
 <body>
 
-<div class="app-frame">
-  <div id="view-home">
-    <div class="home-top">
-      <svg width="82" height="82" viewBox="0 0 82 82">
-        <circle cx="41" cy="41" r="41" fill="#DCF2E4"/>
-        <rect x="20" y="30" width="44" height="30" rx="7" fill="#1F6E4F"/>
-        <rect x="20" y="30" width="44" height="13" rx="6.5" fill="#2F8F65"/>
-        <circle cx="53" cy="46" r="4.5" fill="#F5A623"/>
-        <circle cx="24" cy="52" r="7" fill="#F5A623"/>
-        <circle cx="33" cy="58" r="5.5" fill="#F7C05C"/>
-      </svg>
-      <div class="app-name">Money<span>Mate</span></div>
-      <div class="app-tagline">จัดการเงินง่าย<br>ไม่หมดก่อนสิ้นเดือน</div>
+<div class="stars" id="stars"></div>
+<div class="orb o1"></div>
+<div class="orb o2"></div>
+
+<div class="bg-ship s1"><svg viewBox="0 0 100 40"><path d="M5 20 L70 15 L85 20 L70 25 Z" fill="#2FBF8F"/><circle cx="72" cy="20" r="5" fill="#2FBF8F"/></svg></div>
+<div class="bg-ship s2"><svg viewBox="0 0 100 40"><path d="M5 20 L70 15 L85 20 L70 25 Z" fill="#2FBF8F"/><circle cx="72" cy="20" r="5" fill="#2FBF8F"/></svg></div>
+<div class="bg-ship s3"><svg viewBox="0 0 100 40"><path d="M5 20 L70 15 L85 20 L70 25 Z" fill="#2FBF8F"/><circle cx="72" cy="20" r="5" fill="#2FBF8F"/></svg></div>
+
+<div class="wrap">
+  <div class="layout">
+    <div class="hero-block">
+      <h1 class="hero-title" id="heroTitle"></h1>
+      <p class="hero-sub">บันทึกรายรับรายจ่าย ตั้งงบประมาณ และดูภาพรวมการเงินของคุณ ได้ในที่เดียว ไม่หมดก่อนสิ้นเดือนอีกต่อไป</p>
+      <div class="ctas" style="margin-top:26px;">
+        <a class="cta-primary" href="register.html">เริ่มใช้งาน</a>
+        <a class="cta-outline" href="login.html">เข้าสู่ระบบ</a>
+      </div>
     </div>
-    <div class="home-actions">
-      <a class="btn btn-primary" href="register.html" style="text-decoration:none;">เริ่มใช้งาน</a>
-      <a class="btn btn-outline" href="login.html" style="text-decoration:none;">เข้าสู่ระบบ</a>
-      <svg class="skyline" height="34" viewBox="0 0 280 34">
-        <rect x="0" y="14" width="24" height="20" fill="#CFE7D9"/><rect x="28" y="6" width="20" height="28" fill="#BEE3CD"/>
-        <rect x="52" y="18" width="18" height="16" fill="#CFE7D9"/><polygon points="80,34 92,10 104,34" fill="#BEE3CD"/>
-        <rect x="110" y="12" width="22" height="22" fill="#CFE7D9"/><circle cx="160" cy="24" r="9" fill="#BEE3CD"/>
-        <rect x="180" y="8" width="20" height="26" fill="#CFE7D9"/><rect x="205" y="16" width="16" height="18" fill="#BEE3CD"/>
-        <polygon points="235,34 246,12 257,34" fill="#CFE7D9"/><rect x="262" y="14" width="18" height="20" fill="#BEE3CD"/>
-      </svg>
+
+    <div class="preview">
+      <div class="label">ยอดเงินคงเหลือ</div>
+      <div class="balance">฿36,907.00</div>
+      <div class="delta">↑ 12.4% จากเดือนที่แล้ว</div>
+      <div class="chart-wrap">
+        <svg viewBox="0 0 300 110">
+          <defs>
+            <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#2FBF8F" stop-opacity="0.35"/>
+              <stop offset="100%" stop-color="#2FBF8F" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <path class="chart-area" d="M0,85 L35,70 L70,78 L105,45 L140,58 L175,25 L210,40 L245,15 L300,20 L300,110 L0,110 Z" fill="url(#areaGrad)"/>
+          <path id="chartLine" d="M0,85 L35,70 L70,78 L105,45 L140,58 L175,25 L210,40 L245,15 L300,20" fill="none" stroke="#2FBF8F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="chip income">+5,999.00</div>
+        <div class="chip expense">−280.00</div>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
-  // ถ้าล็อคอินอยู่แล้ว ให้พาไปหน้าแอปเลยแทนที่จะแสดงหน้านี้
+  // ---- animate hero title letter by letter, keep "Mate" as gradient accent ----
+  const title = document.getElementById('heroTitle');
+  const word1 = 'Money', word2 = 'Mate';
+  let html = '';
+  word1.split('').forEach((c, i) => {
+    html += `<span class="char" style="animation-delay:${0.3 + i*0.045}s">${c}</span>`;
+  });
+  word2.split('').forEach((c, i) => {
+    html += `<span class="char accent" style="animation-delay:${0.3 + (word1.length+i)*0.045}s">${c}</span>`;
+  });
+  title.innerHTML = html;
+
+  // ---- scatter a few background stars ----
+  const starsEl = document.getElementById('stars');
+  for(let i=0;i<40;i++){
+    const s = document.createElement('div');
+    s.className = 'star';
+    s.style.left = Math.random()*100 + '%';
+    s.style.top = Math.random()*100 + '%';
+    s.style.animationDelay = (Math.random()*3) + 's';
+    starsEl.appendChild(s);
+  }
+
+  // ---- if already logged in, skip straight to the app ----
   fetch('/api/me').then(res => {
     if (res.ok) window.location.href = 'app.html';
   });
