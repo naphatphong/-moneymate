@@ -245,6 +245,40 @@ app.put('/api/settings', requireLogin, async (req, res) => {
   }
 });
 
+// ----- API: ดึงงบประมาณรายเดือนทั้งหมดที่เคยตั้งไว้ -----
+app.get('/api/budgets', requireLogin, async (req, res) => {
+  try {
+    const budgets = await db.getBudgets(req.session.userId);
+    return res.json({ budgets });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
+// ----- API: ตั้ง/แก้ไขงบประมาณของเดือนใดเดือนหนึ่ง -----
+app.put('/api/budgets', requireLogin, async (req, res) => {
+  try {
+    const { year, month, budget } = req.body;
+    const y = parseInt(year, 10);
+    const m = parseInt(month, 10);
+    const b = parseFloat(budget);
+
+    if (isNaN(y) || isNaN(m) || m < 1 || m > 12) {
+      return res.status(400).json({ error: 'ปี/เดือนไม่ถูกต้อง' });
+    }
+    if (isNaN(b) || b <= 0) {
+      return res.status(400).json({ error: 'งบประมาณไม่ถูกต้อง' });
+    }
+
+    const row = await db.upsertBudget(req.session.userId, y, m, b);
+    return res.json({ budget: row });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
 async function start() {
   if (!process.env.DATABASE_URL) {
     console.error('ไม่พบ DATABASE_URL — กรุณาตั้งค่าใน .env (ดูวิธีใน README.md)');
