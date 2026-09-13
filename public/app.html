@@ -266,6 +266,37 @@
   .cat-item .label{ flex:1; font-size:0.85rem; }
   .cat-item .pct{ font-size:0.8rem; color:var(--text-soft); font-family:'Fraunces'; }
 
+  /* ---- reports: month navigator ---- */
+  .month-nav{
+    display:flex; align-items:center; justify-content:center; gap:18px;
+    margin-bottom:16px;
+  }
+  .month-nav button{
+    width:34px; height:34px; border-radius:50%; border:1px solid var(--line);
+    background: var(--panel); color:var(--text); font-size:1.1rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition: transform 0.25s var(--spring), border-color 0.2s;
+  }
+  .month-nav button:hover{ border-color: var(--emerald); color:var(--emerald); }
+  .month-nav button:active{ transform: scale(0.88); }
+  .month-nav button:disabled{ opacity:0.3; cursor:default; }
+  .month-nav button:disabled:hover{ border-color:var(--line); color:var(--text); }
+  .month-nav span{ font-family:'Fraunces'; font-style:italic; font-size:1.05rem; min-width:140px; text-align:center; }
+
+  /* ---- reports: trend bar chart ---- */
+  .trend-bars{ display:flex; align-items:flex-end; gap:10px; height:110px; }
+  .trend-bar{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; cursor:pointer; }
+  .trend-bar .track{ width:100%; max-width:34px; height:100%; display:flex; align-items:flex-end; background:transparent; border-radius:8px; overflow:visible; position:relative; }
+  .trend-bar .fill{
+    width:100%; border-radius:6px 6px 3px 3px; background: var(--emerald);
+    height:0%; transition: height 0.8s var(--spring-soft);
+  }
+  .trend-bar .fill.over{ background: var(--coral); }
+  .trend-bar .fill.current{ box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--emerald); }
+  .trend-bar .amt{ font-size:0.64rem; color:var(--text-soft); margin-top:6px; font-family:'Fraunces'; }
+  .trend-bar .lbl{ font-size:0.68rem; color:var(--text-soft); margin-top:2px; }
+  .trend-bar.selected .lbl{ color:var(--emerald); font-weight:600; }
+
   /* ---- profile view ---- */
   .profile-card{ padding:26px 22px; display:flex; align-items:center; gap:16px; margin-bottom:16px; }
   .profile-card .av{ width:56px;height:56px;border-radius:50%; background:linear-gradient(135deg,var(--emerald),var(--amber)); display:flex; align-items:center; justify-content:center; font-family:'Fraunces'; font-weight:600; font-size:1.4rem; color:#06231B; flex-shrink:0; }
@@ -521,7 +552,24 @@
 
     <!-- ===== REPORTS ===== -->
     <div class="view" id="view-reports">
-      <div class="section-title"><h2 data-i18n="breakdown_full">สรุปรายจ่ายตามหมวดหมู่ (เดือนนี้)</h2></div>
+      <div class="month-nav">
+        <button id="monthPrev" aria-label="prev">‹</button>
+        <span id="monthLabel">—</span>
+        <button id="monthNext" aria-label="next">›</button>
+      </div>
+
+      <div class="glass panel" style="margin-bottom:16px;">
+        <div class="budget-head">
+          <span data-i18n="budget_label_generic">งบประมาณ</span>
+          <span><b id="rptSpent">฿0</b> / <b id="rptBudget">฿0</b></span>
+        </div>
+        <div class="track"><div class="fill" id="rptFill"></div></div>
+      </div>
+
+      <div class="section-title"><h2 data-i18n="trend">แนวโน้มรายจ่าย 6 เดือนล่าสุด</h2></div>
+      <div class="glass panel" id="trendChart" style="padding:18px 16px 10px; margin-bottom:16px;"></div>
+
+      <div class="section-title"><h2 data-i18n="breakdown_full">สรุปรายจ่ายตามหมวดหมู่</h2></div>
       <div class="glass panel cat-breakdown" id="catBreakdownFull" style="padding:18px 20px;"></div>
     </div>
 
@@ -655,7 +703,9 @@ const translations = {
   toast_saved: { th:"บันทึกรายการแล้ว", en:"Transaction saved" },
   toast_error: { th:"เกิดข้อผิดพลาด กรุณาลองใหม่", en:"Something went wrong, please try again" },
   toast_budget: { th:"อัปเดตงบประมาณแล้ว", en:"Budget updated" },
-  empty_list: { th:"ยังไม่มีรายการ", en:"No transactions yet" }
+  empty_list: { th:"ยังไม่มีรายการ", en:"No transactions yet" },
+  trend: { th:"แนวโน้มรายจ่าย 6 เดือนล่าสุด", en:"6-month spending trend" },
+  budget_label_generic: { th:"งบประมาณ", en:"Budget" }
 };
 const catLabel = { food:'cat_food_short', travel:'cat_travel_short', entertainment:'cat_entertainment_short', shopping:'cat_shopping_short', other:'cat_other_short', income:'cat_income' };
 translations.cat_income = { th:"รายรับ", en:"Income" };
@@ -680,7 +730,13 @@ document.getElementById('langToggle').addEventListener('click', () => {
 });
 
 /* ===================== state ===================== */
-let state = { user:null, openingBalance:0, budget:0, notif:true, txs:[] };
+let state = { user:null, openingBalance:0, budget:0, notif:true, txs:[], monthlyBudgets:{} };
+let reportsDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+
+function getBudgetForMonth(year, month0){
+  const key = `${year}-${month0}`;
+  return state.monthlyBudgets[key] !== undefined ? state.monthlyBudgets[key] : state.budget;
+}
 
 function fmtMoney(n){
   const v = Number(n) || 0;
@@ -736,9 +792,10 @@ async function checkAuthAndEnter(){
 
 async function loadData(){
   try{
-    const [settingsRes, txRes] = await Promise.all([
+    const [settingsRes, txRes, budgetsRes] = await Promise.all([
       fetch('/api/settings'),
-      fetch('/api/transactions')
+      fetch('/api/transactions'),
+      fetch('/api/budgets')
     ]);
     if(settingsRes.ok){
       const sData = await settingsRes.json();
@@ -752,6 +809,13 @@ async function loadData(){
         id: x.id, type: x.type, cat: x.cat, title: x.title,
         amount: parseFloat(x.amount), date: new Date(x.tx_date)
       }));
+    }
+    if(budgetsRes.ok){
+      const bData = await budgetsRes.json();
+      state.monthlyBudgets = {};
+      bData.budgets.forEach(row => {
+        state.monthlyBudgets[`${row.year}-${row.month - 1}`] = parseFloat(row.budget);
+      });
     }
   }catch(err){
     console.error(err);
@@ -770,20 +834,91 @@ function renderAll(){
   incomeSubEl.textContent = (lang === 'th' ? '↑ รายรับสะสม ฿' : '↑ Total income ฿') + fmtMoney(income);
 
   const now = new Date();
+  const homeBudget = getBudgetForMonth(now.getFullYear(), now.getMonth());
   const monthExpense = state.txs.filter(x => x.type==='expense' && sameMonth(x.date, now)).reduce((s,x)=>s+x.amount,0);
-  const pct = state.budget > 0 ? Math.min(100, (monthExpense/state.budget)*100) : 0;
+  const pct = homeBudget > 0 ? Math.min(100, (monthExpense/homeBudget)*100) : 0;
   document.getElementById('budgetSpent').textContent = fmtMoneyShort(monthExpense);
-  document.getElementById('budgetMax').textContent = fmtMoneyShort(state.budget);
+  document.getElementById('budgetMax').textContent = fmtMoneyShort(homeBudget);
   const fillEl = document.getElementById('budgetFill');
   fillEl.style.width = pct + '%';
-  fillEl.classList.toggle('over', monthExpense > state.budget && state.budget > 0);
+  fillEl.classList.toggle('over', monthExpense > homeBudget && homeBudget > 0);
   document.getElementById('expenseMonthVal').textContent = fmtMoneyShort(monthExpense);
 
   renderList('recentList', state.txs.slice(0, 4));
   renderList('fullList', state.txs);
   renderBreakdown('catBreakdown', 5);
-  renderBreakdown('catBreakdownFull', 99);
+  renderReportsView();
 }
+
+/* ===================== reports view (month browser + trend + budget) ===================== */
+function formatMonthLabel(d){
+  const monthsArr = lang === 'th' ? monthsTH : monthsEN;
+  const y = lang === 'th' ? d.getFullYear() + 543 : d.getFullYear();
+  return `${monthsArr[d.getMonth()]} ${y}`;
+}
+
+function renderReportsView(){
+  document.getElementById('monthLabel').textContent = formatMonthLabel(reportsDate);
+
+  const monthExpense = state.txs.filter(x => x.type==='expense' && sameMonth(x.date, reportsDate)).reduce((s,x)=>s+x.amount,0);
+  const budget = getBudgetForMonth(reportsDate.getFullYear(), reportsDate.getMonth());
+  const pct = budget > 0 ? Math.min(100, (monthExpense/budget)*100) : 0;
+  document.getElementById('rptSpent').textContent = fmtMoneyShort(monthExpense);
+  document.getElementById('rptBudget').textContent = fmtMoneyShort(budget);
+  const fillEl = document.getElementById('rptFill');
+  fillEl.style.width = pct + '%';
+  fillEl.classList.toggle('over', monthExpense > budget && budget > 0);
+
+  renderBreakdown('catBreakdownFull', 99, reportsDate);
+  renderTrend();
+}
+
+function renderTrend(){
+  const el = document.getElementById('trendChart');
+  const monthsArr = lang === 'th' ? monthsTH : monthsEN;
+  const realNow = new Date();
+
+  const cols = [];
+  for(let i = 5; i >= 0; i--){
+    const d = new Date(reportsDate.getFullYear(), reportsDate.getMonth() - i, 1);
+    const exp = state.txs.filter(x => x.type==='expense' && sameMonth(x.date, d)).reduce((s,x)=>s+x.amount,0);
+    const bud = getBudgetForMonth(d.getFullYear(), d.getMonth());
+    cols.push({ d, exp, bud });
+  }
+  const maxVal = Math.max(...cols.map(c => Math.max(c.exp, c.bud || 0)), 1);
+
+  el.innerHTML = cols.map(c => {
+    const h = Math.round((c.exp / maxVal) * 100);
+    const over = c.bud > 0 && c.exp > c.bud;
+    const isRealCurrent = sameMonth(c.d, realNow);
+    const isSelected = sameMonth(c.d, reportsDate);
+    return `<div class="trend-bar ${isSelected ? 'selected' : ''}" data-y="${c.d.getFullYear()}" data-m="${c.d.getMonth()}">
+      <div class="track"><div class="fill ${over ? 'over' : ''} ${isRealCurrent ? 'current' : ''}" data-h="${h}"></div></div>
+      <div class="amt">${fmtMoneyShort(c.exp)}</div>
+      <div class="lbl">${monthsArr[c.d.getMonth()]}</div>
+    </div>`;
+  }).join('');
+  el.innerHTML = `<div class="trend-bars">${el.innerHTML}</div>`;
+
+  requestAnimationFrame(() => {
+    el.querySelectorAll('.fill').forEach(f => { f.style.height = f.dataset.h + '%'; });
+  });
+  el.querySelectorAll('.trend-bar').forEach(bar => {
+    bar.addEventListener('click', () => {
+      reportsDate = new Date(parseInt(bar.dataset.y, 10), parseInt(bar.dataset.m, 10), 1);
+      renderReportsView();
+    });
+  });
+}
+
+document.getElementById('monthPrev').addEventListener('click', () => {
+  reportsDate = new Date(reportsDate.getFullYear(), reportsDate.getMonth() - 1, 1);
+  renderReportsView();
+});
+document.getElementById('monthNext').addEventListener('click', () => {
+  reportsDate = new Date(reportsDate.getFullYear(), reportsDate.getMonth() + 1, 1);
+  renderReportsView();
+});
 
 function renderList(elId, txs){
   const el = document.getElementById(elId);
@@ -802,10 +937,10 @@ function renderList(elId, txs){
   }).join('');
 }
 
-function renderBreakdown(elId, limit){
+function renderBreakdown(elId, limit, refDate){
   const el = document.getElementById(elId);
-  const now = new Date();
-  const monthTx = state.txs.filter(x => x.type==='expense' && sameMonth(x.date, now));
+  const ref = refDate || new Date();
+  const monthTx = state.txs.filter(x => x.type==='expense' && sameMonth(x.date, ref));
   const total = monthTx.reduce((s,x)=>s+x.amount,0);
   const byCat = {};
   monthTx.forEach(x => { byCat[x.cat] = (byCat[x.cat]||0) + x.amount; });
@@ -973,56 +1108,64 @@ document.getElementById('btnSave').addEventListener('click', async () => {
 });
 
 /* ===================== inline budget edit ===================== */
-document.querySelector('.budget-head').addEventListener('click', function(e){
-  const target = e.target.closest('#budgetMax');
-  if(!target) return;
+function bindBudgetEdit(headSelector, spanId, getEditDate){
+  const head = document.querySelector(headSelector);
+  if(!head) return;
+  head.addEventListener('click', function(e){
+    const target = e.target.closest('#' + spanId);
+    if(!target) return;
 
-  const current = state.budget;
-  const input = document.createElement('input');
-  input.type = 'number';
-  input.min = '1';
-  input.step = '0.01';
-  input.value = current;
-  target.replaceWith(input);
-  input.focus();
-  input.select();
+    const editDate = getEditDate();
+    const y = editDate.getFullYear();
+    const m0 = editDate.getMonth();
+    const current = getBudgetForMonth(y, m0);
 
-  let done = false;
-  const commit = async () => {
-    if(done) return;
-    done = true;
-    const n = parseFloat(input.value);
-    const span = document.createElement('b');
-    span.id = 'budgetMax';
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.min = '1';
+    input.step = '0.01';
+    input.value = current;
+    target.replaceWith(input);
+    input.focus();
+    input.select();
 
-    if(isNaN(n) || n <= 0){
-      span.textContent = fmtMoneyShort(current);
+    let done = false;
+    const commit = async () => {
+      if(done) return;
+      done = true;
+      const n = parseFloat(input.value);
+      const span = document.createElement('b');
+      span.id = spanId;
+
+      if(isNaN(n) || n <= 0){
+        span.textContent = fmtMoneyShort(current);
+        input.replaceWith(span);
+        return;
+      }
+      span.textContent = fmtMoneyShort(n);
       input.replaceWith(span);
-      return;
-    }
-    span.textContent = fmtMoneyShort(n);
-    input.replaceWith(span);
-    try{
-      const res = await fetch('/api/settings', {
-        method:'PUT', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ budget: n })
-      });
-      if(res.ok){
-        state.budget = n;
-        showToast(t('toast_budget'), false);
-      }else{
-        state.budget = current;
+      try{
+        const res = await fetch('/api/budgets', {
+          method:'PUT', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ year: y, month: m0 + 1, budget: n })
+        });
+        if(res.ok){
+          state.monthlyBudgets[`${y}-${m0}`] = n;
+          showToast(t('toast_budget'), false);
+        }else{
+          showToast(t('toast_error'), true);
+        }
+      }catch(err){
         showToast(t('toast_error'), true);
       }
-    }catch(err){
-      state.budget = current;
-      showToast(t('toast_error'), true);
-    }
-    renderAll();
-  };
-  input.addEventListener('blur', commit);
-  input.addEventListener('keydown', (ev) => { if(ev.key === 'Enter') input.blur(); });
-});
+      renderAll();
+    };
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', (ev) => { if(ev.key === 'Enter') input.blur(); });
+  });
+}
+bindBudgetEdit('#view-home .budget-head', 'budgetMax', () => new Date());
+bindBudgetEdit('#view-reports .budget-head', 'rptBudget', () => reportsDate);
 
 /* ===================== notif toggle ===================== */
 async function setNotif(val){
