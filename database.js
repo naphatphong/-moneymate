@@ -20,7 +20,7 @@ async function init() {
     )
   `);
 
-  // ตารางรายการรายรับ-รายจ่าย ผูกกับผู้ใช้แต่ละคน (ทำให้ข้อมูลไม่หายเวลาลบบัญชี)
+  // ตารางรายการรายรับ-รายจ่าย ผูกกับผู้ใช้แต่ละคน (ทำให้ข้อมูลไม่หายเวลารีเฟรช)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS transactions (
       id SERIAL PRIMARY KEY,
@@ -44,6 +44,18 @@ async function init() {
       opening_balance NUMERIC(12,2) NOT NULL DEFAULT 0,
       budget NUMERIC(12,2) NOT NULL DEFAULT 6000,
       notif BOOLEAN NOT NULL DEFAULT TRUE
+    )
+  `);
+
+  // ตารางงบประมาณรายเดือน (ผู้ใช้กำหนดงบของแต่ละเดือนแยกกันได้)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS monthly_budgets (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      year INTEGER NOT NULL,
+      month INTEGER NOT NULL,
+      budget NUMERIC(12,2) NOT NULL,
+      UNIQUE(user_id, year, month)
     )
   `);
 }
@@ -120,7 +132,7 @@ async function getSettings(userId) {
 
   const inserted = await pool.query(
     `INSERT INTO user_settings (user_id, opening_balance, budget, notif)
-     VALUES ($1, 0, 5000, true)
+     VALUES ($1, 5000, 6000, true)
      ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id
      RETURNING *`,
     [userId]
@@ -143,6 +155,31 @@ async function updateSettings(userId, { openingBalance, budget, notif }) {
   return rows[0];
 }
 
+// ----- งบประมาณรายเดือน -----
+
+// ดึงงบประมาณที่ผู้ใช้ตั้งไว้เป็นรายเดือนทั้งหมด (เฉพาะเดือนที่เคยตั้งค่าไว้)
+async function getBudgets(userId) {
+  const { rows } = await pool.query(
+    'SELECT year, month, budget FROM monthly_budgets WHERE user_id = $1',
+    [userId]
+  );
+  return rows;
+}
+
+// ตั้ง/แก้ไขงบประมาณของเดือนใดเดือนหนึ่งโดยเฉพาะ (upsert)
+// พร้อมอัปเดต user_settings.budget ให้เป็นค่าล่าสุดด้วย เพื่อใช้เป็นค่าเริ่มต้นของเดือนถัดๆ ไปที่ยังไม่เคยตั้งค่า
+async function upsertBudget(userId, year, month, budget) {
+  const { rows } = await pool.query(
+    `INSERT INTO monthly_budgets (user_id, year, month, budget)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (user_id, year, month) DO UPDATE SET budget = EXCLUDED.budget
+     RETURNING *`,
+    [userId, year, month, budget]
+  );
+  await updateSettings(userId, { budget });
+  return rows[0];
+}
+
 module.exports = {
   init,
   userExists,
@@ -153,5 +190,7 @@ module.exports = {
   createTransaction,
   deleteTransaction,
   getSettings,
-  updateSettings
+  updateSettings,
+  getBudgets,
+  upsertBudget
 };
