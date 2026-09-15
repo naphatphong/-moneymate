@@ -19,6 +19,8 @@ async function init() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+  // เพิ่มคอลัมน์ role ให้ตาราง users ที่มีอยู่แล้ว (ผู้ใช้ทั่วไป = 'user', แอดมิน = 'admin')
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user'`);
 
   // ตารางรายการรายรับ-รายจ่าย ผูกกับผู้ใช้แต่ละคน (ทำให้ข้อมูลไม่หายเวลารีเฟรช)
   await pool.query(`
@@ -180,6 +182,83 @@ async function upsertBudget(userId, year, month, budget) {
   return rows[0];
 }
 
+// ----- แอดมิน: จัดการผู้ใช้และสถิติภาพรวมระบบ -----
+
+// ดึงรายชื่อผู้ใช้ทั้งหมด (สำหรับตารางจัดการยศในหน้าแอดมิน)
+async function getAllUsers() {
+  const { rows } = await pool.query(
+    `SELECT id, username, email, role, created_at,
+       (SELECT COUNT(*) FROM transactions t WHERE t.user_id = users.id) AS tx_count
+     FROM users ORDER BY created_at DESC`
+  );
+  return rows;
+}
+
+// ตั้งยศผู้ใช้ ('user' หรือ 'admin')
+async function setUserRole(userId, role) {
+  const { rows } = await pool.query(
+    `UPDATE users SET role = $2 WHERE id = $1 RETURNING id, username, email, role`,
+    [userId, role]
+  );
+  return rows[0] || null;
+}
+
+// นับจำนวนแอดมินทั้งหมด (ใช้กันไม่ให้ลดยศแอดมินคนสุดท้ายจนไม่เหลือใครดูแลระบบ)
+async function countAdmins() {
+  const { rows } = await pool.query(`SELECT COUNT(*)::int AS count FROM users WHERE role = 'admin'`);
+  return rows[0].count;
+}
+
+// ตัวเลขสรุปภาพรวมทั้งระบบ
+async function getPlatformTotals() {
+  const { rows } = await pool.query(`
+    SELECT
+      (SELECT COUNT(*) FROM users)::int AS total_users,
+      (SELECT COUNT(*) FROM users WHERE role = 'admin')::int AS total_admins,
+      (SELECT COUNT(*) FROM transactions)::int AS total_transactions,
+      (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE type = 'income') AS total_income,
+      (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE type = 'expense') AS total_expense
+  `);
+  return rows[0];
+}
+
+// จำนวนผู้ใช้สมัครใหม่ต่อวัน ย้อนหลัง N วัน (เติมวันที่ไม่มีข้อมูลด้วย 0 ให้กราฟต่อเนื่อง)
+async function getUserGrowth(days) {
+  const { rows } = await pool.query(
+    `SELECT gs::date AS day, COUNT(u.id)::int AS count
+     FROM generate_series(CURRENT_DATE - ($1::int - 1), CURRENT_DATE, interval '1 day') AS gs
+     LEFT JOIN users u ON u.created_at::date = gs::date
+     GROUP BY gs ORDER BY gs`,
+    [days]
+  );
+  return rows;
+}
+
+// กิจกรรมรายวัน (จำนวนรายการ + ยอดรวม) ย้อนหลัง N วัน ทั้งระบบ
+async function getDailyActivity(days) {
+  const { rows } = await pool.query(
+    `SELECT gs::date AS day,
+       COUNT(t.id)::int AS count,
+       COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END),0) AS expense_total,
+       COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END),0) AS income_total
+     FROM generate_series(CURRENT_DATE - ($1::int - 1), CURRENT_DATE, interval '1 day') AS gs
+     LEFT JOIN transactions t ON t.tx_date::date = gs::date
+     GROUP BY gs ORDER BY gs`,
+    [days]
+  );
+  return rows;
+}
+
+// สัดส่วนรายจ่ายตามหมวดหมู่ รวมทุกผู้ใช้ในระบบ
+async function getCategoryBreakdownAll() {
+  const { rows } = await pool.query(
+    `SELECT cat, COUNT(*)::int AS count, COALESCE(SUM(amount),0) AS total
+     FROM transactions WHERE type = 'expense'
+     GROUP BY cat ORDER BY total DESC`
+  );
+  return rows;
+}
+
 module.exports = {
   init,
   userExists,
@@ -192,5 +271,12 @@ module.exports = {
   getSettings,
   updateSettings,
   getBudgets,
-  upsertBudget
+  upsertBudget,
+  getAllUsers,
+  setUserRole,
+  countAdmins,
+  getPlatformTotals,
+  getUserGrowth,
+  getDailyActivity,
+  getCategoryBreakdownAll
 };
