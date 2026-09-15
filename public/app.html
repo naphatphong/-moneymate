@@ -191,6 +191,21 @@
   .lang-toggle:not(.en) .opt.th{ color:#06231B; }
   .lang-toggle.en .opt.en{ color:#06231B; }
 
+  .admin-btn{
+    display:flex; align-items:center; gap:6px;
+    padding:8px 14px; border-radius:999px;
+    background: linear-gradient(100deg, rgba(232,176,75,0.18), rgba(232,176,75,0.06));
+    border:1px solid rgba(232,176,75,0.4);
+    color: var(--amber); text-decoration:none; font-size:0.82rem; font-weight:600;
+    flex-shrink:0; white-space:nowrap;
+    animation: admin-in 0.55s var(--spring) 0.05s both;
+    transition: transform 0.28s var(--spring), box-shadow 0.2s, background 0.2s;
+  }
+  .admin-btn svg{ width:14px; height:14px; stroke:var(--amber); fill:none; stroke-width:1.8; }
+  .admin-btn:hover{ box-shadow: 0 8px 20px -8px rgba(232,176,75,0.5); background: linear-gradient(100deg, rgba(232,176,75,0.28), rgba(232,176,75,0.1)); }
+  .admin-btn:active{ transform: scale(0.94); }
+  @keyframes admin-in{ 0%{ transform: scale(0.8); opacity:0; } 100%{ transform: scale(1); opacity:1; } }
+
   .bell{
     width:38px;height:38px;border-radius:50%; background:var(--panel);
     backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%);
@@ -491,6 +506,10 @@
       <span class="tag" id="topTag">บัญชีหลัก</span>
       <div class="greet" id="topGreet">สวัสดี</div>
       <div class="topbar-right">
+        <a class="admin-btn" id="adminBtn" href="admin.html" style="display:none;">
+          <svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3z"/></svg>
+          <span data-i18n="admin_panel">แอดมิน</span>
+        </a>
         <button class="add-btn-desktop" id="fabDesktop">+ <span data-i18n="add_tx">เพิ่มรายการ</span></button>
         <div class="lang-toggle" id="langToggle">
           <div class="thumb"></div>
@@ -704,6 +723,7 @@ const translations = {
   toast_error: { th:"เกิดข้อผิดพลาด กรุณาลองใหม่", en:"Something went wrong, please try again" },
   toast_budget: { th:"อัปเดตงบประมาณแล้ว", en:"Budget updated" },
   empty_list: { th:"ยังไม่มีรายการ", en:"No transactions yet" },
+  admin_panel: { th:"แอดมิน", en:"Admin" },
   trend: { th:"แนวโน้มรายจ่าย 6 เดือนล่าสุด", en:"6-month spending trend" },
   budget_label_generic: { th:"งบประมาณ", en:"Budget" }
 };
@@ -772,6 +792,9 @@ async function checkAuthAndEnter(){
     document.getElementById('sidebarAvatar').textContent = initial;
     document.getElementById('sidebarName').textContent = data.user.username;
     document.getElementById('topGreet').textContent = (lang === 'th' ? 'สวัสดี ' : 'Hi, ') + data.user.username;
+    if(data.user.role === 'admin'){
+      document.getElementById('adminBtn').style.display = 'flex';
+    }
 
     await Promise.all([loadData(), minLoaderTime]);
     document.getElementById('notifSwitch').classList.toggle('on', state.notif);
