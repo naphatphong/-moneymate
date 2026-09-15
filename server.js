@@ -41,6 +41,23 @@ app.get('/app.html', (req, res, next) => {
   next();
 });
 
+// ป้องกันหน้า admin.html: ต้องล็อคอินและต้องเป็นแอดมินเท่านั้นถึงจะเข้าได้
+app.get('/admin.html', async (req, res, next) => {
+  if (!req.session || !req.session.userId) {
+    return res.redirect('/login.html');
+  }
+  try {
+    const user = await db.findById(req.session.userId);
+    if (!user || user.role !== 'admin') {
+      return res.redirect('/app.html');
+    }
+    next();
+  } catch (err) {
+    console.error(err);
+    return res.redirect('/app.html');
+  }
+});
+
 // เสิร์ฟไฟล์หน้าเว็บ (HTML/CSS/JS) จากโฟลเดอร์ public
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -50,6 +67,24 @@ function requireLogin(req, res, next) {
     return next();
   }
   return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+}
+
+// ----- Middleware ตรวจสอบว่าเป็นแอดมิน (เช็คจากฐานข้อมูลจริงทุกครั้ง ไม่เชื่อค่าจาก frontend) -----
+async function requireAdmin(req, res, next) {
+  if (!req.session || !req.session.userId) {
+    return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+  }
+  try {
+    const user = await db.findById(req.session.userId);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: 'ต้องเป็นแอดมินเท่านั้นถึงจะใช้งานส่วนนี้ได้' });
+    }
+    req.currentUser = user;
+    return next();
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
 }
 
 // ----- API: สมัครสมาชิก -----
@@ -273,6 +308,70 @@ app.put('/api/budgets', requireLogin, async (req, res) => {
 
     const row = await db.upsertBudget(req.session.userId, y, m, b);
     return res.json({ budget: row });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
+// ===================== แอดมิน =====================
+
+// ----- API: สถิติภาพรวมสำหรับแดชบอร์ดแอดมิน -----
+app.get('/api/admin/stats', requireAdmin, async (req, res) => {
+  try {
+    const days = 14;
+    const [totals, growth, activity, categories] = await Promise.all([
+      db.getPlatformTotals(),
+      db.getUserGrowth(days),
+      db.getDailyActivity(days),
+      db.getCategoryBreakdownAll()
+    ]);
+    return res.json({ totals, growth, activity, categories });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
+// ----- API: รายชื่อผู้ใช้ทั้งหมด (สำหรับตารางจัดการยศ) -----
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
+  try {
+    const users = await db.getAllUsers();
+    return res.json({ users });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
+// ----- API: ตั้ง/ถอดยศแอดมินให้ผู้ใช้ -----
+app.put('/api/admin/users/:id/role', requireAdmin, async (req, res) => {
+  try {
+    const targetId = parseInt(req.params.id, 10);
+    const { role } = req.body;
+
+    if (isNaN(targetId)) {
+      return res.status(400).json({ error: 'รหัสผู้ใช้ไม่ถูกต้อง' });
+    }
+    if (role !== 'admin' && role !== 'user') {
+      return res.status(400).json({ error: 'ยศไม่ถูกต้อง (ต้องเป็น admin หรือ user เท่านั้น)' });
+    }
+    if (targetId === req.currentUser.id) {
+      return res.status(400).json({ error: 'ไม่สามารถเปลี่ยนยศของตัวเองได้' });
+    }
+    if (role === 'user') {
+      const adminCount = await db.countAdmins();
+      const target = await db.findById(targetId);
+      if (target && target.role === 'admin' && adminCount <= 1) {
+        return res.status(400).json({ error: 'ต้องมีแอดมินเหลืออย่างน้อย 1 คนในระบบ' });
+      }
+    }
+
+    const updated = await db.setUserRole(targetId, role);
+    if (!updated) {
+      return res.status(404).json({ error: 'ไม่พบผู้ใช้นี้' });
+    }
+    return res.json({ user: updated });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
