@@ -60,6 +60,22 @@ async function init() {
       UNIQUE(user_id, year, month)
     )
   `);
+
+  // แฟล็กบอกว่าผู้ใช้กด "ไม่ต้องแสดงอีก" สำหรับป๊อปอัปแบบสอบถามหรือยัง
+  await pool.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS survey_dismissed BOOLEAN NOT NULL DEFAULT FALSE`);
+
+  // ตารางคำตอบแบบสอบถามความพึงพอใจ (14 ข้อให้คะแนน 1-5 + ชั้นปี + ข้อเสนอแนะปลายเปิด)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS survey_responses (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      year_level TEXT,
+      q1 SMALLINT, q2 SMALLINT, q3 SMALLINT, q4 SMALLINT, q5 SMALLINT, q6 SMALLINT, q7 SMALLINT,
+      q8 SMALLINT, q9 SMALLINT, q10 SMALLINT, q11 SMALLINT, q12 SMALLINT, q13 SMALLINT, q14 SMALLINT,
+      feedback TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
 }
 
 // ตรวจสอบว่ามี username หรือ email นี้ในระบบแล้วหรือยัง
@@ -259,6 +275,68 @@ async function getCategoryBreakdownAll() {
   return rows;
 }
 
+// ----- แบบสอบถามความพึงพอใจ -----
+
+// เช็คสถานะแบบสอบถามของผู้ใช้คนนี้: เคยตอบหรือยัง / กด "ไม่ต้องแสดงอีก" ไว้หรือเปล่า
+async function getSurveyStatus(userId) {
+  const settings = await getSettings(userId); // เผื่อยังไม่มีแถวใน user_settings ให้สร้างให้ก่อน
+  const { rows } = await pool.query(
+    'SELECT id FROM survey_responses WHERE user_id = $1 LIMIT 1',
+    [userId]
+  );
+  return { hasResponded: rows.length > 0, dismissed: !!settings.survey_dismissed };
+}
+
+// บันทึกคำตอบแบบสอบถาม (answers เป็น array ตัวเลข 1-5 จำนวน 14 ข้อ)
+async function submitSurveyResponse(userId, { yearLevel, answers, feedback }) {
+  const cols = answers.map((_, i) => `q${i + 1}`).join(', ');
+  const placeholders = answers.map((_, i) => `$${i + 3}`).join(', ');
+  const { rows } = await pool.query(
+    `INSERT INTO survey_responses (user_id, year_level, ${cols}, feedback)
+     VALUES ($1, $2, ${placeholders}, $${answers.length + 3})
+     RETURNING *`,
+    [userId, yearLevel, ...answers, feedback]
+  );
+  return rows[0];
+}
+
+// ตั้งค่า "ไม่ต้องแสดงป๊อปอัปแบบสอบถามอีก" ให้ผู้ใช้คนนี้
+async function dismissSurvey(userId) {
+  await getSettings(userId);
+  await pool.query('UPDATE user_settings SET survey_dismissed = true WHERE user_id = $1', [userId]);
+}
+
+// สถิติรวมของแบบสอบถามทั้งหมด (สำหรับแดชบอร์ดที่ทุกคนดูได้)
+async function getSurveyStats() {
+  const { rows: totalRows } = await pool.query('SELECT COUNT(*)::int AS count FROM survey_responses');
+  const total = totalRows[0].count;
+
+  const avgCols = Array.from({ length: 14 }, (_, i) => `AVG(q${i + 1})::float AS avg_q${i + 1}`).join(', ');
+  const { rows: avgRows } = total > 0
+    ? await pool.query(`SELECT ${avgCols} FROM survey_responses`)
+    : [{}];
+  const averages = avgRows[0] || {};
+
+  const { rows: yearLevels } = await pool.query(`
+    SELECT year_level, COUNT(*)::int AS count FROM survey_responses
+    WHERE year_level IS NOT NULL AND year_level <> ''
+    GROUP BY year_level ORDER BY year_level
+  `);
+
+  const { rows: overallDist } = await pool.query(`
+    SELECT q14 AS rating, COUNT(*)::int AS count FROM survey_responses
+    WHERE q14 IS NOT NULL GROUP BY q14 ORDER BY q14
+  `);
+
+  const { rows: feedback } = await pool.query(`
+    SELECT feedback, created_at FROM survey_responses
+    WHERE feedback IS NOT NULL AND TRIM(feedback) <> '' AND feedback <> '-'
+    ORDER BY created_at DESC LIMIT 12
+  `);
+
+  return { total, averages, yearLevels, overallDist, feedback };
+}
+
 module.exports = {
   init,
   userExists,
@@ -278,5 +356,9 @@ module.exports = {
   getPlatformTotals,
   getUserGrowth,
   getDailyActivity,
-  getCategoryBreakdownAll
+  getCategoryBreakdownAll,
+  getSurveyStatus,
+  submitSurveyResponse,
+  dismissSurvey,
+  getSurveyStats
 };
