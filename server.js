@@ -378,6 +378,66 @@ app.put('/api/admin/users/:id/role', requireAdmin, async (req, res) => {
   }
 });
 
+// ===================== แบบสอบถามความพึงพอใจ =====================
+
+// ----- API: เช็คว่าผู้ใช้เคยตอบแบบสอบถาม หรือกด "ไม่ต้องแสดงอีก" ไว้หรือยัง -----
+app.get('/api/survey/status', requireLogin, async (req, res) => {
+  try {
+    const status = await db.getSurveyStatus(req.session.userId);
+    return res.json(status);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
+// ----- API: ส่งคำตอบแบบสอบถาม -----
+app.post('/api/survey', requireLogin, async (req, res) => {
+  try {
+    const { yearLevel, answers, feedback } = req.body;
+
+    if (!Array.isArray(answers) || answers.length !== 14) {
+      return res.status(400).json({ error: 'กรุณาตอบคำถามให้ครบทุกข้อ' });
+    }
+    const cleanAnswers = answers.map(a => parseInt(a, 10));
+    if (cleanAnswers.some(a => isNaN(a) || a < 1 || a > 5)) {
+      return res.status(400).json({ error: 'คะแนนแต่ละข้อต้องอยู่ระหว่าง 1-5' });
+    }
+
+    const response = await db.submitSurveyResponse(req.session.userId, {
+      yearLevel: (yearLevel || '').trim() || null,
+      answers: cleanAnswers,
+      feedback: (feedback || '').trim() || null
+    });
+    return res.status(201).json({ response });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
+// ----- API: ตั้งค่า "ไม่ต้องแสดงป๊อปอัปแบบสอบถามอีก" -----
+app.put('/api/survey/dismiss', requireLogin, async (req, res) => {
+  try {
+    await db.dismissSurvey(req.session.userId);
+    return res.json({ message: 'บันทึกแล้ว' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
+// ----- API: สถิติแบบสอบถามโดยรวม (ทุกคนที่ล็อคอินดูได้) -----
+app.get('/api/survey/stats', requireLogin, async (req, res) => {
+  try {
+    const stats = await db.getSurveyStats();
+    return res.json(stats);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
 async function start() {
   if (!process.env.DATABASE_URL) {
     console.error('ไม่พบ DATABASE_URL — กรุณาตั้งค่าใน .env (ดูวิธีใน README.md)');
