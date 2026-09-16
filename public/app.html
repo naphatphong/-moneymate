@@ -394,10 +394,108 @@
     border-radius:24px 24px 0 0; padding:26px 22px 30px; max-height:88vh; overflow-y:auto;
     transform: translateY(30px) scale(0.96); opacity:0;
     transition: transform 0.4s var(--spring), opacity 0.3s;
+    position:relative;
   }
   .modal-overlay.open .modal{ transform: translateY(0) scale(1); opacity:1; }
   @media (min-width:640px){ .modal-overlay{ align-items:center; } .modal{ border-radius:22px; } }
   .modal h3{ font-family:'Fraunces'; font-style:italic; font-weight:600; font-size:1.3rem; margin:0 0 18px; }
+
+  /* ---- survey popup ---- */
+  .modal.wide{ max-width:480px; }
+  .modal-close{
+    position:absolute; top:16px; right:16px; width:30px; height:30px; border-radius:50%;
+    background: rgba(255,255,255,0.06); border:1px solid var(--line); color:var(--text-soft);
+    font-size:0.9rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition: all 0.25s var(--spring); z-index:2;
+  }
+  .modal-close:hover{ color:var(--text); border-color:var(--text-soft); }
+  .modal-close:active{ transform: scale(0.9); }
+  .survey-panel{ position:relative; }
+  .survey-icon{
+    width:52px; height:52px; border-radius:16px; margin-bottom:16px;
+    background: var(--emerald-dim); display:flex; align-items:center; justify-content:center;
+  }
+  .survey-icon svg{ width:26px; height:26px; stroke:var(--emerald); fill:none; stroke-width:1.8; }
+  .survey-desc{ font-size:0.88rem; color:var(--text-soft); line-height:1.7; margin-bottom:22px; }
+  .survey-actions{ display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
+  .survey-actions button{
+    padding:14px 0; border-radius:12px; font-weight:600; font-size:0.9rem; cursor:pointer;
+    border:1px solid var(--line); transition: transform 0.25s var(--spring), background 0.2s;
+  }
+  .survey-actions button:active{ transform: scale(0.96); }
+  .survey-actions .primary{ background: var(--emerald); color:#06231B; border-color:var(--emerald); }
+  .survey-actions .secondary{ background:transparent; color:var(--text); }
+  .survey-actions .secondary:hover{ background: rgba(255,255,255,0.05); }
+
+  .dont-show{ display:flex; align-items:center; gap:8px; font-size:0.8rem; color:var(--text-soft); cursor:pointer; }
+  .dont-show input{ width:16px; height:16px; accent-color: var(--emerald); cursor:pointer; }
+
+  .back-btn{
+    background:none; border:none; color:var(--text-soft); font-size:0.82rem; cursor:pointer;
+    padding:0; margin-bottom:14px; display:flex; align-items:center; gap:4px;
+  }
+  .back-btn:hover{ color:var(--emerald); }
+
+  .survey-select{
+    width:100%; background: rgba(255,255,255,0.045); border:1px solid var(--line); border-radius:12px;
+    padding:12px 14px; color:var(--text); font-size:0.9rem; font-family:'Inter'; outline:none;
+    margin-bottom:16px; appearance:none;
+  }
+  .survey-select:focus{ border-color: var(--emerald); }
+
+  .q-row{ padding:14px 0; border-bottom:1px solid var(--line); transition: background 0.3s; }
+  .q-row:last-child{ border-bottom:none; }
+  .q-row.missing{ background: rgba(232,131,111,0.08); border-radius:10px; padding-left:8px; padding-right:8px; }
+  .q-text{ font-size:0.83rem; color:var(--text); margin-bottom:10px; line-height:1.5; }
+  .q-pills{ display:flex; gap:6px; }
+  .q-pill{
+    flex:1; padding:9px 0; border-radius:9px; border:1px solid var(--line); background:rgba(255,255,255,0.03);
+    color:var(--text-soft); font-size:0.85rem; font-weight:600; cursor:pointer;
+    transition: all 0.22s var(--spring);
+  }
+  .q-pill.active{ background: var(--emerald); border-color:var(--emerald); color:#06231B; transform: scale(1.08); }
+
+  .survey-textarea{
+    width:100%; background: rgba(255,255,255,0.045); border:1px solid var(--line); border-radius:12px;
+    padding:12px 14px; color:var(--text); font-size:0.88rem; font-family:'Inter'; outline:none;
+    resize:vertical; min-height:70px; margin:16px 0; transition: border-color 0.2s;
+  }
+  .survey-textarea:focus{ border-color: var(--emerald); }
+
+  .thanks-icon{
+    width:64px; height:64px; border-radius:50%; margin:0 auto 18px; background:var(--emerald-dim);
+    display:flex; align-items:center; justify-content:center; animation: badge-pop 0.6s var(--spring) 0.1s both;
+  }
+  @keyframes badge-pop{ 0%{ transform:scale(0.4); opacity:0; } 100%{ transform:scale(1); opacity:1; } }
+  .thanks-icon svg{ width:32px; height:32px; stroke:var(--emerald); fill:none; stroke-width:2; }
+
+  /* ---- survey dashboard (inside modal) ---- */
+  .dash-total{ font-size:0.85rem; color:var(--text-soft); margin-bottom:18px; }
+  .dash-total b{ color:var(--emerald); font-family:'Fraunces'; font-size:1.1rem; font-style:italic; }
+  .dash-section-title{ font-size:0.78rem; color:var(--text-soft); margin:20px 0 12px; font-weight:600; }
+  .dash-bars{ display:flex; flex-direction:column; gap:13px; }
+  .dash-bar-row .dash-q{ font-size:0.76rem; color:var(--text-soft); margin-bottom:5px; line-height:1.4; }
+  .dash-bar-row{ display:flex; flex-direction:column; }
+  .dash-track{ height:7px; background: rgba(255,255,255,0.07); border-radius:5px; overflow:hidden; margin-bottom:2px; }
+  .dash-fill{ height:100%; width:0%; background: linear-gradient(90deg, var(--emerald), var(--amber)); border-radius:5px; transition: width 0.8s var(--spring-soft); }
+  .dash-val{ font-size:0.72rem; color:var(--text-soft); text-align:right; font-family:'Space Grotesk',sans-serif; }
+
+  .dist-row{ display:flex; align-items:flex-end; gap:8px; height:90px; }
+  .dist-col{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+  .dist-track{ width:100%; max-width:26px; height:100%; display:flex; align-items:flex-end; }
+  .dist-fill{ width:100%; height:0%; background: var(--emerald); border-radius:5px 5px 2px 2px; transition: height 0.8s var(--spring-soft); }
+  .dist-lbl{ font-size:0.68rem; color:var(--text-soft); margin-top:5px; }
+  .dist-count{ font-size:0.68rem; color:var(--text); font-weight:600; }
+
+  .year-list{ display:flex; flex-direction:column; gap:8px; }
+  .year-row{ display:flex; justify-content:space-between; font-size:0.84rem; padding:8px 0; border-bottom:1px solid var(--line); }
+  .year-row b{ color:var(--emerald); }
+
+  .feedback-list{ display:flex; flex-direction:column; gap:8px; }
+  .feedback-item{
+    font-size:0.82rem; color:var(--text-soft); font-style:italic; padding:10px 12px;
+    background: rgba(255,255,255,0.03); border-radius:10px; border:1px solid var(--line);
+  }
   .type-switch{ display:flex; gap:8px; margin-bottom:18px; }
   .type-switch button{
     flex:1; padding:10px 0; border-radius:12px; border:1px solid var(--line); background:transparent;
@@ -606,6 +704,10 @@
           <span class="t" data-i18n="notif_setting">แจ้งเตือน</span>
           <div class="switch" id="notifSwitch"><div class="knob"></div></div>
         </div>
+        <div class="settings-row" id="btnOpenSurvey" style="cursor:pointer;">
+          <span class="t">แบบสอบถามความพึงพอใจ</span>
+          <span style="color:var(--emerald); font-size:0.8rem;">เปิดดู ›</span>
+        </div>
       </div>
       <button class="logout-btn" id="btnLogout" data-i18n="logout">ออกจากระบบ</button>
     </div>
@@ -678,6 +780,61 @@
     <div class="modal-actions">
       <button class="cancel" id="btnCancel" data-i18n="cancel">ยกเลิก</button>
       <button class="save" id="btnSave" data-i18n="save">บันทึกรายการ</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="surveyOverlay">
+  <div class="modal wide">
+    <button class="modal-close" id="surveyCloseBtn">✕</button>
+
+    <!-- panel: intro -->
+    <div class="survey-panel" id="surveyIntro">
+      <div class="survey-icon"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+      <h3>แบบสอบถามความพึงพอใจ</h3>
+      <p class="survey-desc">ช่วยเราปรับปรุง MoneyMate ให้ดีขึ้น สละเวลาสัก 2 นาทีตอบแบบสอบถามความพึงพอใจการใช้งานได้เลยครับ</p>
+      <div class="survey-actions">
+        <button class="primary" id="btnGoSurvey">เริ่มทำแบบสอบถาม</button>
+        <button class="secondary" id="btnGoDashboard">ดูแดชบอร์ดภาพรวม</button>
+      </div>
+      <label class="dont-show"><input type="checkbox" id="dontShowAgain"> ไม่ต้องแสดงอีก</label>
+    </div>
+
+    <!-- panel: form -->
+    <div class="survey-panel" id="surveyForm" style="display:none">
+      <button class="back-btn" id="formBackBtn">‹ ย้อนกลับ</button>
+      <h3>แบบสอบถามความพึงพอใจ</h3>
+      <select class="survey-select" id="yearLevel">
+        <option value="">ชั้นปีของคุณ (ไม่บังคับ)</option>
+        <option value="ชั้นปีที่ 1">ชั้นปีที่ 1</option>
+        <option value="ชั้นปีที่ 2">ชั้นปีที่ 2</option>
+        <option value="ชั้นปีที่ 3">ชั้นปีที่ 3</option>
+        <option value="ชั้นปีที่ 4">ชั้นปีที่ 4</option>
+        <option value="อื่นๆ">อื่นๆ</option>
+      </select>
+      <div id="questionList"></div>
+      <textarea class="survey-textarea" id="feedbackText" placeholder="ข้อเสนอแนะเพิ่มเติม (ถ้ามี)"></textarea>
+      <div class="survey-actions">
+        <button class="primary" id="btnSubmitSurvey">ส่งแบบสอบถาม</button>
+      </div>
+    </div>
+
+    <!-- panel: thanks -->
+    <div class="survey-panel" id="surveyThanks" style="display:none; text-align:center;">
+      <div class="thanks-icon"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
+      <h3>ขอบคุณครับ!</h3>
+      <p class="survey-desc">คำตอบของคุณช่วยให้เราพัฒนา MoneyMate ให้ดีขึ้นได้จริงๆ</p>
+      <div class="survey-actions">
+        <button class="primary" id="btnThanksDashboard">ดูแดชบอร์ดภาพรวม</button>
+        <button class="secondary" id="btnThanksClose">ปิด</button>
+      </div>
+    </div>
+
+    <!-- panel: dashboard -->
+    <div class="survey-panel" id="surveyDashboard" style="display:none">
+      <button class="back-btn" id="dashBackBtn">‹ ย้อนกลับ</button>
+      <h3>แดชบอร์ดแบบสอบถามโดยรวม</h3>
+      <div id="dashContent"><div class="empty-state">กำลังโหลด...</div></div>
     </div>
   </div>
 </div>
@@ -808,6 +965,7 @@ async function checkAuthAndEnter(){
     document.getElementById('app').classList.add('ready');
     renderAll();
     initGooBar();
+    checkSurveyPopup();
   }catch(err){
     window.location.href = '/login.html';
   }
@@ -1223,6 +1381,210 @@ function showToast(msg, isError){
   toast.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+}
+
+/* ===================== แบบสอบถามความพึงพอใจ ===================== */
+const SURVEY_QUESTIONS = [
+  'แอปช่วยตอบสนองความต้องการในการบันทึกรายรับ-รายจ่ายของคุณได้หรือไม่',
+  'แอปช่วยให้คุณติดตามและจัดการค่าใช้จ่ายในแต่ละวันได้ง่ายขึ้นหรือไม่',
+  'หลังจากทดลองใช้ คุณมีแนวโน้มจะใช้แอปนี้บันทึกรายรับ-รายจ่ายเป็นประจำหรือไม่',
+  'ขั้นตอนการบันทึกรายการสอดคล้องกับพฤติกรรมการใช้จ่ายของคุณหรือไม่',
+  'ฟังก์ชันเพิ่มและแก้ไขรายการมีความครบถ้วนเพียงพอต่อการใช้งานหรือไม่',
+  'ฟังก์ชันสรุปรายรับ-รายจ่าย (รายวัน/สัปดาห์/เดือน) มีประโยชน์ต่อคุณหรือไม่',
+  'คุณรู้สึกว่าแอปพลิเคชันใช้งานง่ายและไม่ซับซ้อนหรือไม่',
+  'แอปช่วยให้การจัดการรายรับ-รายจ่ายของคุณสะดวกขึ้นหรือไม่',
+  'การจัดวางปุ่ม เมนู และข้อมูลบนหน้าจอมีความชัดเจนเข้าใจง่ายหรือไม่',
+  'สี ตัวอักษร ไอคอน และรูปแบบหน้าจอมีความเหมาะสมน่าใช้งานหรือไม่',
+  'คุณมั่นใจว่าข้อมูลรายรับ-รายจ่ายที่บันทึกไว้ปลอดภัยและเป็นส่วนตัวหรือไม่',
+  'แอปตอบสนองได้รวดเร็วขณะเพิ่ม แก้ไข และดูข้อมูลหรือไม่',
+  'ระหว่างใช้งาน คุณพบปัญหาแอปค้าง ช้า หรือทำงานผิดพลาดหรือไม่',
+  'โดยรวมแล้ว คุณพึงพอใจกับการใช้งานแอปพลิเคชันนี้ในระดับใด'
+];
+
+function openSurveyPanel(panel){
+  document.querySelectorAll('.survey-panel').forEach(p => p.style.display = 'none');
+  document.getElementById('survey' + panel).style.display = 'block';
+  document.getElementById('surveyOverlay').classList.add('open');
+}
+function closeSurveyOverlay(){
+  document.getElementById('surveyOverlay').classList.remove('open');
+}
+
+async function checkSurveyPopup(){
+  try{
+    const res = await fetch('/api/survey/status');
+    if(!res.ok) return;
+    const status = await res.json();
+    if(!status.hasResponded && !status.dismissed){
+      setTimeout(() => openSurveyPanel('Intro'), 700);
+    }
+  }catch(err){ /* เงียบไว้ ไม่รบกวนผู้ใช้ถ้าเช็คไม่สำเร็จ */ }
+}
+
+document.getElementById('surveyCloseBtn').addEventListener('click', async () => {
+  if(document.getElementById('dontShowAgain').checked){
+    try{ await fetch('/api/survey/dismiss', { method:'PUT' }); }catch(err){}
+  }
+  closeSurveyOverlay();
+});
+document.getElementById('surveyOverlay').addEventListener('click', (e) => {
+  if(e.target.id === 'surveyOverlay') closeSurveyOverlay();
+});
+document.getElementById('btnOpenSurvey').addEventListener('click', () => openSurveyPanel('Intro'));
+
+document.getElementById('btnGoSurvey').addEventListener('click', () => {
+  buildQuestionList();
+  openSurveyPanel('Form');
+});
+document.getElementById('formBackBtn').addEventListener('click', () => openSurveyPanel('Intro'));
+document.getElementById('dashBackBtn').addEventListener('click', () => openSurveyPanel('Intro'));
+
+document.getElementById('btnGoDashboard').addEventListener('click', () => {
+  openSurveyPanel('Dashboard');
+  loadSurveyDashboard();
+});
+document.getElementById('btnThanksDashboard').addEventListener('click', () => {
+  openSurveyPanel('Dashboard');
+  loadSurveyDashboard();
+});
+document.getElementById('btnThanksClose').addEventListener('click', closeSurveyOverlay);
+
+function buildQuestionList(){
+  const el = document.getElementById('questionList');
+  el.innerHTML = SURVEY_QUESTIONS.map((q, i) => `
+    <div class="q-row" data-q="${i}">
+      <div class="q-text">${i + 1}. ${q}</div>
+      <div class="q-pills">
+        ${[1,2,3,4,5].map(v => `<button type="button" class="q-pill" data-val="${v}">${v}</button>`).join('')}
+      </div>
+    </div>
+  `).join('');
+  el.querySelectorAll('.q-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const row = btn.closest('.q-row');
+      row.querySelectorAll('.q-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      row.dataset.value = btn.dataset.val;
+      row.classList.remove('missing');
+    });
+  });
+}
+
+document.getElementById('btnSubmitSurvey').addEventListener('click', async () => {
+  const rows = document.querySelectorAll('#questionList .q-row');
+  const answers = [];
+  let firstMissing = null;
+  rows.forEach(r => {
+    if(!r.dataset.value){
+      r.classList.add('missing');
+      if(!firstMissing) firstMissing = r;
+    }else{
+      r.classList.remove('missing');
+      answers.push(parseInt(r.dataset.value, 10));
+    }
+  });
+  if(firstMissing){
+    showToast('กรุณาตอบให้ครบทุกข้อ', true);
+    firstMissing.scrollIntoView({ behavior:'smooth', block:'center' });
+    return;
+  }
+
+  const btn = document.getElementById('btnSubmitSurvey');
+  btn.disabled = true;
+  try{
+    const res = await fetch('/api/survey', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        yearLevel: document.getElementById('yearLevel').value,
+        answers,
+        feedback: document.getElementById('feedbackText').value
+      })
+    });
+    const data = await res.json();
+    if(!res.ok){ showToast(data.error || t('toast_error'), true); btn.disabled = false; return; }
+    openSurveyPanel('Thanks');
+  }catch(err){
+    showToast(t('toast_error'), true);
+  }
+  btn.disabled = false;
+});
+
+async function loadSurveyDashboard(){
+  const el = document.getElementById('dashContent');
+  el.innerHTML = '<div class="empty-state">กำลังโหลด...</div>';
+  try{
+    const res = await fetch('/api/survey/stats');
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'โหลดไม่สำเร็จ');
+    renderSurveyDashboard(data);
+  }catch(err){
+    el.innerHTML = '<div class="empty-state">โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่</div>';
+  }
+}
+
+function escapeHtmlSurvey(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function renderSurveyDashboard(data){
+  const el = document.getElementById('dashContent');
+  if(!data.total){
+    el.innerHTML = '<div class="empty-state">ยังไม่มีใครตอบแบบสอบถามเลย เป็นคนแรกได้เลย!</div>';
+    return;
+  }
+
+  const avgBars = SURVEY_QUESTIONS.map((q, i) => {
+    const avg = data.averages['avg_q' + (i + 1)] || 0;
+    return `<div class="dash-bar-row">
+      <div class="dash-q">${i + 1}. ${q}</div>
+      <div class="dash-track"><div class="dash-fill" data-w="${(avg/5*100).toFixed(1)}"></div></div>
+      <div class="dash-val">${avg.toFixed(1)} / 5</div>
+    </div>`;
+  }).join('');
+
+  const ratingCounts = [1,2,3,4,5].map(r => {
+    const found = data.overallDist.find(d => d.rating === r);
+    return found ? found.count : 0;
+  });
+  const maxCount = Math.max(...ratingCounts, 1);
+  const distBars = ratingCounts.map((c, i) => `
+    <div class="dist-col">
+      <div class="dist-track"><div class="dist-fill" data-h="${Math.round((c/maxCount)*100)}"></div></div>
+      <div class="dist-lbl">${i + 1}★</div>
+      <div class="dist-count">${c}</div>
+    </div>
+  `).join('');
+
+  const yearRows = data.yearLevels.length
+    ? data.yearLevels.map(y => `<div class="year-row"><span>${escapeHtmlSurvey(y.year_level)}</span><b>${y.count} คน</b></div>`).join('')
+    : '<div class="empty-state" style="padding:14px 0;">ไม่มีข้อมูลชั้นปี</div>';
+
+  const feedbackItems = data.feedback.length
+    ? data.feedback.map(f => `<div class="feedback-item">"${escapeHtmlSurvey(f.feedback)}"</div>`).join('')
+    : '<div class="empty-state" style="padding:14px 0;">ยังไม่มีความคิดเห็นเพิ่มเติม</div>';
+
+  el.innerHTML = `
+    <div class="dash-total">ผู้ตอบแบบสอบถามทั้งหมด <b>${data.total}</b> คน</div>
+
+    <div class="dash-section-title">คะแนนเฉลี่ยแต่ละข้อ</div>
+    <div class="dash-bars">${avgBars}</div>
+
+    <div class="dash-section-title">การกระจายคะแนนความพึงพอใจโดยรวม</div>
+    <div class="dist-row">${distBars}</div>
+
+    <div class="dash-section-title">แยกตามชั้นปี</div>
+    <div class="year-list">${yearRows}</div>
+
+    <div class="dash-section-title">ความคิดเห็นล่าสุด</div>
+    <div class="feedback-list">${feedbackItems}</div>
+  `;
+
+  requestAnimationFrame(() => {
+    el.querySelectorAll('.dash-fill').forEach(f => { f.style.width = f.dataset.w + '%'; });
+    el.querySelectorAll('.dist-fill').forEach(f => { f.style.height = f.dataset.h + '%'; });
+  });
 }
 
 checkAuthAndEnter();
