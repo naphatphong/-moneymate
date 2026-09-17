@@ -496,6 +496,41 @@
     font-size:0.82rem; color:var(--text-soft); font-style:italic; padding:10px 12px;
     background: rgba(255,255,255,0.03); border-radius:10px; border:1px solid var(--line);
   }
+
+  /* ---- overall satisfaction gauge ---- */
+  .gauge-wrap{ display:flex; align-items:center; justify-content:center; gap:10px; padding:6px 0 4px; }
+  .gauge-wrap svg{ width:150px; height:150px; }
+  #gaugeArc{ stroke-dasharray:314; stroke-dashoffset:314; transition: stroke-dashoffset 1.3s var(--spring-soft); }
+  .gauge-num{ font-family:'Fraunces'; font-style:italic; font-weight:600; }
+  .gauge-sub{ font-size:8px; }
+
+  /* ---- radar chart ---- */
+  .radar-wrap{ display:flex; justify-content:center; padding:6px 0; }
+  .radar-wrap svg{ width:100%; max-width:280px; height:auto; overflow:visible; }
+  .radar-grid{ fill:none; stroke:var(--line); stroke-width:1; }
+  .radar-axis{ stroke:var(--line); stroke-width:1; }
+  .radar-poly{
+    fill: rgba(47,191,143,0.22); stroke: var(--emerald); stroke-width:2; stroke-linejoin:round;
+    transform-origin:center; transform: scale(0); transition: transform 0.9s var(--spring);
+  }
+  .radar-dot{ fill:var(--emerald); opacity:0; transition: opacity 0.4s ease 0.7s; }
+  .radar-label{ font-size:7.5px; fill:var(--text-soft); text-anchor:middle; }
+
+  /* ---- trend line (survey responses over time) ---- */
+  .trend-line-wrap svg{ width:100%; height:auto; display:block; overflow:visible; }
+  #surveyTrendLine{ stroke-dasharray:600; stroke-dashoffset:600; transition: stroke-dashoffset 1.6s var(--spring-soft); }
+  .trend-line-area{ opacity:0; transition: opacity 0.8s ease 1s; }
+  .trend-line-labels{ display:flex; justify-content:space-between; margin-top:6px; font-size:0.6rem; color:var(--text-soft); }
+
+  /* ---- year-level donut ---- */
+  .year-donut-wrap{ display:flex; align-items:center; gap:20px; flex-wrap:wrap; justify-content:center; }
+  .year-donut-wrap svg{ width:120px; height:120px; flex-shrink:0; }
+  .year-donut-wrap svg circle{ transition: stroke-dashoffset 1s var(--spring-soft); }
+  .year-legend{ display:flex; flex-direction:column; gap:8px; flex:1; min-width:140px; }
+  .year-legend .row{ display:flex; align-items:center; gap:8px; font-size:0.8rem; }
+  .year-legend .sw{ width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+  .year-legend .cnt{ margin-left:auto; color:var(--text-soft); font-size:0.76rem; }
+
   .type-switch{ display:flex; gap:8px; margin-bottom:18px; }
   .type-switch button{
     flex:1; padding:10px 0; border-radius:12px; border:1px solid var(--line); background:transparent;
@@ -1528,12 +1563,24 @@ function escapeHtmlSurvey(str){
   return d.innerHTML;
 }
 
+const RADAR_GROUPS = [
+  { label:'ประโยชน์การใช้งาน', qs:[1,2,3] },
+  { label:'ฟังก์ชันการทำงาน', qs:[4,5,6] },
+  { label:'ใช้งานง่าย/ดีไซน์', qs:[7,8,9,10] },
+  { label:'ปลอดภัย/รวดเร็ว', qs:[11,12] },
+  { label:'พึงพอใจโดยรวม', qs:[14] }
+];
+const monthsShortSurvey = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const YEAR_DONUT_COLORS = ['#2FBF8F', '#E8B04B', '#5AA9E6', '#B98CE0', '#E8836F', '#8FA39B'];
+
 function renderSurveyDashboard(data){
   const el = document.getElementById('dashContent');
   if(!data.total){
     el.innerHTML = '<div class="empty-state">ยังไม่มีใครตอบแบบสอบถามเลย เป็นคนแรกได้เลย!</div>';
     return;
   }
+
+  const overallAvg = data.averages.avg_q14 || 0;
 
   const avgBars = SURVEY_QUESTIONS.map((q, i) => {
     const avg = data.averages['avg_q' + (i + 1)] || 0;
@@ -1557,10 +1604,6 @@ function renderSurveyDashboard(data){
     </div>
   `).join('');
 
-  const yearRows = data.yearLevels.length
-    ? data.yearLevels.map(y => `<div class="year-row"><span>${escapeHtmlSurvey(y.year_level)}</span><b>${y.count} คน</b></div>`).join('')
-    : '<div class="empty-state" style="padding:14px 0;">ไม่มีข้อมูลชั้นปี</div>';
-
   const feedbackItems = data.feedback.length
     ? data.feedback.map(f => `<div class="feedback-item">"${escapeHtmlSurvey(f.feedback)}"</div>`).join('')
     : '<div class="empty-state" style="padding:14px 0;">ยังไม่มีความคิดเห็นเพิ่มเติม</div>';
@@ -1568,14 +1611,40 @@ function renderSurveyDashboard(data){
   el.innerHTML = `
     <div class="dash-total">ผู้ตอบแบบสอบถามทั้งหมด <b>${data.total}</b> คน</div>
 
-    <div class="dash-section-title">คะแนนเฉลี่ยแต่ละข้อ</div>
-    <div class="dash-bars">${avgBars}</div>
+    <div class="dash-section-title">คะแนนความพึงพอใจโดยรวม</div>
+    <div class="gauge-wrap"><svg viewBox="0 0 120 120">
+      <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="12"/>
+      <circle id="gaugeArc" cx="60" cy="60" r="50" fill="none" stroke="var(--emerald)" stroke-width="12" stroke-linecap="round" transform="rotate(-90 60 60)"/>
+      <text x="60" y="58" text-anchor="middle" class="gauge-num" fill="var(--text)" font-size="22">${overallAvg.toFixed(1)}</text>
+      <text x="60" y="74" text-anchor="middle" class="gauge-sub" fill="var(--text-soft)" font-size="8">จาก 5 คะแนน</text>
+    </svg></div>
+
+    <div class="dash-section-title">ภาพรวมตามหมวดหมู่</div>
+    <div class="radar-wrap"><svg viewBox="0 0 200 190" id="radarSvg"></svg></div>
+
+    <div class="dash-section-title">แนวโน้มการตอบแบบสอบถาม (14 วันล่าสุด)</div>
+    <div class="trend-line-wrap">
+      <svg viewBox="0 0 280 90" id="surveyTrendSvg" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="surveyTrendGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#2FBF8F" stop-opacity="0.35"/>
+            <stop offset="100%" stop-color="#2FBF8F" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path class="trend-line-area" id="surveyTrendArea" fill="url(#surveyTrendGrad)"/>
+        <path id="surveyTrendLine" fill="none" stroke="var(--emerald)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="trend-line-labels" id="surveyTrendLabels"></div>
+    </div>
 
     <div class="dash-section-title">การกระจายคะแนนความพึงพอใจโดยรวม</div>
     <div class="dist-row">${distBars}</div>
 
     <div class="dash-section-title">แยกตามชั้นปี</div>
-    <div class="year-list">${yearRows}</div>
+    <div class="year-donut-wrap" id="yearDonutWrap"></div>
+
+    <div class="dash-section-title">คะแนนเฉลี่ยแต่ละข้อ</div>
+    <div class="dash-bars">${avgBars}</div>
 
     <div class="dash-section-title">ความคิดเห็นล่าสุด</div>
     <div class="feedback-list">${feedbackItems}</div>
@@ -1584,7 +1653,119 @@ function renderSurveyDashboard(data){
   requestAnimationFrame(() => {
     el.querySelectorAll('.dash-fill').forEach(f => { f.style.width = f.dataset.w + '%'; });
     el.querySelectorAll('.dist-fill').forEach(f => { f.style.height = f.dataset.h + '%'; });
+
+    // gauge
+    const circumference = 2 * Math.PI * 50;
+    const pct = Math.max(0, Math.min(100, (overallAvg/5)*100));
+    const gaugeColor = overallAvg >= 4 ? 'var(--emerald)' : overallAvg >= 3 ? 'var(--amber)' : 'var(--coral)';
+    const gaugeEl = document.getElementById('gaugeArc');
+    gaugeEl.style.stroke = gaugeColor;
+    gaugeEl.style.strokeDashoffset = circumference * (1 - pct/100);
+
+    renderRadarChart(data.averages);
+    renderSurveyTrend(data.trend);
+    renderYearDonut(data.yearLevels);
   });
+}
+
+function renderRadarChart(averages){
+  const svg = document.getElementById('radarSvg');
+  const cx = 100, cy = 90, maxR = 68;
+  const n = RADAR_GROUPS.length;
+  const values = RADAR_GROUPS.map(g => {
+    const vals = g.qs.map(qi => averages['avg_q' + qi] || 0);
+    return vals.reduce((a,b) => a+b, 0) / vals.length;
+  });
+
+  function pointAt(i, r){
+    const angle = -Math.PI/2 + i * (2*Math.PI/n);
+    return [cx + r*Math.cos(angle), cy + r*Math.sin(angle)];
+  }
+
+  let svgContent = '';
+  // grid rings at 33/66/100%
+  [0.33, 0.66, 1].forEach(f => {
+    const pts = Array.from({length:n}, (_,i) => pointAt(i, maxR*f).join(',')).join(' ');
+    svgContent += `<polygon class="radar-grid" points="${pts}"/>`;
+  });
+  // axes + labels
+  RADAR_GROUPS.forEach((g,i) => {
+    const [ax, ay] = pointAt(i, maxR);
+    svgContent += `<line class="radar-axis" x1="${cx}" y1="${cy}" x2="${ax}" y2="${ay}"/>`;
+    const [lx, ly] = pointAt(i, maxR + 16);
+    svgContent += `<text class="radar-label" x="${lx}" y="${ly}">${g.label}</text>`;
+  });
+  // data polygon
+  const dataPts = values.map((v,i) => pointAt(i, (v/5)*maxR));
+  svgContent += `<polygon class="radar-poly" id="radarPoly" points="${dataPts.map(p=>p.join(',')).join(' ')}"/>`;
+  dataPts.forEach((p,i) => {
+    svgContent += `<circle class="radar-dot" cx="${p[0]}" cy="${p[1]}" r="3"/>`;
+  });
+
+  svg.innerHTML = svgContent;
+  requestAnimationFrame(() => {
+    document.getElementById('radarPoly').style.transform = 'scale(1)';
+    svg.querySelectorAll('.radar-dot').forEach(d => { d.style.opacity = '1'; });
+  });
+}
+
+function renderSurveyTrend(trend){
+  const w = 280, h = 90, pad = 5;
+  const max = Math.max(...trend.map(t => t.count), 1);
+  const stepX = w / (trend.length - 1);
+  const points = trend.map((t,i) => [i*stepX, h - pad - (t.count/max)*(h - pad*2)]);
+  const linePath = points.map((p,i) => (i===0?'M':'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const areaPath = linePath + ` L${w},${h} L0,${h} Z`;
+
+  const lineEl = document.getElementById('surveyTrendLine');
+  lineEl.setAttribute('d', linePath);
+  document.getElementById('surveyTrendArea').setAttribute('d', areaPath);
+
+  const len = lineEl.getTotalLength ? lineEl.getTotalLength() : 600;
+  lineEl.style.strokeDasharray = len;
+  lineEl.style.strokeDashoffset = len;
+  requestAnimationFrame(() => {
+    lineEl.style.strokeDashoffset = 0;
+    document.getElementById('surveyTrendArea').style.opacity = '1';
+  });
+
+  const labelsEl = document.getElementById('surveyTrendLabels');
+  const step = Math.ceil(trend.length / 5);
+  labelsEl.innerHTML = trend.filter((_,i) => i % step === 0).map(t => {
+    const d = new Date(t.day);
+    return `<span>${d.getDate()} ${monthsShortSurvey[d.getMonth()]}</span>`;
+  }).join('');
+}
+
+function renderYearDonut(yearLevels){
+  const wrap = document.getElementById('yearDonutWrap');
+  if(!yearLevels.length){
+    wrap.innerHTML = '<div class="empty-state" style="padding:14px 0;">ไม่มีข้อมูลชั้นปี</div>';
+    return;
+  }
+  const total = yearLevels.reduce((s,y) => s+y.count, 0);
+  const circumference = 2 * Math.PI * 50;
+  let offsetAcc = 0;
+  const circles = yearLevels.map((y, i) => {
+    const frac = y.count / total;
+    const dash = circumference * frac;
+    const gap = circumference - dash;
+    const rotate = -90 + (offsetAcc/total)*360;
+    offsetAcc += y.count;
+    return `<circle cx="60" cy="60" r="50" fill="none" stroke="${YEAR_DONUT_COLORS[i % YEAR_DONUT_COLORS.length]}"
+      stroke-width="16" stroke-dasharray="${dash} ${gap}" stroke-dashoffset="0"
+      transform="rotate(${rotate} 60 60)" style="transition: stroke-dasharray 1s var(--spring-soft);"/>`;
+  }).join('');
+
+  const legend = yearLevels.map((y,i) => `
+    <div class="row">
+      <div class="sw" style="background:${YEAR_DONUT_COLORS[i % YEAR_DONUT_COLORS.length]}"></div>
+      <span>${escapeHtmlSurvey(y.year_level)}</span>
+      <span class="cnt">${y.count} คน</span>
+    </div>
+  `).join('');
+
+  wrap.innerHTML = `<svg viewBox="0 0 120 120">${circles}</svg><div class="year-legend">${legend}</div>`;
 }
 
 checkAuthAndEnter();
