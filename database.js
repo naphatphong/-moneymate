@@ -334,7 +334,15 @@ async function getSurveyStats() {
     ORDER BY created_at DESC LIMIT 12
   `);
 
-  return { total, averages, yearLevels, overallDist, feedback };
+  // แนวโน้มจำนวนคนตอบแบบสอบถามย้อนหลัง 14 วัน (เติมวันที่ไม่มีข้อมูลด้วย 0 ให้กราฟต่อเนื่อง)
+  const { rows: trend } = await pool.query(`
+    SELECT gs::date AS day, COUNT(s.id)::int AS count
+    FROM generate_series(CURRENT_DATE - 13, CURRENT_DATE, interval '1 day') AS gs
+    LEFT JOIN survey_responses s ON s.created_at::date = gs::date
+    GROUP BY gs ORDER BY gs
+  `);
+
+  return { total, averages, yearLevels, overallDist, feedback, trend };
 }
 
 module.exports = {
