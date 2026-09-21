@@ -1,7 +1,10 @@
 // scripts/seed-demo.js
 // สร้างบัญชีตัวอย่างพร้อมข้อมูลการใช้งานย้อนหลัง 1 ปี (นักศึกษาที่ทำงานพิเศษ)
-// ใช้กับฐานข้อมูลที่ตั้งไว้ใน DATABASE_URL (.env)
 //
+// แบบที่ 1 — ผ่านหน้าเว็บ (ง่ายสุด ไม่ต้องใช้รหัสฐานข้อมูล): สมัครและบันทึกผ่าน API ของเว็บ
+//   npm run seed:demo -- --url https://<เว็บของคุณ> [--username demo] [--password <รหัสผ่าน>]
+//
+// แบบที่ 2 — ตรงเข้าฐานข้อมูลใน DATABASE_URL (.env) เร็วกว่า และลบ/สร้างใหม่ได้
 //   npm run seed:demo -- --password <รหัสผ่าน>
 //   npm run seed:demo -- --username demo --email demo@example.com --password <รหัสผ่าน>
 //   npm run seed:demo -- --reset          (ลบบัญชีตัวอย่างเดิมแล้วสร้างใหม่)
@@ -11,7 +14,7 @@ require('dotenv').config();
 
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const db = require('../database');
+let db = null; // โหลดเฉพาะแบบที่ 2 (แบบผ่านหน้าเว็บไม่ต้องต่อฐานข้อมูล)
 
 // ---------- อ่าน argument ----------
 const args = process.argv.slice(2);
@@ -21,8 +24,14 @@ const opt = (name) => {
 };
 const USERNAME = opt('username') || 'demo';
 const EMAIL = opt('email') || 'demo@example.com';
-const PASSWORD = opt('password') || crypto.randomBytes(6).toString('base64url');
+// รหัสผ่านสุ่ม 10 ตัว ตัดตัวที่สับสนง่าย (0/O, 1/l/I) ออก
+const randomPassword = () => {
+  const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from(crypto.randomBytes(10), (b) => chars[b % chars.length]).join('');
+};
+const PASSWORD = opt('password') || randomPassword();
 const RESET = args.includes('--reset');
+const URL_BASE = (opt('url') || '').replace(/\/+$/, '');
 
 // ---------- สุ่มแบบกำหนด seed (รันกี่ครั้งก็ได้ข้อมูลชุดเดิม) ----------
 let seed = 20260921;
@@ -104,7 +113,90 @@ function generate(today) {
   return txs;
 }
 
+// ---------- แบบที่ 1: ผ่าน API ของเว็บ ----------
+async function seedViaApi() {
+  let cookie = '';
+  const call = async (method, path, body, attempt = 0) => {
+    let res;
+    try {
+      res = await fetch(URL_BASE + path, {
+        method,
+        headers: { 'content-type': 'application/json', cookie },
+        body: body ? JSON.stringify(body) : undefined
+      });
+    } catch (err) {
+      if (attempt < 4) { await new Promise((r) => setTimeout(r, 3000)); return call(method, path, body, attempt + 1); }
+      throw err;
+    }
+    // เว็บแผนฟรีอาจกำลังตื่น (502/503) — รอแล้วลองใหม่
+    if ((res.status === 502 || res.status === 503 || res.status === 429) && attempt < 8) {
+      await new Promise((r) => setTimeout(r, 5000));
+      return call(method, path, body, attempt + 1);
+    }
+    const setCookie = res.headers.get('set-cookie');
+    if (setCookie) cookie = setCookie.split(';')[0];
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(`${method} ${path} ตอบกลับ ${res.status}: ${data.error || 'ไม่ทราบสาเหตุ'}`);
+    return data;
+  };
+
+  await call('POST', '/api/register', { username: USERNAME, email: EMAIL, password: PASSWORD });
+  await call('PUT', '/api/settings', { openingBalance: 12000, budget: 9500 });
+  await call('PUT', '/api/survey/dismiss');
+  await call('POST', '/api/categories', { type: 'expense', name: 'ค่าหอ' });
+  await call('POST', '/api/categories', { type: 'expense', name: 'ค่าเทอม' });
+  await call('POST', '/api/categories', { type: 'income', name: 'ของขวัญ' });
+
+  const today = new Date();
+  today.setHours(23, 59, 0, 0);
+  const txs = generate(today).filter((t) => t.date <= new Date());
+  txs.sort((a, b) => a.date - b.date);
+
+  // ส่งพร้อมกันทีละ 6 รายการ
+  let done = 0;
+  const queue = txs.slice();
+  const worker = async () => {
+    while (queue.length) {
+      const t = queue.shift();
+      await call('POST', '/api/transactions', { type: t.type, cat: t.cat, title: t.title, amount: t.amount, date: t.date.toISOString() });
+      done++;
+      if (done % 100 === 0 || done === txs.length) process.stdout.write(`\r  บันทึกรายการ ${done}/${txs.length}`);
+    }
+  };
+  await Promise.all(Array.from({ length: 6 }, worker));
+  process.stdout.write('\n');
+
+  for (let i = 0; i <= 12; i++) {
+    const m = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    const budget = m.getMonth() === 11 ? 12000 : m.getMonth() === 3 ? 11000 : 9500;
+    await call('PUT', '/api/budgets', { year: m.getFullYear(), month: m.getMonth() + 1, budget });
+  }
+  return txs;
+}
+
+function printSummary(txs) {
+  const income = txs.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const expense = txs.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const fmt = (n) => n.toLocaleString('en-US');
+  console.log('\nสร้างบัญชีตัวอย่างเรียบร้อย');
+  if (URL_BASE) console.log(`  เว็บ      : ${URL_BASE}/login.html`);
+  console.log(`  ชื่อผู้ใช้ : ${USERNAME}`);
+  console.log(`  อีเมล     : ${EMAIL}`);
+  console.log(`  รหัสผ่าน  : ${PASSWORD}${opt('password') ? '' : '   (สุ่มให้ — จดไว้ด้วย)'}`);
+  console.log(`  รายการ    : ${fmt(txs.length)} รายการ (${txs[0].date.toLocaleDateString('th-TH')} – ${txs[txs.length - 1].date.toLocaleDateString('th-TH')})`);
+  console.log(`  รายรับรวม ฿${fmt(income)} · รายจ่ายรวม ฿${fmt(expense)} · ยอดคงเหลือ ฿${fmt(12000 + income - expense)}`);
+}
+
 async function main() {
+  if (URL_BASE) {
+    if (RESET) {
+      console.error('แบบผ่านหน้าเว็บลบบัญชีเดิมไม่ได้ — ใช้ --username ชื่อใหม่ หรือใช้แบบที่ 2 (DATABASE_URL) กับ --reset');
+      process.exit(1);
+    }
+    printSummary(await seedViaApi());
+    return;
+  }
+  db = require('../database');
   if (!process.env.DATABASE_URL) {
     console.error('ไม่พบ DATABASE_URL — ใส่ใน .env ก่อน (ดู .env.example)');
     process.exit(1);
@@ -149,17 +241,9 @@ async function main() {
     await db.upsertBudget(user.id, m.getFullYear(), m.getMonth() + 1, budget);
   }
 
-  const income = txs.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-  const expense = txs.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-  const fmt = (n) => n.toLocaleString('en-US');
-  console.log('\nสร้างบัญชีตัวอย่างเรียบร้อย');
-  console.log(`  ชื่อผู้ใช้ : ${USERNAME}`);
-  console.log(`  อีเมล     : ${EMAIL}`);
-  console.log(`  รหัสผ่าน  : ${PASSWORD}${opt('password') ? '' : '   (สุ่มให้ — จดไว้ด้วย)'}`);
-  console.log(`  รายการ    : ${fmt(txs.length)} รายการ (${txs[0].date.toLocaleDateString('th-TH')} – ${txs[txs.length - 1].date.toLocaleDateString('th-TH')})`);
-  console.log(`  รายรับรวม ฿${fmt(income)} · รายจ่ายรวม ฿${fmt(expense)} · ยอดคงเหลือ ฿${fmt(12000 + income - expense)}`);
+  printSummary(txs);
 }
 
 main()
   .catch((err) => { console.error('สร้างบัญชีตัวอย่างไม่สำเร็จ:', err.message); process.exitCode = 1; })
-  .finally(() => db.close());
+  .finally(() => db && db.close());
