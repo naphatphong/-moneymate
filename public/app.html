@@ -474,6 +474,19 @@ window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', ()
   .switch .knob{ position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff; transition: transform 0.35s var(--spring); }
   .switch.on .knob{ transform: translateX(18px); }
 
+  /* ---- google account row ---- */
+  .google-status{ font-size:0.74rem; color:var(--text-soft); margin-top:2px; word-break:break-all; }
+  .row-btn{
+    flex-shrink:0; margin-left:12px; padding:7px 14px; border-radius:10px; cursor:pointer;
+    background:transparent; border:1px solid var(--accent); color:var(--accent);
+    font-size:0.78rem; font-weight:600; transition: background 0.2s, transform 0.25s var(--spring);
+  }
+  .row-btn:hover{ background: var(--accent-dim); }
+  .row-btn:active{ transform: scale(0.94); }
+  .row-btn.danger{ border-color: var(--line); color: var(--text-soft); }
+  .row-btn.danger:hover{ border-color: var(--coral); color: var(--coral); background: transparent; }
+  .row-btn:disabled{ opacity:0.6; cursor:default; }
+
   /* ---- theme picker ---- */
   .theme-panel{ padding:18px; }
   .theme-label{ font-size:0.78rem; color:var(--text-soft); margin-bottom:10px; }
@@ -977,6 +990,13 @@ window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', ()
           <span class="t" data-i18n="notif_setting">แจ้งเตือน</span>
           <div class="switch" id="notifSwitch"><div class="knob"></div></div>
         </div>
+        <div class="settings-row" id="googleRow" style="display:none;">
+          <div>
+            <div class="t" data-i18n="google_account">บัญชี Google</div>
+            <div class="google-status" id="googleStatus">—</div>
+          </div>
+          <button type="button" class="row-btn" id="googleBtn">—</button>
+        </div>
         <div class="settings-row" id="btnOpenSurvey" style="cursor:pointer;">
           <span class="t">แบบสอบถามความพึงพอใจ</span>
           <span style="color:var(--accent); font-size:0.8rem;">เปิดดู ›</span>
@@ -1202,7 +1222,18 @@ const translations = {
   theme_system: { th:"ตามระบบ", en:"System" },
   theme_accent: { th:"สีหลัก", en:"Accent color" },
   theme_custom: { th:"เลือกสีเอง", en:"Custom color" },
-  toast_theme_saved: { th:"บันทึกธีมแล้ว", en:"Theme saved" }
+  toast_theme_saved: { th:"บันทึกธีมแล้ว", en:"Theme saved" },
+  google_account: { th:"บัญชี Google", en:"Google account" },
+  google_not_linked: { th:"ยังไม่ได้เชื่อม — เชื่อมแล้วเข้าสู่ระบบด้วย Google ได้", en:"Not connected — connect to sign in with Google" },
+  google_linked_as: { th:"เชื่อมกับ", en:"Connected as" },
+  google_link: { th:"เชื่อมต่อ", en:"Connect" },
+  google_unlink: { th:"ยกเลิกการเชื่อม", en:"Disconnect" },
+  toast_google_linked: { th:"เชื่อมบัญชี Google แล้ว", en:"Google account connected" },
+  toast_google_unlinked: { th:"ยกเลิกการเชื่อมบัญชี Google แล้ว", en:"Google account disconnected" },
+  google_err_in_use: { th:"บัญชี Google นี้เชื่อมกับบัญชี MoneyMate อื่นอยู่แล้ว", en:"This Google account is already connected to another MoneyMate account" },
+  google_err_cancelled: { th:"ยกเลิกการเชื่อมบัญชี Google แล้ว", en:"Google connection cancelled" },
+  google_err_unavailable: { th:"ระบบเชื่อมบัญชี Google ยังไม่พร้อมใช้งาน", en:"Google sign-in is not available yet" },
+  google_err_generic: { th:"เชื่อมบัญชี Google ไม่สำเร็จ กรุณาลองใหม่", en:"Couldn't connect Google account, please try again" }
 };
 const catLabel = {
   food:'cat_food_short', travel:'cat_travel_short', entertainment:'cat_entertainment_short', shopping:'cat_shopping_short', other:'cat_other_short',
@@ -1242,6 +1273,7 @@ function applyI18n(){
   renderAll();
   setType(modalType);
   renderThemePicker();
+  renderGoogleRow();
 }
 document.getElementById('langToggle').addEventListener('click', () => {
   lang = lang === 'th' ? 'en' : 'th';
@@ -1296,7 +1328,10 @@ async function checkAuthAndEnter(){
       document.getElementById('adminBtn').style.display = 'flex';
     }
 
-    await Promise.all([loadData(), minLoaderTime]);
+    const providersPromise = fetch('/api/auth/providers').then(r => r.json()).then(d => !!d.google).catch(() => false);
+    const [, , googleOn] = await Promise.all([loadData(), minLoaderTime, providersPromise]);
+    googleEnabled = googleOn;
+    renderGoogleRow();
     document.getElementById('notifSwitch').classList.toggle('on', state.notif);
     document.getElementById('bellPing').style.display = state.notif ? 'block' : 'none';
 
@@ -1308,7 +1343,7 @@ async function checkAuthAndEnter(){
     document.getElementById('app').classList.add('ready');
     renderAll();
     initGooBar();
-    checkSurveyPopup();
+    if(!handleGoogleReturn()) checkSurveyPopup();
   }catch(err){
     window.location.href = '/login.html';
   }
@@ -1931,6 +1966,57 @@ document.getElementById('notifSwitch').addEventListener('click', function(){
   setNotif(!this.classList.contains('on'));
 });
 document.getElementById('bell').addEventListener('click', () => goView('profile'));
+
+/* ===================== บัญชี Google (profile) ===================== */
+let googleEnabled = false;
+
+function renderGoogleRow(){
+  const row = document.getElementById('googleRow');
+  const user = state.user;
+  if(!user || (!googleEnabled && !user.google_linked)){ row.style.display = 'none'; return; }
+  row.style.display = 'flex';
+  document.getElementById('googleStatus').textContent = user.google_linked
+    ? `${t('google_linked_as')} ${user.google_email || ''}`
+    : t('google_not_linked');
+  const btn = document.getElementById('googleBtn');
+  btn.textContent = user.google_linked ? t('google_unlink') : t('google_link');
+  btn.classList.toggle('danger', !!user.google_linked);
+}
+
+document.getElementById('googleBtn').addEventListener('click', async () => {
+  if(!state.user.google_linked){
+    window.location.href = '/auth/google?mode=link';
+    return;
+  }
+  const btn = document.getElementById('googleBtn');
+  btn.disabled = true;
+  try{
+    const res = await fetch('/api/auth/google/unlink', { method:'POST' });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){ showToast(data.error || t('toast_error'), true); return; }
+    state.user.google_linked = false;
+    state.user.google_email = null;
+    renderGoogleRow();
+    showToast(t('toast_google_unlinked'), false);
+  }catch(err){
+    console.error(err);
+    showToast(t('toast_error'), true);
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+// กลับมาจากหน้า Google (?google=...) — แสดงผลแล้วพาไปหน้าโปรไฟล์ คืนค่า true ถ้ามีผลให้แสดง
+function handleGoogleReturn(){
+  const code = new URLSearchParams(location.search).get('google');
+  if(!code) return false;
+  history.replaceState(null, '', location.pathname);
+  goView('profile');
+  const errors = { in_use:'google_err_in_use', cancelled:'google_err_cancelled', unavailable:'google_err_unavailable' };
+  if(code === 'linked') showToast(t('toast_google_linked'), false);
+  else showToast(t(errors[code] || 'google_err_generic'), true);
+  return true;
+}
 
 /* ===================== theme picker (profile) ===================== */
 const themeSwatches = document.getElementById('themeSwatches');

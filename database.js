@@ -22,6 +22,12 @@ async function init() {
   // เพิ่มคอลัมน์ role ให้ตาราง users ที่มีอยู่แล้ว (ผู้ใช้ทั่วไป = 'user', แอดมิน = 'admin')
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user'`);
 
+  // ล็อกอินด้วย Google: google_id คือรหัสบัญชี Google (sub) ที่เชื่อมไว้
+  // บัญชีที่สมัครผ่าน Google อย่างเดียวจะไม่มีรหัสผ่าน (password_hash เป็น NULL)
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT UNIQUE`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS google_email TEXT`);
+  await pool.query(`ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL`);
+
   // ตารางรายการรายรับ-รายจ่าย ผูกกับผู้ใช้แต่ละคน (ทำให้ข้อมูลไม่หายเวลารีเฟรช)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS transactions (
@@ -126,6 +132,37 @@ async function findByLogin(usernameOrEmail) {
     [usernameOrEmail]
   );
   return rows[0] || null;
+}
+
+// ----- ล็อกอินด้วย Google -----
+
+async function findByGoogleId(googleId) {
+  const { rows } = await pool.query('SELECT * FROM users WHERE google_id = $1', [googleId]);
+  return rows[0] || null;
+}
+
+async function usernameTaken(username) {
+  const { rows } = await pool.query('SELECT 1 FROM users WHERE LOWER(username) = LOWER($1)', [username]);
+  return rows.length > 0;
+}
+
+// สร้างบัญชีใหม่จากบัญชี Google (ไม่มีรหัสผ่าน)
+async function createGoogleUser({ username, email, googleId }) {
+  const { rows } = await pool.query(
+    `INSERT INTO users (username, email, password_hash, google_id, google_email)
+     VALUES ($1, $2, NULL, $3, $2) RETURNING *`,
+    [username, email, googleId]
+  );
+  return rows[0];
+}
+
+// เชื่อม / ยกเลิกการเชื่อมบัญชี Google กับบัญชีที่มีอยู่
+async function linkGoogle(userId, googleId, googleEmail) {
+  await pool.query('UPDATE users SET google_id = $2, google_email = $3 WHERE id = $1', [userId, googleId, googleEmail]);
+}
+
+async function unlinkGoogle(userId) {
+  await pool.query('UPDATE users SET google_id = NULL, google_email = NULL WHERE id = $1', [userId]);
 }
 
 // หาผู้ใช้จากอีเมล (ไม่สนตัวพิมพ์เล็ก/ใหญ่) ใช้ตอนขอรีเซ็ตรหัสผ่าน
@@ -471,6 +508,11 @@ module.exports = {
   findByLogin,
   findById,
   createUser,
+  findByGoogleId,
+  usernameTaken,
+  createGoogleUser,
+  linkGoogle,
+  unlinkGoogle,
   findByEmail,
   createPasswordReset,
   findValidPasswordReset,

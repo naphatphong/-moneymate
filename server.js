@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const path = require('path');
 const db = require('./database');
 const { sendMail, missingMailConfig, apiKeyProblem, explainMailError } = require('./mailer');
+const google = require('./googleAuth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -143,6 +144,9 @@ app.post('/api/login', async (req, res) => {
 
     if (!user) {
       return res.status(401).json({ error: 'ไม่พบผู้ใช้นี้ในระบบ' });
+    }
+    if (!user.password_hash) {
+      return res.status(401).json({ error: 'บัญชีนี้สมัครด้วย Google กรุณากด "เข้าสู่ระบบด้วย Google" (หรือใช้ "ลืมรหัสผ่าน" เพื่อตั้งรหัสผ่าน)' });
     }
 
     const match = await bcrypt.compare(password, user.password_hash);
@@ -315,6 +319,134 @@ app.post('/api/password/reset', async (req, res) => {
   }
 });
 
+// ===================== ล็อกอินด้วย Google =====================
+// บัญชีใหม่: สร้างให้อัตโนมัติ / บัญชีที่มีอีเมลนี้อยู่แล้ว: ต้องล็อกอินด้วยรหัสผ่านแล้วกด "เชื่อมบัญชี Google" ในโปรไฟล์
+// (ไม่ผูกให้อัตโนมัติจากอีเมล เพราะตอนสมัครไม่ได้ยืนยันอีเมล — กันคนอื่นสมัครดักด้วยอีเมลของเราไว้ก่อน)
+
+const GOOGLE_LOGIN_TIMEOUT_MS = 10 * 60 * 1000;
+
+// URL ที่ Google จะส่งผู้ใช้กลับมา ต้องตรงกับที่ลงทะเบียนไว้ใน Google Cloud Console ทุกตัวอักษร
+function googleRedirectUri(req) {
+  const base = isLocalRequest(req) ? `${req.protocol}://${req.get('host')}` : (process.env.APP_URL || '').trim();
+  return base ? `${base.replace(/\/+$/, '')}/auth/google/callback` : '';
+}
+
+// ตั้งชื่อผู้ใช้จากอีเมล Google เช่น somchai.k@gmail.com -> somchai.k (ถ้าซ้ำจะเติมเลขต่อท้าย)
+async function uniqueUsername(email) {
+  const base = email.split('@')[0].replace(/[^a-zA-Z0-9._-]/g, '').slice(0, 20) || 'user';
+  for (let i = 1; i <= 50; i++) {
+    const candidate = i === 1 ? base : `${base}${i}`;
+    if (!(await db.usernameTaken(candidate))) return candidate;
+  }
+  return `${base}${crypto.randomBytes(3).toString('hex')}`;
+}
+
+// ----- API: หน้าเว็บเช็คว่าเปิดใช้ล็อกอินด้วย Google หรือยัง (ถ้ายังจะซ่อนปุ่ม) -----
+app.get('/api/auth/providers', (req, res) => {
+  res.json({ google: google.missingGoogleConfig().length === 0 });
+});
+
+// ----- เริ่มล็อกอิน / เชื่อมบัญชีด้วย Google: พาไปหน้าเลือกบัญชีของ Google -----
+app.get('/auth/google', (req, res) => {
+  const mode = req.query.mode === 'link' ? 'link' : 'login';
+  const back = mode === 'link' ? '/app.html' : '/login.html';
+  const missing = google.missingGoogleConfig();
+  const redirectUri = googleRedirectUri(req);
+  if (missing.length > 0 || !redirectUri) {
+    console.error(`[Google] ยังตั้งค่าไม่ครบ: ${[...missing, ...(redirectUri ? [] : ['APP_URL'])].join(', ')}`);
+    return res.redirect(`${back}?google=unavailable`);
+  }
+  if (mode === 'link' && !req.session.userId) {
+    return res.redirect('/login.html');
+  }
+
+  const state = google.randomToken();
+  const codeVerifier = google.randomToken();
+  req.session.googleOAuth = { state, codeVerifier, mode, redirectUri, userId: req.session.userId || null, startedAt: Date.now() };
+  req.session.save((err) => {
+    if (err) {
+      console.error(err);
+      return res.redirect(`${back}?google=failed`);
+    }
+    return res.redirect(google.buildAuthUrl({ redirectUri, state, codeVerifier }));
+  });
+});
+
+// ----- Google ส่งผู้ใช้กลับมาที่นี่ -----
+app.get('/auth/google/callback', async (req, res) => {
+  const pending = req.session.googleOAuth;
+  delete req.session.googleOAuth;
+  const back = pending && pending.mode === 'link' ? '/app.html' : '/login.html';
+  const fail = (code) => res.redirect(`${back}?google=${code}`);
+
+  // state ต้องตรงกับที่เราสร้างไว้ในเซสชันนี้ (กันคนอื่นส่งลิงก์ callback ปลอมมาให้กด)
+  if (!pending || typeof req.query.state !== 'string' || req.query.state !== pending.state ||
+      Date.now() - pending.startedAt > GOOGLE_LOGIN_TIMEOUT_MS) {
+    return fail('expired');
+  }
+  if (req.query.error) return fail('cancelled');
+  if (typeof req.query.code !== 'string') return fail('failed');
+
+  let profile;
+  try {
+    profile = await google.fetchGoogleProfile({ code: req.query.code, redirectUri: pending.redirectUri, codeVerifier: pending.codeVerifier });
+  } catch (err) {
+    console.error(`[Google] ${err.message}`);
+    return fail('failed');
+  }
+  if (!profile.email || !profile.emailVerified) return fail('unverified');
+
+  try {
+    const owner = await db.findByGoogleId(profile.sub);
+
+    if (pending.mode === 'link') {
+      if (!req.session.userId || req.session.userId !== pending.userId) return res.redirect('/login.html');
+      if (owner && owner.id !== req.session.userId) return fail('in_use');
+      await db.linkGoogle(req.session.userId, profile.sub, profile.email);
+      return res.redirect('/app.html?google=linked');
+    }
+
+    let user = owner;
+    if (!user) {
+      if (await db.findByEmail(profile.email)) return fail('email_exists');
+      user = await db.createGoogleUser({ username: await uniqueUsername(profile.email), email: profile.email, googleId: profile.sub });
+      console.log(`[Google] สร้างบัญชีใหม่: ${user.username}`);
+    }
+
+    // ออกเซสชันใหม่ตอนล็อกอิน (กัน session fixation)
+    req.session.regenerate((err) => {
+      if (err) {
+        console.error(err);
+        return res.redirect('/login.html?google=failed');
+      }
+      req.session.userId = user.id;
+      req.session.username = user.username;
+      return res.redirect('/app.html');
+    });
+  } catch (err) {
+    console.error(err);
+    return fail('failed');
+  }
+});
+
+// ----- API: ยกเลิกการเชื่อมบัญชี Google (ต้องมีรหัสผ่านก่อน ไม่งั้นจะเข้าบัญชีไม่ได้อีก) -----
+app.post('/api/auth/google/unlink', requireLogin, async (req, res) => {
+  try {
+    const user = await db.findById(req.session.userId);
+    if (!user || !user.google_id) {
+      return res.status(400).json({ error: 'บัญชีนี้ยังไม่ได้เชื่อมกับ Google' });
+    }
+    if (!user.password_hash) {
+      return res.status(400).json({ error: 'บัญชีนี้ยังไม่มีรหัสผ่าน ตั้งรหัสผ่านก่อน (ใช้ "ลืมรหัสผ่าน" ที่หน้าเข้าสู่ระบบ) แล้วค่อยยกเลิกการเชื่อม Google' });
+    }
+    await db.unlinkGoogle(user.id);
+    return res.json({ message: 'ยกเลิกการเชื่อมบัญชี Google แล้ว' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
 // ----- API: ดึงข้อมูลผู้ใช้ที่ล็อคอินอยู่ -----
 app.get('/api/me', requireLogin, async (req, res) => {
   try {
@@ -322,8 +454,8 @@ app.get('/api/me', requireLogin, async (req, res) => {
     if (!user) {
       return res.status(401).json({ error: 'ไม่พบผู้ใช้นี้ในระบบ' });
     }
-    const { password_hash, ...safeUser } = user;
-    return res.json({ user: safeUser });
+    const { password_hash, google_id, ...safeUser } = user;
+    return res.json({ user: { ...safeUser, has_password: Boolean(password_hash), google_linked: Boolean(google_id) } });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
