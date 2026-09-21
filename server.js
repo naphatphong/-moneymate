@@ -8,7 +8,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const path = require('path');
 const db = require('./database');
-const { sendMail, isMailConfigured } = require('./mailer');
+const { sendMail, missingMailConfig, explainMailError } = require('./mailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -185,6 +185,24 @@ function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// ค่าที่ยังไม่ได้ตั้งสำหรับระบบส่งอีเมล (ว่างแปลว่าพร้อมใช้งาน)
+function mailSetupProblems() {
+  const missing = missingMailConfig();
+  if (!process.env.APP_URL) missing.push('APP_URL');
+  return missing;
+}
+
+// เช็คจาก IP ที่ต่อเข้ามาจริง (ปลอมผ่าน header ไม่ได้) — จริงเฉพาะตอนเปิดเว็บจากเครื่องตัวเอง
+function isLocalRequest(req) {
+  return ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
+}
+
+// ซ่อนอีเมลบางส่วนใน log เช่น mi***@example.com
+function maskEmail(email) {
+  const [name, domain] = String(email).split('@');
+  return `${name.slice(0, 2)}***@${domain || ''}`;
+}
+
 // จำกัดจำนวนครั้งที่ขอได้ในช่วงเวลาหนึ่ง (เก็บในหน่วยความจำ รีสตาร์ทเซิร์ฟเวอร์แล้วนับใหม่)
 const rateBuckets = new Map();
 function tooManyRequests(key, limit, windowMs) {
@@ -211,25 +229,30 @@ app.post('/api/password/forgot', async (req, res) => {
     return res.status(429).json({ error: 'ขอลิงก์บ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่' });
   }
 
-  // ลิงก์ต้องชี้ไปที่เว็บของเราเสมอ ตอนใช้งานจริงจึงต้องตั้ง APP_URL (ไม่เชื่อ Host header ที่ส่งมา)
-  const baseUrl = process.env.APP_URL || (isProduction ? '' : `${req.protocol}://${req.get('host')}`);
-  if (isProduction && (!isMailConfigured() || !baseUrl)) {
-    console.error('ระบบลืมรหัสผ่านยังไม่พร้อม: ต้องตั้งค่า BREVO_API_KEY, MAIL_FROM และ APP_URL');
+  // นอกจากตอนทดสอบบน localhost ต้องตั้งค่าอีเมลครบ ไม่งั้นแจ้ง error ตรง ๆ แทนการบอกว่า "ส่งแล้ว"
+  // ลิงก์ต้องชี้ไปที่เว็บของเราเสมอ จึงใช้ APP_URL (ไม่เชื่อ Host header ที่ส่งมา ยกเว้นบน localhost)
+  const problems = mailSetupProblems();
+  if (problems.length > 0 && !isLocalRequest(req)) {
+    console.error(`[ลืมรหัสผ่าน] ส่งอีเมลไม่ได้ ยังไม่ได้ตั้งค่า: ${problems.join(', ')}`);
     return res.status(503).json({ error: 'ระบบส่งอีเมลยังไม่พร้อมใช้งาน กรุณาติดต่อผู้ดูแลระบบ' });
   }
+  const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
 
   // ตอบข้อความเดียวกันเสมอ และตอบก่อนส่งอีเมล เพื่อไม่ให้ใครใช้หน้านี้เช็คได้ว่าอีเมลไหนมีบัญชี
   res.json({ message: 'ถ้าอีเมลนี้มีบัญชีอยู่ในระบบ เราได้ส่งลิงก์ตั้งรหัสผ่านใหม่ไปให้แล้ว กรุณาตรวจสอบกล่องจดหมาย (รวมถึงโฟลเดอร์สแปม)' });
 
   try {
     const user = await db.findByEmail(email);
-    if (!user) return;
+    if (!user) {
+      console.log(`[ลืมรหัสผ่าน] ไม่พบบัญชีที่ใช้อีเมล ${maskEmail(email)} — ไม่ได้ส่งอีเมล`);
+      return;
+    }
 
     const token = crypto.randomBytes(32).toString('hex');
     await db.createPasswordReset(user.id, hashToken(token), new Date(Date.now() + RESET_TOKEN_TTL_MS));
     const link = `${baseUrl.replace(/\/+$/, '')}/reset-password.html?token=${token}`;
 
-    await sendMail({
+    const sent = await sendMail({
       to: user.email,
       subject: 'ตั้งรหัสผ่านใหม่ — MoneyMate',
       text: `สวัสดีคุณ ${user.username}\n\nเราได้รับคำขอตั้งรหัสผ่านใหม่สำหรับบัญชี MoneyMate ของคุณ\nกดลิงก์นี้เพื่อตั้งรหัสผ่านใหม่ (ใช้ได้ภายใน 30 นาที และใช้ได้ครั้งเดียว):\n${link}\n\nถ้าคุณไม่ได้เป็นคนขอ ไม่ต้องทำอะไร รหัสผ่านเดิมยังใช้ได้ตามปกติ`,
@@ -242,8 +265,11 @@ app.post('/api/password/forgot', async (req, res) => {
         <p style="font-size:12px;color:#8A938F;word-break:break-all">ถ้ากดปุ่มไม่ได้ ให้คัดลอกลิงก์นี้ไปเปิดในเบราว์เซอร์:<br>${link}</p>
       </div>`
     });
+    if (!sent.simulated) {
+      console.log(`[ลืมรหัสผ่าน] ส่งลิงก์ไปที่ ${maskEmail(user.email)} แล้ว (Brevo messageId: ${sent.messageId})`);
+    }
   } catch (err) {
-    console.error('ส่งลิงก์ตั้งรหัสผ่านใหม่ไม่สำเร็จ:', err);
+    console.error(`[ลืมรหัสผ่าน] ส่งอีเมลไม่สำเร็จ: ${err.message}\n  วิธีแก้: ${explainMailError(err)}`);
   }
 });
 
@@ -526,6 +552,36 @@ app.get('/api/admin/stats', requireAdmin, async (req, res) => {
   }
 });
 
+// ----- API: ส่งอีเมลทดสอบไปที่อีเมลของแอดมิน เพื่อเช็คว่าตั้งค่าระบบส่งอีเมลถูกต้อง -----
+app.post('/api/admin/test-email', requireAdmin, async (req, res) => {
+  const problems = mailSetupProblems();
+  if (problems.length > 0) {
+    return res.status(400).json({
+      error: `ยังไม่ได้ตั้งค่า environment variable: ${problems.join(', ')}`,
+      hint: 'ใส่ค่าที่ขาดใน Render > Environment แล้วรอให้ deploy ใหม่เสร็จ (ดูตัวอย่างใน .env.example)'
+    });
+  }
+  const to = req.currentUser.email;
+  try {
+    const sent = await sendMail({
+      to,
+      subject: 'ทดสอบส่งอีเมล — MoneyMate',
+      text: 'ถ้าคุณได้รับอีเมลนี้ แปลว่าระบบส่งอีเมลของ MoneyMate (ลืมรหัสผ่าน) ตั้งค่าถูกต้องแล้ว',
+      html: '<p style="font-family:Arial,sans-serif">ถ้าคุณได้รับอีเมลนี้ แปลว่าระบบส่งอีเมลของ <b>MoneyMate</b> (ลืมรหัสผ่าน) ตั้งค่าถูกต้องแล้ว</p>'
+    });
+    console.log(`[อีเมล] ส่งอีเมลทดสอบไปที่ ${maskEmail(to)} แล้ว (Brevo messageId: ${sent.messageId})`);
+    return res.json({
+      message: `Brevo รับอีเมลแล้ว กำลังส่งไปที่ ${to} — ถ้าไม่เห็นในกล่องจดหมายภายใน 2-3 นาที ให้เช็คโฟลเดอร์สแปม และหน้า Transactional > Logs ใน Brevo`,
+      from: process.env.MAIL_FROM,
+      appUrl: process.env.APP_URL,
+      messageId: sent.messageId
+    });
+  } catch (err) {
+    console.error(`[อีเมล] ส่งอีเมลทดสอบไม่สำเร็จ: ${err.message}`);
+    return res.status(502).json({ error: err.message, hint: explainMailError(err) });
+  }
+});
+
 // ----- API: รายชื่อผู้ใช้ทั้งหมด (สำหรับตารางจัดการยศ) -----
 app.get('/api/admin/users', requireAdmin, async (req, res) => {
   try {
@@ -639,6 +695,12 @@ async function start() {
   await db.init();
   app.listen(PORT, () => {
     console.log(`เซิร์ฟเวอร์กำลังทำงานที่ http://localhost:${PORT}`);
+    const problems = mailSetupProblems();
+    if (problems.length > 0) {
+      console.warn(`[อีเมล] ยังตั้งค่าไม่ครบ: ${problems.join(', ')} — ลืมรหัสผ่านจะใช้ได้เฉพาะตอนทดสอบบน localhost (ลิงก์จะแสดงใน console)`);
+    } else {
+      console.log(`[อีเมล] พร้อมส่งผ่าน Brevo (ผู้ส่ง: ${process.env.MAIL_FROM}, ลิงก์ชี้ไปที่ ${process.env.APP_URL})`);
+    }
   });
 }
 

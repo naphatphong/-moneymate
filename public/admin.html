@@ -208,6 +208,24 @@
   .toast .check{ color: var(--gold); font-weight:700; }
   .toast .warn{ color: var(--coral); font-weight:700; }
 
+  /* ---- email test ---- */
+  .mail-card{ padding:18px 20px; }
+  .mail-desc{ margin:0 0 14px; font-size:0.84rem; color:var(--text-soft); line-height:1.6; }
+  .mail-btn{
+    display:inline-flex; align-items:center; gap:8px; padding:10px 18px; border-radius:12px;
+    background: var(--gold-dim); border:1px solid rgba(232,176,75,0.4); color:var(--gold);
+    font-weight:600; font-size:0.85rem; cursor:pointer; transition: transform 0.25s var(--spring), background 0.2s;
+  }
+  .mail-btn svg{ width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linejoin:round; }
+  .mail-btn:hover{ background: rgba(232,176,75,0.24); }
+  .mail-btn:active{ transform: scale(0.95); }
+  .mail-btn:disabled{ opacity:0.6; cursor:default; }
+  .mail-result{ display:none; margin-top:14px; padding:12px 14px; border-radius:12px; font-size:0.83rem; line-height:1.6; word-break:break-word; }
+  .mail-result.ok{ display:block; background: rgba(47,191,143,0.1); border:1px solid rgba(47,191,143,0.3); color:var(--emerald); }
+  .mail-result.fail{ display:block; background: rgba(232,131,111,0.1); border:1px solid rgba(232,131,111,0.3); color:var(--coral); }
+  .mail-result .detail{ color:var(--text-soft); font-size:0.78rem; margin-top:6px; }
+  .mail-result .fix{ color:var(--text); margin-top:8px; }
+
   @media (min-width:640px){
     .stats-grid{ grid-template-columns:repeat(4,1fr); }
     .user-row .meta{ display:block; }
@@ -320,6 +338,16 @@
   <input type="text" class="user-search" id="userSearch" placeholder="ค้นหาชื่อผู้ใช้หรืออีเมล...">
   <div class="glass" style="padding:6px 18px;">
     <div class="user-table" id="userTable"></div>
+  </div>
+
+  <div class="section-title"><h2>ระบบอีเมล</h2><span>ใช้ส่งลิงก์ลืมรหัสผ่าน</span></div>
+  <div class="glass mail-card">
+    <p class="mail-desc">ส่งอีเมลทดสอบไปที่อีเมลของบัญชีแอดมินนี้ เพื่อเช็คว่าตั้งค่า Brevo (BREVO_API_KEY, MAIL_FROM, APP_URL) ถูกต้อง ถ้าส่งไม่ได้จะแสดงสาเหตุและวิธีแก้ด้านล่าง</p>
+    <button class="mail-btn" id="btnTestEmail">
+      <svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg>
+      ส่งอีเมลทดสอบ
+    </button>
+    <div class="mail-result" id="mailResult"></div>
   </div>
 </div>
 </div>
@@ -567,6 +595,32 @@ function escapeHtml(str){
 
 document.getElementById('userSearch').addEventListener('input', (e) => {
   renderUserTable(filterUsers(e.target.value));
+});
+
+/* ===================== ทดสอบระบบส่งอีเมล ===================== */
+document.getElementById('btnTestEmail').addEventListener('click', async () => {
+  const btn = document.getElementById('btnTestEmail');
+  const out = document.getElementById('mailResult');
+  btn.disabled = true;
+  out.className = 'mail-result';
+  try{
+    const res = await fetch('/api/admin/test-email', { method:'POST' });
+    const data = await res.json().catch(() => ({}));
+    if(res.ok){
+      out.className = 'mail-result ok';
+      out.innerHTML = `✓ ${escapeHtml(data.message)}
+        <div class="detail">ผู้ส่ง: ${escapeHtml(data.from || '-')} · ลิงก์ชี้ไปที่: ${escapeHtml(data.appUrl || '-')} · messageId: ${escapeHtml(data.messageId || '-')}</div>`;
+    }else{
+      out.className = 'mail-result fail';
+      out.innerHTML = `✕ ${escapeHtml(data.error || ('ส่งไม่สำเร็จ (HTTP ' + res.status + ')'))}
+        ${data.hint ? `<div class="fix">วิธีแก้: ${escapeHtml(data.hint)}</div>` : ''}`;
+    }
+  }catch(err){
+    out.className = 'mail-result fail';
+    out.textContent = '✕ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้';
+  }finally{
+    btn.disabled = false;
+  }
 });
 
 checkAuthAndLoad();
