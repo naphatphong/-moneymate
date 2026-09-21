@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/ui.css">
+<link rel="stylesheet" href="css/analytics.css">
 <style>
   /* ============ APP SHELL ============ */
   #authGate{ position:fixed; inset:0; background:var(--bg); z-index:100; display:flex; align-items:center; justify-content:center; overflow:hidden; }
@@ -226,11 +227,15 @@
   @keyframes row-in{ to{ opacity:1; transform: translateY(0); } }
   .ico{
     width:40px; height:40px; border-radius:12px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
-    background: color-mix(in srgb, var(--c, var(--text-soft)) 15%, transparent); color: var(--c, var(--text-soft));
+    background: linear-gradient(180deg, rgba(var(--tint),0.07), rgba(var(--tint),0.02));
+    border:1px solid var(--line); box-shadow: inset 0 1px 0 rgba(var(--tint),0.06);
+    color: var(--c, var(--text-soft));
   }
-  .ico svg{ width:19px; height:19px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+  .ico svg{ width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
+  .ico .mono, .cats .ci .mono, .ax-mx-row .ic .mono{ font-weight:500; font-size:0.95rem; line-height:1; color:currentColor; }
   .ico.sm{ width:32px; height:32px; border-radius:10px; }
-  .ico.sm svg{ width:16px; height:16px; }
+  .ico.sm svg{ width:15px; height:15px; }
+  .ico.sm .mono{ font-size:0.82rem; }
   .row .info{ flex:1; min-width:0; }
   .row .name{ font-size:0.92rem; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .row .meta{ font-size:0.76rem; color:var(--text-soft); margin-top:1px; }
@@ -527,8 +532,10 @@
     border-radius:14px; border:1px solid var(--line); background: rgba(var(--tint),0.025);
     color:var(--text-soft); font-size:0.78rem; cursor:pointer; transition: all 0.25s var(--spring);
   }
-  .cats button .ci{ width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center; background: color-mix(in srgb, var(--c, var(--text-soft)) 15%, transparent); color: var(--c, var(--text-soft)); }
-  .cats button .ci svg{ width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .cats button .ci{ width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+    background: linear-gradient(180deg, rgba(var(--tint),0.07), rgba(var(--tint),0.02)); border:1px solid var(--line); color: var(--c, var(--text-soft)); }
+  .cats button .ci svg{ width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
+  .cats button .ci .mono{ font-size:0.8rem; }
   .cats button .cl{ max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .cats button:hover{ border-color: var(--line-strong); color:var(--text); }
   .cats button.active{ border-color: var(--accent); color: var(--text); background: var(--accent-dim); }
@@ -850,9 +857,18 @@
 
     <!-- ===== REPORTS ===== -->
     <div class="view" id="view-reports">
-      <div class="view-head">
+      <div class="view-head rpt-head">
         <h1 class="two-tone"><span data-i18n="nav_report">รายงาน</span><span class="muted" data-i18n="reports_sub">ภาพรวมรายรับ-รายจ่ายรายเดือน</span></h1>
+        <div class="rpt-switch" id="rptSwitch" role="tablist">
+          <span class="pill" aria-hidden="true"></span>
+          <button type="button" role="tab" data-pane="analytics" data-i18n="rpt_analytics">Analytics</button>
+          <button type="button" role="tab" data-pane="monthly" data-i18n="rpt_monthly">รายเดือน</button>
+        </div>
       </div>
+
+      <div class="rpt-pane" id="paneAnalytics"></div>
+
+      <div class="rpt-pane" id="paneMonthly" hidden>
       <div class="month-nav">
         <button id="monthPrev" aria-label="prev">‹</button>
         <span id="monthLabel">—</span>
@@ -909,6 +925,7 @@
           <div class="glass panel cat-breakdown" id="catBreakdownFull"></div>
         </div>
       </div>
+      </div><!-- /#paneMonthly -->
     </div>
 
     <!-- ===== PROFILE ===== -->
@@ -1095,12 +1112,15 @@
 
 <script src="js/motion.js"></script>
 <script src="js/cc.js"></script>
+<script src="js/analytics.js"></script>
 
 <script>
 /* ===================== i18n ===================== */
 const translations = {
   account_tag_short: { th:"บัญชีหลัก", en:"Main account" },
   balance_label: { th:"ยอดเงินคงเหลือ", en:"Current balance" },
+  rpt_analytics: { th:"Analytics", en:"Analytics" },
+  rpt_monthly: { th:"รายเดือน", en:"Monthly" },
   card_hint: { th:"แตะบัตรเพื่อพลิกดูสรุปเดือนนี้", en:"Tap the card for this month's summary" },
   budget_label: { th:"งบประมาณเดือนนี้", en:"Monthly budget" },
   expense_month_label: { th:"รายจ่ายเดือนนี้", en:"Spent this month" },
@@ -1198,25 +1218,34 @@ const catLabel = {
 };
 translations.cat_income = { th:"รายรับ", en:"Income" };
 const catColor = {
-  food:'var(--amber)', travel:'var(--blue)', entertainment:'var(--purple)', shopping:'var(--coral)', other:'var(--text-soft)',
-  income:'var(--emerald)', allowance:'var(--emerald)', salary:'var(--blue)', parttime:'var(--amber)', scholarship:'var(--purple)', sales:'var(--coral)'
+  food:'var(--cat-food)', travel:'var(--cat-travel)', entertainment:'var(--cat-fun)', shopping:'var(--cat-shop)', other:'var(--cat-other)',
+  income:'var(--cat-allowance)', allowance:'var(--cat-allowance)', salary:'var(--cat-salary)', parttime:'var(--cat-parttime)', scholarship:'var(--cat-scholarship)', sales:'var(--cat-sales)'
 };
 // ไอคอนของหมวดหมู่ (เส้น 24x24) หมวดที่ผู้ใช้สร้างเองใช้รูปประกาย
 const CAT_ICONS = {
-  food: '<path d="M6 3v7a2 2 0 0 0 4 0V3M8 12v9"/><path d="M17 21V3c-2 1.2-3 3.6-3 7 0 2 1 3 3 3"/>',
-  travel: '<rect x="4" y="4" width="16" height="13" rx="3"/><path d="M4 11h16M8 17v3M16 17v3"/>',
-  entertainment: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9.5 4.5 2.5-4.5 2.5z"/>',
-  shopping: '<path d="M5 8h14l-1.2 12H6.2z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/>',
-  other: '<circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/>',
-  income: '<path d="M12 4v11M7 10l5 5 5-5"/><path d="M4 19.5h16"/>',
-  allowance: '<path d="M3 11 12 4l9 7"/><path d="M6 10v10h12V10"/><path d="M10 20v-5h4v5"/>',
-  salary: '<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3 13h18"/>',
-  parttime: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
-  scholarship: '<path d="m2.5 9 9.5-5 9.5 5-9.5 5z"/><path d="M6.5 11.2V16c1.5 1.4 3.5 2.2 5.5 2.2s4-.8 5.5-2.2v-4.8"/>',
-  sales: '<path d="M3.5 12.5V4h8.5l9 9-8.5 8.5z"/><circle cx="8" cy="8.5" r="1.3"/>'
+  food: '<path d="M4 12h16a8 8 0 0 1-16 0z"/><path d="M9 20.5h6"/><path d="M13.5 9.5 18 4M10.5 9.5 15 4"/>',
+  travel: '<circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/>',
+  entertainment: '<path d="M4 7a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2.5a2.5 2.5 0 0 0 0 5V17a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2.5a2.5 2.5 0 0 0 0-5z"/><path d="M14.5 8v1.3M14.5 11.35v1.3M14.5 14.7V16"/>',
+  shopping: '<path d="M5.5 8.5h13l-1 11h-11z"/><path d="M9 8.5V7a3 3 0 0 1 6 0v1.5"/>',
+  other: '<rect x="4.5" y="4.5" width="6" height="6" rx="1.6"/><rect x="13.5" y="4.5" width="6" height="6" rx="1.6"/><rect x="4.5" y="13.5" width="6" height="6" rx="1.6"/><rect x="13.5" y="13.5" width="6" height="6" rx="1.6"/>',
+  income: '<path d="M12 4v10M7.5 9.5 12 14l4.5-4.5"/><path d="M4.5 16v2.5a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1V16"/>',
+  allowance: '<path d="M4 8.5A2.5 2.5 0 0 1 6.5 6H17v2.5"/><rect x="4" y="8.5" width="16" height="10.5" rx="2.2"/><path d="M15.5 13.75h.01"/>',
+  salary: '<rect x="3.5" y="7.5" width="17" height="12" rx="2.2"/><path d="M9 7.5V6a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 6v1.5"/><path d="M3.5 12.5h17"/>',
+  parttime: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4.2l2.8 1.8"/>',
+  scholarship: '<path d="m3 9.5 9-4.5 9 4.5-9 4.5z"/><path d="M7 11.5v4.3c1.4 1.2 3.1 1.8 5 1.8s3.6-.6 5-1.8v-4.3"/><path d="M21 9.5v4.5"/>',
+  sales: '<path d="M4 12.6V5a1 1 0 0 1 1-1h7.6a1 1 0 0 1 .7.3l6.4 6.4a1 1 0 0 1 0 1.4l-7.6 7.6a1 1 0 0 1-1.4 0l-6.4-6.4a1 1 0 0 1-.3-.7z"/><path d="M8.5 8.5h.01"/>'
 };
-const CUSTOM_CAT_ICON = '<path d="M12 3.5l2.1 5.4 5.4 2.1-5.4 2.1L12 18.5l-2.1-5.4L4.5 11l5.4-2.1z"/>';
-function catIcon(c){ return `<svg viewBox="0 0 24 24">${CAT_ICONS[c] || CUSTOM_CAT_ICON}</svg>`; }
+// หมวดที่ผู้ใช้สร้างเอง: ใช้อักษรตัวแรกของชื่อ (ข้ามสระหน้า เ แ โ ใ ไ)
+function catMonogram(name){
+  for(const ch of String(name).trim()){
+    if(/[\sเแโใไ]/.test(ch)) continue;
+    return escapeHtml(ch.toUpperCase());
+  }
+  return '·';
+}
+function catIcon(c){
+  return CAT_ICONS[c] ? `<svg viewBox="0 0 24 24">${CAT_ICONS[c]}</svg>` : `<span class="mono">${catMonogram(c)}</span>`;
+}
 
 // หมวดหมู่มาตรฐานของแต่ละประเภท (อันแรกคือค่าที่เลือกไว้ตอนเริ่ม)
 const BUILTIN_CATS = {
@@ -1226,12 +1255,15 @@ const BUILTIN_CATS = {
 
 // ชื่อที่แสดงของหมวดหมู่: หมวดมาตรฐานแปลตามภาษา หมวดที่ผู้ใช้สร้างเองใช้ชื่อตามที่ตั้ง
 function catName(c){ return catLabel[c] ? t(catLabel[c]) : c; }
-// สีของหมวดหมู่: หมวดที่ผู้ใช้สร้างเองได้สีคงที่จากชื่อ
-function catColorOf(c){
-  if(catColor[c]) return catColor[c];
+// สีของหมวดหมู่: หมวดที่ผู้ใช้สร้างเองได้สีคงที่จากชื่อ (เลือกจากชุดสีหม่น --cat-x0..7)
+const CUSTOM_CAT_TONES = 8;
+function catToneIndex(c){
   let h = 0;
-  for(const ch of String(c)) h = (h * 31 + ch.codePointAt(0)) % 360;
-  return `hsl(${h}, 55%, 62%)`;
+  for(const ch of String(c)) h = (h * 31 + ch.codePointAt(0)) % 9973;
+  return h % CUSTOM_CAT_TONES;
+}
+function catColorOf(c){
+  return catColor[c] || `var(--cat-x${catToneIndex(c)})`;
 }
 const monthsTH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 const monthsEN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1510,6 +1542,8 @@ function renderAll(){
   renderHeatmap();
   renderBreakdown('catBreakdown', 5);
   renderReportsView();
+  Analytics.render();
+  if(document.getElementById('view-reports').classList.contains('active')) Analytics.placePill(rptSwitch, rptSwitch.querySelector('button.active'), false);
 }
 
 /* ===================== reports view (month browser + trend + budget) ===================== */
@@ -1846,7 +1880,7 @@ function goView(view){
   document.querySelectorAll('.sidebar .nitem').forEach(n => n.classList.toggle('active', n.dataset.view === view));
   const iconBtn = document.querySelector(`.icon-row button[data-view="${view}"]`);
   if(iconBtn) moveTabLens(iconBtn, true);
-  if(view === 'reports') renderRevenueChart();
+  if(view === 'reports') showReportsPane(false);
   if(view === 'home') renderHeatmap();
 }
 document.querySelectorAll('.sidebar .nitem, .sidebar .user').forEach(el => {
@@ -1854,6 +1888,29 @@ document.querySelectorAll('.sidebar .nitem, .sidebar .user').forEach(el => {
 });
 document.querySelectorAll('[data-goto]').forEach(el => {
   el.addEventListener('click', () => goView(el.dataset.goto));
+});
+
+/* ===================== แท็บรายงาน: สลับ Analytics / รายเดือน ===================== */
+const rptSwitch = document.getElementById('rptSwitch');
+let rptPane = 'analytics';
+try{ if(localStorage.getItem('mm-rpt-pane') === 'monthly') rptPane = 'monthly'; }catch(e){}
+function showReportsPane(animate){
+  document.getElementById('paneAnalytics').hidden = rptPane !== 'analytics';
+  document.getElementById('paneMonthly').hidden = rptPane !== 'monthly';
+  rptSwitch.querySelectorAll('button').forEach(b => {
+    const on = b.dataset.pane === rptPane;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', String(on));
+  });
+  Analytics.placePill(rptSwitch, rptSwitch.querySelector('button.active'), animate);
+  if(rptPane === 'analytics') Analytics.render(); else renderRevenueChart();
+}
+rptSwitch.addEventListener('click', e => {
+  const b = e.target.closest('button[data-pane]');
+  if(!b || b.dataset.pane === rptPane) return;
+  rptPane = b.dataset.pane;
+  try{ localStorage.setItem('mm-rpt-pane', rptPane); }catch(err){}
+  showReportsPane(true);
 });
 
 /* ===================== liquid glass tab bar (มือถือ) ===================== */
@@ -1999,7 +2056,7 @@ window.addEventListener('resize', () => {
   if(active) moveTabLens(active, false);
   clearTimeout(revResizeTimer);
   revResizeTimer = setTimeout(() => {
-    if(document.getElementById('view-reports').classList.contains('active')) renderRevenueChart();
+    if(document.getElementById('view-reports').classList.contains('active')) showReportsPane(false);
     if(document.getElementById('view-home').classList.contains('active')) renderHeatmap();
   }, 150);
 });
@@ -2053,7 +2110,7 @@ function renderCatGrid(){
   catGrid.innerHTML = catChips.map((c, i) => {
     const label = escapeHtml(catName(c.key));
     const del = c.id ? `<span class="del" data-idx="${i}" title="${t('cat_delete')}">✕</span>` : '';
-    return `<button type="button" class="${c.key === modalCats[modalType] ? 'active' : ''} ${c.id ? 'custom' : ''}" data-idx="${i}" style="--c:${catColorOf(c.key)}"><span class="ci">${catIcon(c.id ? null : c.key)}</span><span class="cl">${label}</span>${del}</button>`;
+    return `<button type="button" class="${c.key === modalCats[modalType] ? 'active' : ''} ${c.id ? 'custom' : ''}" data-idx="${i}" style="--c:${catColorOf(c.key)}"><span class="ci">${catIcon(c.key)}</span><span class="cl">${label}</span>${del}</button>`;
   }).join('') + (addingCat
     ? `<input class="cat-input" id="catInput" maxlength="20" placeholder="${t('cat_placeholder')}">`
     : `<button type="button" class="add" id="catAddBtn" title="${t('cat_add')}" aria-label="${t('cat_add')}">+</button>`);

@@ -37,6 +37,21 @@
   --blue:#5AA9E6;
   --purple:#A98BF0;
 
+  /* โทนสีหมวดหมู่: หม่น ความสว่างใกล้กัน ไม่แย่งสายตากับตัวเลข */
+  --cat-food:#CDB38B;
+  --cat-travel:#8FA8C2;
+  --cat-fun:#A994C6;
+  --cat-shop:#C99585;
+  --cat-other:#9098A3;
+  --cat-allowance:#8DBBA3;
+  --cat-salary:#86AFC0;
+  --cat-parttime:#C4B882;
+  --cat-scholarship:#A3A6D0;
+  --cat-sales:#CFA0A8;
+  /* หมวดที่ผู้ใช้สร้างเอง: เลือกจากชุดนี้ตามชื่อ */
+  --cat-x0:#B7A48F; --cat-x1:#8FB3B0; --cat-x2:#B99AB4; --cat-x3:#A7B68A;
+  --cat-x4:#C3A57E; --cat-x5:#93A1C9; --cat-x6:#C08F8F; --cat-x7:#9FB1A3;
+
   --r-xl: 26px;
   --r-lg: 20px;
   --r-md: 14px;
@@ -64,6 +79,18 @@
   --coral:#D2573E;
   --blue:#2C7CC0;
   --purple:#7C5CD6;
+  --cat-food:#94744A;
+  --cat-travel:#4F6F90;
+  --cat-fun:#735C94;
+  --cat-shop:#9A5E4E;
+  --cat-other:#646C77;
+  --cat-allowance:#4E8468;
+  --cat-salary:#4A7A8C;
+  --cat-parttime:#857A43;
+  --cat-scholarship:#5F63A0;
+  --cat-sales:#9A5F69;
+  --cat-x0:#7C6A55; --cat-x1:#4F7A76; --cat-x2:#83607D; --cat-x3:#6B7A4C;
+  --cat-x4:#8A6B45; --cat-x5:#56659A; --cat-x6:#8A5656; --cat-x7:#5E7666;
 }
 
 /* ---------- base ---------- */
@@ -137,13 +164,13 @@ a{ color:inherit; }
           backdrop-filter: blur(18px) saturate(140%);
 }
 
-/* หัวข้อส่วน: ชื่อ — เส้นบาง — ลิงก์/✦ */
+/* หัวข้อส่วน: ชื่อ — เส้นบาง — ลิงก์ */
 .section-title{ display:flex; align-items:center; gap:14px; margin:0 0 12px; }
 .section-title h2{ font-size:1rem; font-weight:500; margin:0; letter-spacing:-0.01em; white-space:nowrap; }
 .section-title::after{ content:""; flex:1; height:1px; background: linear-gradient(90deg, var(--line-strong), var(--line) 70%, transparent); order:1; }
 .section-title > span, .section-title > a{ order:2; font-size:0.78rem; color:var(--accent); cursor:pointer; white-space:nowrap; text-decoration:none; }
 .section-title > span:hover, .section-title > a:hover{ text-decoration:underline; }
-.section-title.star::before{ content:"✦"; order:3; font-size:0.7rem; color:var(--text-faint); }
+.section-title.star::before{ content:""; order:3; width:4px; height:4px; border-radius:1px; background:var(--line-strong); }
 
 /* ---------- buttons ---------- */
 .btn{
