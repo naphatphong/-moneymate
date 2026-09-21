@@ -5,8 +5,10 @@ require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const path = require('path');
 const db = require('./database');
+const { sendMail, isMailConfigured } = require('./mailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -167,6 +169,124 @@ app.post('/api/logout', (req, res) => {
     res.clearCookie('connect.sid');
     return res.json({ message: 'ออกจากระบบแล้ว' });
   });
+});
+
+// ===================== ลืมรหัสผ่าน / ตั้งรหัสผ่านใหม่ =====================
+
+const RESET_TOKEN_TTL_MS = 30 * 60 * 1000; // ลิงก์ใช้ได้ 30 นาที
+const RESET_TOKEN_FORMAT = /^[a-f0-9]{64}$/;
+
+// เก็บเฉพาะ hash ของโทเค็นในฐานข้อมูล ถ้าฐานข้อมูลรั่ว คนอื่นก็เอาไปใช้รีเซ็ตรหัสผ่านไม่ได้
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// จำกัดจำนวนครั้งที่ขอได้ในช่วงเวลาหนึ่ง (เก็บในหน่วยความจำ รีสตาร์ทเซิร์ฟเวอร์แล้วนับใหม่)
+const rateBuckets = new Map();
+function tooManyRequests(key, limit, windowMs) {
+  const now = Date.now();
+  const recent = (rateBuckets.get(key) || []).filter((t) => now - t < windowMs);
+  recent.push(now);
+  rateBuckets.set(key, recent);
+  if (rateBuckets.size > 5000) {
+    for (const [k, times] of rateBuckets) {
+      if (times.every((t) => now - t >= windowMs)) rateBuckets.delete(k);
+    }
+  }
+  return recent.length > limit;
+}
+
+// ----- API: ขอลิงก์ตั้งรหัสผ่านใหม่ทางอีเมล -----
+app.post('/api/password/forgot', async (req, res) => {
+  const email = typeof req.body.email === 'string' ? req.body.email.trim() : '';
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'กรุณากรอกอีเมลให้ถูกต้อง' });
+  }
+  if (tooManyRequests(`forgot-ip:${req.ip}`, 5, 15 * 60 * 1000) ||
+      tooManyRequests(`forgot-email:${email.toLowerCase()}`, 3, 60 * 60 * 1000)) {
+    return res.status(429).json({ error: 'ขอลิงก์บ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่' });
+  }
+
+  // ลิงก์ต้องชี้ไปที่เว็บของเราเสมอ ตอนใช้งานจริงจึงต้องตั้ง APP_URL (ไม่เชื่อ Host header ที่ส่งมา)
+  const baseUrl = process.env.APP_URL || (isProduction ? '' : `${req.protocol}://${req.get('host')}`);
+  if (isProduction && (!isMailConfigured() || !baseUrl)) {
+    console.error('ระบบลืมรหัสผ่านยังไม่พร้อม: ต้องตั้งค่า BREVO_API_KEY, MAIL_FROM และ APP_URL');
+    return res.status(503).json({ error: 'ระบบส่งอีเมลยังไม่พร้อมใช้งาน กรุณาติดต่อผู้ดูแลระบบ' });
+  }
+
+  // ตอบข้อความเดียวกันเสมอ และตอบก่อนส่งอีเมล เพื่อไม่ให้ใครใช้หน้านี้เช็คได้ว่าอีเมลไหนมีบัญชี
+  res.json({ message: 'ถ้าอีเมลนี้มีบัญชีอยู่ในระบบ เราได้ส่งลิงก์ตั้งรหัสผ่านใหม่ไปให้แล้ว กรุณาตรวจสอบกล่องจดหมาย (รวมถึงโฟลเดอร์สแปม)' });
+
+  try {
+    const user = await db.findByEmail(email);
+    if (!user) return;
+
+    const token = crypto.randomBytes(32).toString('hex');
+    await db.createPasswordReset(user.id, hashToken(token), new Date(Date.now() + RESET_TOKEN_TTL_MS));
+    const link = `${baseUrl.replace(/\/+$/, '')}/reset-password.html?token=${token}`;
+
+    await sendMail({
+      to: user.email,
+      subject: 'ตั้งรหัสผ่านใหม่ — MoneyMate',
+      text: `สวัสดีคุณ ${user.username}\n\nเราได้รับคำขอตั้งรหัสผ่านใหม่สำหรับบัญชี MoneyMate ของคุณ\nกดลิงก์นี้เพื่อตั้งรหัสผ่านใหม่ (ใช้ได้ภายใน 30 นาที และใช้ได้ครั้งเดียว):\n${link}\n\nถ้าคุณไม่ได้เป็นคนขอ ไม่ต้องทำอะไร รหัสผ่านเดิมยังใช้ได้ตามปกติ`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#17211E;line-height:1.6">
+        <h2 style="margin:0 0 16px">Money<span style="color:#1C9C70">Mate</span></h2>
+        <p>สวัสดีคุณ ${escapeHtml(user.username)}</p>
+        <p>เราได้รับคำขอตั้งรหัสผ่านใหม่สำหรับบัญชี MoneyMate ของคุณ กดปุ่มด้านล่างเพื่อตั้งรหัสผ่านใหม่</p>
+        <p style="margin:24px 0"><a href="${link}" style="background:#2FBF8F;color:#06231B;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">ตั้งรหัสผ่านใหม่</a></p>
+        <p style="font-size:13px;color:#5E6864">ลิงก์นี้ใช้ได้ภายใน 30 นาที และใช้ได้ครั้งเดียว<br>ถ้าคุณไม่ได้เป็นคนขอ ไม่ต้องทำอะไร รหัสผ่านเดิมยังใช้ได้ตามปกติ</p>
+        <p style="font-size:12px;color:#8A938F;word-break:break-all">ถ้ากดปุ่มไม่ได้ ให้คัดลอกลิงก์นี้ไปเปิดในเบราว์เซอร์:<br>${link}</p>
+      </div>`
+    });
+  } catch (err) {
+    console.error('ส่งลิงก์ตั้งรหัสผ่านใหม่ไม่สำเร็จ:', err);
+  }
+});
+
+// ----- API: เช็คว่าลิงก์ตั้งรหัสผ่านใหม่ยังใช้ได้อยู่ไหม (ให้หน้าเว็บแจ้งได้ทันทีถ้าหมดอายุ) -----
+app.post('/api/password/reset/check', async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (typeof token !== 'string' || !RESET_TOKEN_FORMAT.test(token)) {
+      return res.json({ valid: false });
+    }
+    const reset = await db.findValidPasswordReset(hashToken(token));
+    return res.json({ valid: Boolean(reset) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
+// ----- API: ตั้งรหัสผ่านใหม่ด้วยโทเค็นจากอีเมล -----
+app.post('/api/password/reset', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (tooManyRequests(`reset-ip:${req.ip}`, 10, 15 * 60 * 1000)) {
+      return res.status(429).json({ error: 'ลองบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่' });
+    }
+    if (typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ error: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' });
+    }
+    const expiredMessage = 'ลิงก์นี้หมดอายุหรือถูกใช้ไปแล้ว กรุณาขอลิงก์ใหม่อีกครั้ง';
+    if (typeof token !== 'string' || !RESET_TOKEN_FORMAT.test(token)) {
+      return res.status(400).json({ error: expiredMessage });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const ok = await db.resetPassword(hashToken(token), passwordHash);
+    if (!ok) {
+      return res.status(400).json({ error: expiredMessage });
+    }
+    return res.json({ message: 'ตั้งรหัสผ่านใหม่เรียบร้อยแล้ว' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
 });
 
 // ----- API: ดึงข้อมูลผู้ใช้ที่ล็อคอินอยู่ -----

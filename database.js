@@ -97,6 +97,17 @@ async function init() {
   await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_user_categories_user_type_name ON user_categories(user_id, type, name)
   `);
+
+  // โทเค็นรีเซ็ตรหัสผ่าน (เก็บเฉพาะค่า hash ของโทเค็น ไม่เก็บตัวจริง)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_resets (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash TEXT UNIQUE NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
 }
 
 // ตรวจสอบว่ามี username หรือ email นี้ในระบบแล้วหรือยัง
@@ -115,6 +126,61 @@ async function findByLogin(usernameOrEmail) {
     [usernameOrEmail]
   );
   return rows[0] || null;
+}
+
+// หาผู้ใช้จากอีเมล (ไม่สนตัวพิมพ์เล็ก/ใหญ่) ใช้ตอนขอรีเซ็ตรหัสผ่าน
+async function findByEmail(email) {
+  const { rows } = await pool.query(
+    'SELECT * FROM users WHERE LOWER(email) = LOWER($1)',
+    [email]
+  );
+  return rows[0] || null;
+}
+
+// ----- รีเซ็ตรหัสผ่าน -----
+
+// สร้างโทเค็นใหม่ (ลบโทเค็นเก่าของผู้ใช้คนนี้ทิ้ง ให้ใช้ได้แค่ลิงก์ล่าสุด)
+async function createPasswordReset(userId, tokenHash, expiresAt) {
+  await pool.query('DELETE FROM password_resets WHERE user_id = $1', [userId]);
+  await pool.query(
+    'INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+    [userId, tokenHash, expiresAt]
+  );
+}
+
+// หาโทเค็นที่ยังไม่หมดอายุ
+async function findValidPasswordReset(tokenHash) {
+  const { rows } = await pool.query(
+    'SELECT * FROM password_resets WHERE token_hash = $1 AND expires_at > NOW()',
+    [tokenHash]
+  );
+  return rows[0] || null;
+}
+
+// ตั้งรหัสผ่านใหม่และลบโทเค็นทิ้ง (ทำใน transaction เดียว ลิงก์จึงใช้ได้ครั้งเดียว)
+async function resetPassword(tokenHash, passwordHash) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      'DELETE FROM password_resets WHERE token_hash = $1 AND expires_at > NOW() RETURNING user_id',
+      [tokenHash]
+    );
+    if (rows.length === 0) {
+      await client.query('ROLLBACK');
+      return false;
+    }
+    const userId = rows[0].user_id;
+    await client.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, userId]);
+    await client.query('DELETE FROM password_resets WHERE user_id = $1', [userId]);
+    await client.query('COMMIT');
+    return true;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 // หาผู้ใช้จาก id (ใช้ตอนเช็คเซสชัน)
@@ -405,6 +471,10 @@ module.exports = {
   findByLogin,
   findById,
   createUser,
+  findByEmail,
+  createPasswordReset,
+  findValidPasswordReset,
+  resetPassword,
   getTransactions,
   createTransaction,
   deleteTransaction,

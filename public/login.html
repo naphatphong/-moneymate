@@ -115,6 +115,12 @@
   .submit:active{ transform: scale(0.96); }
   .submit:disabled{ opacity:0.6; cursor:default; transform:none; box-shadow:none; }
 
+  .forgot-link{
+    display:block; width:fit-content; margin:8px 2px 0 auto;
+    font-size:0.78rem; color:var(--text-soft); text-decoration:none; transition: color 0.2s;
+  }
+  .forgot-link:hover{ color:var(--emerald); }
+
   .switch-link{
     text-align:center; font-size:0.83rem; color:var(--text-soft); margin-top:22px;
   }
@@ -216,6 +222,7 @@
         <label for="password">รหัสผ่าน</label>
         <button type="button" class="toggle-pw" id="togglePw">แสดง</button>
       </div>
+      <a class="forgot-link" href="forgot-password.html">ลืมรหัสผ่าน?</a>
     </div>
     <button type="submit" class="submit" id="submitBtn">เข้าสู่ระบบ</button>
   </form>
