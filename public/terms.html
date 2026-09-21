@@ -4,24 +4,37 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ข้อกำหนดการใช้งาน — MoneyMate</title>
+<meta name="theme-color" content="#070809">
+<script src="js/theme.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/ui.css">
 <style>
-  :root{ --bg:#0B1614; --panel:#101F1C; --line:rgba(255,255,255,0.09); --text:#EDEDE7; --text-soft:#8FA39B; --emerald:#2FBF8F; }
-  *{ box-sizing:border-box; }
-  body{ margin:0; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; line-height:1.7; padding:32px 16px; }
-  main{ max-width:760px; margin:0 auto; background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:32px 28px; }
-  h1{ font-family:'Fraunces',serif; font-weight:600; margin:0 0 4px; font-size:30px; }
-  h2{ font-size:18px; margin:28px 0 8px; color:var(--emerald); }
-  p, li{ color:var(--text); font-size:15px; }
-  .muted{ color:var(--text-soft); font-size:14px; }
-  a{ color:var(--emerald); }
+  .doc{ position:relative; z-index:1; max-width:780px; margin:0 auto; padding:28px 16px 64px; }
+  .doc > .brand-mark{ margin:0 0 22px 4px; }
+  main{ padding:34px 28px; }
+  h1{ font-weight:400; letter-spacing:-0.02em; font-size:2rem; line-height:1.2; margin:0 0 8px; }
+  h2{ font-size:1.05rem; font-weight:500; margin:32px 0 8px; display:flex; align-items:center; gap:10px; }
+  h2::before{ content:""; width:6px; height:6px; border-radius:2px; background:var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+  p, li{ color:var(--text-soft); font-size:0.95rem; line-height:1.8; }
+  strong{ color:var(--text); font-weight:500; }
+  .muted{ font-family:var(--mono); font-size:0.72rem; letter-spacing:0.06em; color:var(--text-faint); margin:0 0 8px; }
+  a{ color:var(--accent); }
   ul{ padding-left:20px; }
-  nav{ margin-top:32px; font-size:14px; }
+  nav{ margin-top:36px; padding-top:18px; border-top:1px solid var(--line); font-size:0.86rem; color:var(--text-faint); }
+  nav a{ color:var(--text-soft); text-decoration:none; }
+  nav a:hover{ color:var(--text); }
 </style>
 </head>
 <body>
-<main>
+<div class="ambient"></div>
+<div class="doc">
+<a class="brand-mark" href="/">
+  <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="9"/><path d="M9.5 21.5v-11l6.5 6 6.5-6v11"/></svg>
+  <span class="wordmark">Money<span class="accent">Mate</span></span>
+</a>
+<main class="card">
   <h1>ข้อกำหนดการใช้งาน</h1>
   <p class="muted">MoneyMate · ปรับปรุงล่าสุด 21 กันยายน 2569</p>
 
@@ -48,5 +61,6 @@
 
   <nav><a href="/">หน้าแรก</a> · <a href="/privacy.html">นโยบายความเป็นส่วนตัว</a> · <a href="/login.html">เข้าสู่ระบบ</a></nav>
 </main>
+</div>
 </body>
 </html>
