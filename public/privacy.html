@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>นโยบายความเป็นส่วนตัว — MoneyMate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#0B1614; --panel:#101F1C; --line:rgba(255,255,255,0.09); --text:#EDEDE7; --text-soft:#8FA39B; --emerald:#2FBF8F; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; line-height:1.7; padding:32px 16px; }
+  main{ max-width:760px; margin:0 auto; background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:32px 28px; }
+  h1{ font-family:'Fraunces',serif; font-weight:600; margin:0 0 4px; font-size:30px; }
+  h2{ font-size:18px; margin:28px 0 8px; color:var(--emerald); }
+  p, li{ color:var(--text); font-size:15px; }
+  .muted{ color:var(--text-soft); font-size:14px; }
+  a{ color:var(--emerald); }
+  ul{ padding-left:20px; }
+  nav{ margin-top:32px; font-size:14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>นโยบายความเป็นส่วนตัว</h1>
+  <p class="muted">MoneyMate · ปรับปรุงล่าสุด 21 กันยายน 2569</p>
+
+  <p>MoneyMate เป็นเว็บแอปบันทึกรายรับ-รายจ่ายส่วนตัว หน้านี้อธิบายว่าเราเก็บข้อมูลอะไร ใช้ทำอะไร และคุณจัดการข้อมูลของตัวเองได้อย่างไร</p>
+
+  <h2>ข้อมูลที่เราเก็บ</h2>
+  <ul>
+    <li><strong>ข้อมูลบัญชี:</strong> ชื่อผู้ใช้ อีเมล และรหัสผ่านที่ผ่านการเข้ารหัสแบบทางเดียว (hash) แล้ว เราไม่เก็บรหัสผ่านตัวจริง</li>
+    <li><strong>ข้อมูลจาก Google (ถ้าคุณเลือกเข้าสู่ระบบด้วย Google):</strong> รหัสบัญชี Google และอีเมล ตามสิทธิ์ openid, email และ profile เท่านั้น เราไม่เข้าถึงอีเมล ไฟล์ หรือข้อมูลอื่นในบัญชี Google ของคุณ</li>
+    <li><strong>ข้อมูลที่คุณบันทึกในแอป:</strong> รายการรายรับ-รายจ่าย หมวดหมู่ งบประมาณ ยอดเงินตั้งต้น และการตั้งค่าธีม</li>
+    <li><strong>แบบสอบถาม (ถ้าคุณตอบ):</strong> คะแนนความพึงพอใจ ชั้นปี และข้อเสนอแนะ</li>
+    <li><strong>คุกกี้เซสชัน:</strong> ใช้เพื่อให้คุณล็อกอินค้างไว้ได้ หมดอายุภายใน 1 วัน เราไม่ใช้คุกกี้โฆษณาหรือติดตามข้ามเว็บไซต์</li>
+  </ul>
+
+  <h2>เราใช้ข้อมูลอย่างไร</h2>
+  <ul>
+    <li>เพื่อให้คุณเข้าสู่ระบบและใช้งานแอปได้ รวมถึงแสดงสรุปรายรับ-รายจ่ายของคุณ</li>
+    <li>เพื่อส่งอีเมลลิงก์รีเซ็ตรหัสผ่านเมื่อคุณขอ</li>
+    <li>เพื่อปรับปรุงแอปจากผลแบบสอบถาม (ดูเป็นภาพรวม)</li>
+  </ul>
+  <p>เราไม่ขาย ไม่ให้เช่า และไม่นำข้อมูลของคุณไปใช้เพื่อการโฆษณา</p>
+
+  <h2>ผู้ให้บริการที่เกี่ยวข้อง</h2>
+  <ul>
+    <li><strong>Render</strong> ให้บริการเซิร์ฟเวอร์และฐานข้อมูลที่ใช้เก็บข้อมูลของแอป</li>
+    <li><strong>Brevo</strong> ใช้ส่งอีเมลรีเซ็ตรหัสผ่าน (ได้รับเฉพาะอีเมลผู้รับและเนื้อหาอีเมล)</li>
+    <li><strong>Google</strong> ใช้ยืนยันตัวตนเมื่อคุณเลือกเข้าสู่ระบบด้วย Google</li>
+  </ul>
+
+  <h2>การใช้ข้อมูลจาก Google</h2>
+  <p>การใช้และการส่งต่อข้อมูลที่ได้รับจาก Google API ของ MoneyMate เป็นไปตาม <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Google API Services User Data Policy</a> รวมถึงข้อกำหนด Limited Use</p>
+
+  <h2>สิทธิ์ของคุณ</h2>
+  <ul>
+    <li>ดู แก้ไข หรือลบรายการที่บันทึกไว้ได้ในแอป</li>
+    <li>ยกเลิกการเชื่อมบัญชี Google ได้ที่หน้าโปรไฟล์ หรือถอนสิทธิ์ที่ <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">myaccount.google.com/permissions</a></li>
+    <li>ขอลบบัญชีและข้อมูลทั้งหมด โดยส่งอีเมลมาที่ช่องทางติดต่อด้านล่าง เราจะลบให้ภายใน 30 วัน</li>
+  </ul>
+
+  <h2>ความปลอดภัย</h2>
+  <p>การเชื่อมต่อทั้งหมดใช้ HTTPS รหัสผ่านและโทเค็นรีเซ็ตรหัสผ่านถูกเก็บเป็นค่า hash เท่านั้น</p>
+
+  <h2>ติดต่อเรา</h2>
+  <p>หากมีคำถามเกี่ยวกับนโยบายนี้ ติดต่อ <a href="mailto:naphatphong.n@kkumail.com">naphatphong.n@kkumail.com</a></p>
+
+  <nav><a href="/">หน้าแรก</a> · <a href="/terms.html">ข้อกำหนดการใช้งาน</a> · <a href="/login.html">เข้าสู่ระบบ</a></nav>
+</main>
+</body>
+</html>
