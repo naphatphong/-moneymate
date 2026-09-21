@@ -400,3 +400,69 @@ html.lenis, html.lenis body{ height:auto; }
   .lines .ln > span{ translate:none; }
   .marquee-track{ animation:none; }
 }
+
+/* ================= บัตรเครดิต 3 มิติ (CSS ล้วน) ================= */
+.cc{
+  --w: 380px;
+  position:relative; width:var(--w); aspect-ratio:1.586; border-radius:calc(var(--w) * 0.048);
+  transform-style:preserve-3d; container-type:inline-size; will-change:transform;
+}
+.cc-face{
+  position:absolute; inset:0; border-radius:inherit; overflow:hidden; -webkit-backface-visibility:hidden; backface-visibility:hidden;
+  padding:6.5cqw 7cqw; display:flex; flex-direction:column; color:#ECEEF1;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.09), inset 0 1px 0 rgba(255,255,255,0.2),
+    0 40px 70px -28px rgba(0,0,0,0.85), 0 14px 26px -14px rgba(0,0,0,0.7);
+}
+.cc-back{ transform: rotateY(180deg); padding:0; }
+/* ผิวบัตร 3 แบบ โทนมืด */
+.cc.obsidian .cc-face{ background:
+    radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 55%),
+    radial-gradient(90% 80% at 0% 100%, rgba(255,255,255,0.07), transparent 60%),
+    repeating-linear-gradient(135deg, rgba(255,255,255,0.022) 0 2px, transparent 2px 5px),
+    linear-gradient(145deg, #1c1f24, #0a0b0d 60%, #121418); }
+.cc.aurora .cc-face{ background:
+    radial-gradient(80% 95% at 12% 18%, color-mix(in srgb, var(--accent) 60%, transparent), transparent 62%),
+    radial-gradient(75% 85% at 92% 85%, rgba(124,92,214,0.6), transparent 62%),
+    radial-gradient(60% 60% at 72% 8%, rgba(90,169,230,0.38), transparent 60%),
+    linear-gradient(160deg, #11131a, #07080a); }
+.cc.titanium .cc-face{ background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.035) 0 1px, transparent 1px 3px),
+    linear-gradient(135deg, #454b53, #1d2025 42%, #30353c 62%, #15171a); }
+/* แถบแสงสะท้อนที่วิ่งผ่านตามการหมุน */
+.cc-sheen{
+  position:absolute; inset:-60%; pointer-events:none; mix-blend-mode:screen;
+  background: linear-gradient(115deg, transparent 42%, rgba(255,255,255,0.2) 49%, rgba(255,255,255,0.05) 53%, transparent 60%);
+  transform: translateX(calc((var(--sheen, 0.5) - 0.5) * 70%));
+}
+.cc-row{ display:flex; justify-content:space-between; align-items:center; position:relative; }
+.cc-type{ font-family:var(--mono); font-size:3.1cqw; letter-spacing:0.28em; text-transform:uppercase; color:rgba(255,255,255,0.78); }
+.cc-cl svg{ width:6.5cqw; height:6.5cqw; stroke:rgba(255,255,255,0.8); fill:none; stroke-width:2; stroke-linecap:round; display:block; }
+.cc-chip{
+  position:relative; width:14cqw; aspect-ratio:1.28; border-radius:1.8cqw; margin:7cqw 0 5cqw;
+  background: linear-gradient(135deg, #f0dc9c, #b8903f 45%, #f6e7b3 62%, #9b7631);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25), 0 1px 2px rgba(0,0,0,0.4);
+}
+.cc-chip::before{
+  content:""; position:absolute; inset:0; border-radius:inherit;
+  background:
+    linear-gradient(90deg, transparent 31%, rgba(0,0,0,0.28) 31% 34%, transparent 34% 66%, rgba(0,0,0,0.28) 66% 69%, transparent 69%),
+    linear-gradient(0deg, transparent 29%, rgba(0,0,0,0.28) 29% 33%, transparent 33% 67%, rgba(0,0,0,0.28) 67% 71%, transparent 71%);
+}
+.cc-number{
+  position:relative; font-family:var(--mono); font-size:6.1cqw; letter-spacing:0.1em; white-space:nowrap;
+  background: linear-gradient(180deg, #ffffff, #b9bec6); -webkit-background-clip:text; background-clip:text; color:transparent;
+  filter: drop-shadow(0 1px 0 rgba(0,0,0,0.6));
+}
+.cc-foot{ margin-top:auto; align-items:flex-end; gap:6cqw; justify-content:flex-start; }
+.cc-foot small{ display:block; font-family:var(--mono); font-size:2.1cqw; letter-spacing:0.18em; color:rgba(255,255,255,0.5); margin-bottom:0.8cqw; }
+.cc-foot span{ font-family:var(--mono); font-size:3.3cqw; letter-spacing:0.08em; color:rgba(255,255,255,0.88); }
+.cc-wave{ margin-left:auto; width:13cqw; height:8cqw; }
+.cc-wave svg{ width:100%; height:100%; stroke:rgba(255,255,255,0.85); fill:none; stroke-width:2.2; stroke-linecap:round; }
+.cc-stripe{ height:19%; margin-top:9%; background: linear-gradient(180deg, #050506, #1a1b1e); }
+.cc-sign{
+  display:flex; align-items:center; justify-content:space-between; margin:6% 7% 0; height:15%; padding:0 3cqw; border-radius:1cqw;
+  background: repeating-linear-gradient(135deg, #e9e6df 0 6px, #d9d5cc 6px 12px); color:#1a1b1e;
+  font-family:var(--mono); font-size:3cqw;
+}
+.cc-sign b{ background:#fff; padding:0.8cqw 2cqw; border-radius:0.6cqw; letter-spacing:0.2em; }
+.cc-note{ margin:6% 7% 0; font-size:2.6cqw; line-height:1.6; color:rgba(255,255,255,0.55); }

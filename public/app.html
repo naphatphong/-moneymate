@@ -126,6 +126,54 @@
   .hero .sub{ display:inline-flex; margin-top:14px; font-family:var(--mono); font-size:0.74rem; color:var(--emerald); background: color-mix(in srgb, var(--emerald) 12%, transparent); padding:5px 10px; border-radius:8px; }
   .hero .sub.negative{ color: var(--coral); background: color-mix(in srgb, var(--coral) 12%, transparent); }
   .actions{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:22px; }
+
+  /* ---- บัตรของผู้ใช้ในการ์ดยอดเงิน: จอแคบอยู่บนสุด จอกว้างอยู่ด้านขวา ---- */
+  .hero{ container-type:inline-size; }
+  .hero-body{ display:flex; flex-direction:column-reverse; gap:22px; }
+  .hero-main{ min-width:0; }
+  .wallet{ display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .wallet-stage{ perspective:1100px; animation: wallet-float 6s ease-in-out infinite; }
+  @keyframes wallet-float{ 50%{ translate: 0 -8px; } }
+  .wallet-flip{ all:unset; display:block; cursor:pointer; border-radius:14px; -webkit-tap-highlight-color:transparent;
+    transform: translateY(var(--sy, 0px)) rotateX(var(--sx, 0deg)) scale(var(--ss, 1)); transform-style:preserve-3d; }
+  .wallet-flip:focus-visible{ outline:2px solid var(--accent); outline-offset:6px; }
+  .wallet .cc{ --w: min(330px, 78cqw);
+    transform: rotateZ(var(--rz, -4deg)) rotateX(var(--tx, 6deg)) rotateY(calc(var(--ty, -8deg) + var(--flip, 0deg)));
+    transition: transform 0.9s var(--spring-soft); }
+  .wallet .cc.flipped{ --flip: 180deg; --rz: 0deg; --tx: 0deg; --ty: 0deg; }
+  /* เข้าฉากครั้งแรก: ลอยขึ้นจากด้านล่างแล้วตั้งตรง */
+  .wallet .cc.pre{ transform: translateY(46px) rotateZ(-18deg) rotateX(58deg) scale(0.8); opacity:0; }
+  .wallet .cc.enter{ transition: transform 1.4s var(--spring-soft), opacity 0.6s ease; }
+  .wallet-foot{ display:flex; align-items:center; justify-content:space-between; gap:12px; width:min(330px, 78cqw); font-size:0.74rem; color:var(--text-soft); }
+  .wallet-skins{ display:flex; gap:7px; flex-shrink:0; }
+  .wallet-skins button{ all:unset; cursor:pointer; width:16px; height:16px; border-radius:50%; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18); transition: transform 0.2s var(--spring); }
+  .wallet-skins button:hover{ transform:scale(1.15); }
+  .wallet-skins button:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .wallet-skins button[aria-checked="true"]{ box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--accent); }
+  .wallet-skins [data-skin="obsidian"]{ background: radial-gradient(circle at 80% 20%, var(--accent), transparent 60%), #111317; }
+  .wallet-skins [data-skin="aurora"]{ background: linear-gradient(135deg, var(--accent), #7c5cd6 60%, #5aa9e6); }
+  .wallet-skins [data-skin="titanium"]{ background: linear-gradient(135deg, #5a616a, #1d2025 55%, #3a4048); }
+  /* ด้านหลังบัตร: สรุปเดือนนี้ */
+  .cc-summary{ margin:5% 7% 0; display:grid; grid-template-columns:repeat(3, 1fr); gap:3cqw; }
+  .cc-summary small{ display:block; font-family:var(--mono); font-size:2.3cqw; letter-spacing:0.12em; color:rgba(255,255,255,0.5); margin-bottom:1cqw; text-transform:uppercase; }
+  .cc-summary b{ font-family:var(--mono); font-weight:500; font-size:3.9cqw; color:#fff; white-space:nowrap; }
+  .cc-summary .in b{ color:#6fe0b0; }
+  .cc-summary .out b{ color:#ff9c8a; }
+  .cc-meter{ margin:4.5% 7% 0; height:1.6cqw; border-radius:2cqw; background:rgba(255,255,255,0.1); overflow:hidden; }
+  .cc-meter i{ display:block; height:100%; width:var(--p, 0%); background:var(--accent); border-radius:inherit; transition: width 1s var(--spring-soft); }
+  .cc-meter.over i{ background:#ff7a66; }
+  .cc-month{ margin:3% 7% 0; display:flex; justify-content:space-between; font-family:var(--mono); font-size:2.4cqw; color:rgba(255,255,255,0.55); letter-spacing:0.06em; }
+  @container (min-width: 600px){
+    .hero-body{ flex-direction:row; align-items:center; justify-content:space-between; }
+    .hero-main{ flex:1; }
+    .wallet{ flex-shrink:0; }
+    .wallet .cc{ --w: min(290px, 44cqw); }
+    .wallet-foot{ width:min(290px, 44cqw); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .wallet-stage{ animation:none; }
+    .wallet .cc{ transition:none; }
+  }
   .actions button{ width:100%; }
   .actions .in{ color: var(--emerald); }
 
@@ -712,12 +760,31 @@
       <div class="dash-grid">
         <div class="glass hero">
           <div class="hero-ring" aria-hidden="true"></div>
-          <div class="label"><span class="live-dot"></span><span data-i18n="balance_label">ยอดเงินคงเหลือ</span></div>
-          <div class="figure"><span class="accent">฿</span><span id="balanceFigure">0.00</span></div>
-          <div class="sub" id="incomeSub">รายรับสะสม ฿0.00</div>
-          <div class="actions">
-            <button class="btn btn-ghost in" id="btnIncome" data-i18n="add_income">+ รายรับ</button>
-            <button class="btn btn-primary out" id="btnExpense" data-i18n="add_expense">− รายจ่าย</button>
+          <div class="hero-body">
+            <div class="hero-main">
+              <div class="label"><span class="live-dot"></span><span data-i18n="balance_label">ยอดเงินคงเหลือ</span></div>
+              <div class="figure"><span class="accent">฿</span><span id="balanceFigure">0.00</span></div>
+              <div class="sub" id="incomeSub">รายรับสะสม ฿0.00</div>
+              <div class="actions">
+                <button class="btn btn-ghost in" id="btnIncome" data-i18n="add_income">+ รายรับ</button>
+                <button class="btn btn-primary out" id="btnExpense" data-i18n="add_expense">− รายจ่าย</button>
+              </div>
+            </div>
+            <div class="wallet">
+              <div class="wallet-stage" id="walletStage">
+                <button type="button" class="wallet-flip" id="walletFlip" aria-pressed="false" aria-label="พลิกบัตรดูสรุปเดือนนี้">
+                  <div class="cc obsidian" id="appCard"></div>
+                </button>
+              </div>
+              <div class="wallet-foot">
+                <span class="wallet-hint" data-i18n="card_hint">แตะบัตรเพื่อพลิกดูสรุปเดือนนี้</span>
+                <span class="wallet-skins" id="walletSkins" role="radiogroup" aria-label="ลายบัตร">
+                  <button type="button" role="radio" data-skin="obsidian" aria-label="Obsidian"></button>
+                  <button type="button" role="radio" data-skin="aurora" aria-label="Aurora"></button>
+                  <button type="button" role="radio" data-skin="titanium" aria-label="Titanium"></button>
+                </span>
+              </div>
+            </div>
           </div>
         </div>
         <div class="side-panels">
@@ -1027,12 +1094,14 @@
 </div><!-- /#app -->
 
 <script src="js/motion.js"></script>
+<script src="js/cc.js"></script>
 
 <script>
 /* ===================== i18n ===================== */
 const translations = {
   account_tag_short: { th:"บัญชีหลัก", en:"Main account" },
   balance_label: { th:"ยอดเงินคงเหลือ", en:"Current balance" },
+  card_hint: { th:"แตะบัตรเพื่อพลิกดูสรุปเดือนนี้", en:"Tap the card for this month's summary" },
   budget_label: { th:"งบประมาณเดือนนี้", en:"Monthly budget" },
   expense_month_label: { th:"รายจ่ายเดือนนี้", en:"Spent this month" },
   add_income: { th:"+ รายรับ", en:"+ Income" },
@@ -1268,6 +1337,7 @@ async function checkAuthAndEnter(){
     document.getElementById('authGate').style.display = 'none';
     document.getElementById('app').classList.add('ready');
     renderAll();
+    if(window.walletEnter) walletEnter();
     initTabBar();
     if(!handleGoogleReturn()) checkSurveyPopup();
   }catch(err){
@@ -1316,6 +1386,101 @@ async function loadData(){
   }
 }
 
+/* ===================== บัตรของผู้ใช้ (หน้าหลัก) ===================== */
+const walletCard = document.getElementById('appCard');
+const WALLET_SKINS = ['obsidian', 'aurora', 'titanium'];
+function setWalletSkin(skin){
+  if(!WALLET_SKINS.includes(skin)) skin = 'obsidian';
+  WALLET_SKINS.forEach(k => walletCard.classList.toggle(k, k === skin));
+  document.querySelectorAll('#walletSkins button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.skin === skin)));
+  try{ localStorage.setItem('mm-card-skin', skin); }catch(e){}
+}
+function renderWalletCard(monthExpense, budget){
+  const u = state.user;
+  if(!u) return;
+  const th = lang === 'th';
+  const now = new Date();
+  const monthIncome = state.txs.filter(x => x.type==='income' && sameMonth(x.date, now)).reduce((s,x)=>s+x.amount,0);
+  const left = budget - monthExpense;
+  const pct = budget > 0 ? Math.min(100, monthExpense / budget * 100) : 0;
+  // เลขท้ายบัตรคงที่ต่อผู้ใช้ (ไม่ใช่เลขบัตรจริง)
+  const last4 = String((Number(u.id) * 7919 + 4721) % 10000).padStart(4, '0');
+  const since = u.created_at ? new Date(u.created_at) : now;
+  const monthName = now.toLocaleDateString(th ? 'th-TH' : 'en-US', { month:'long', year:'numeric' });
+  const flipped = walletCard.classList.contains('flipped');
+  CC.build(walletCard, {
+    type: 'MoneyMate',
+    num: `•••• •••• •••• ${last4}`,
+    holder: u.username.toUpperCase().slice(0, 18),
+    holderLabel: th ? 'ชื่อบนบัตร' : 'CARD HOLDER',
+    valid: `${String(since.getMonth() + 1).padStart(2, '0')}/${String(since.getFullYear()).slice(-2)}`,
+    validLabel: th ? 'สมาชิกตั้งแต่' : 'MEMBER SINCE',
+    back: `<div class="cc-summary">
+        <div class="in"><small>${th ? 'รายรับ' : 'Income'}</small><b>${fmtMoneyShort(monthIncome)}</b></div>
+        <div class="out"><small>${th ? 'รายจ่าย' : 'Spent'}</small><b>${fmtMoneyShort(monthExpense)}</b></div>
+        <div><small>${th ? 'งบเหลือ' : 'Left'}</small><b>${budget > 0 ? fmtMoneyShort(left) : '—'}</b></div>
+      </div>
+      <div class="cc-meter${left < 0 && budget > 0 ? ' over' : ''}"><i style="--p:${pct.toFixed(1)}%"></i></div>
+      <div class="cc-month"><span>${monthName}</span><span>${budget > 0 ? Math.round(monthExpense / budget * 100) + '%' : ''}</span></div>`
+  });
+  walletCard.classList.toggle('flipped', flipped);
+  const flipBtn = document.getElementById('walletFlip');
+  flipBtn.setAttribute('aria-label', th ? 'พลิกบัตรดูสรุปเดือนนี้' : "Flip card to see this month's summary");
+  document.getElementById('walletSkins').setAttribute('aria-label', th ? 'ลายบัตร' : 'Card style');
+}
+(function initWallet(){
+  const flipBtn = document.getElementById('walletFlip');
+  const stage = document.getElementById('walletStage');
+  const hero = stage.closest('.hero');
+  let saved = null;
+  try{ saved = localStorage.getItem('mm-card-skin'); }catch(e){}
+  setWalletSkin(saved);
+  flipBtn.addEventListener('click', () => {
+    const on = walletCard.classList.toggle('flipped');
+    flipBtn.setAttribute('aria-pressed', String(on));
+  });
+  document.getElementById('walletSkins').addEventListener('click', e => {
+    const b = e.target.closest('button[data-skin]');
+    if(b) setWalletSkin(b.dataset.skin);
+  });
+  if(Motion.reduced()) return;
+
+  // เข้าฉากครั้งแรก (เรียกหลังโหลดข้อมูลเสร็จ)
+  walletCard.classList.add('pre');
+  window.walletEnter = () => {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      walletCard.classList.add('enter');
+      walletCard.classList.remove('pre');
+      setTimeout(() => walletCard.classList.remove('enter'), 1500);
+    }));
+  };
+
+  // เอียงตามเมาส์ (อุปกรณ์ที่มีเมาส์)
+  if(window.matchMedia('(pointer: fine)').matches){
+    hero.addEventListener('pointermove', e => {
+      if(walletCard.classList.contains('flipped')) return;
+      const r = stage.getBoundingClientRect();
+      const x = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / (r.width / 1.2)));
+      const y = Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height / 2)) / (r.height * 1.2)));
+      walletCard.style.setProperty('--ty', `${(x * 16 - 4).toFixed(1)}deg`);
+      walletCard.style.setProperty('--tx', `${(4 - y * 14).toFixed(1)}deg`);
+      walletCard.style.setProperty('--sheen', (0.5 + x * 0.5).toFixed(2));
+    });
+    hero.addEventListener('pointerleave', () => ['--ty', '--tx', '--sheen'].forEach(k => walletCard.style.removeProperty(k)));
+  }
+
+  // เลื่อนหน้าลง: บัตรเอนไปด้านหลัง ยุบเล็กลง และแสงวิ่งผ่าน
+  Motion.onScroll(() => {
+    if(!document.getElementById('view-home').classList.contains('active')) return;
+    const r = hero.getBoundingClientRect();
+    const p = Math.max(0, Math.min(1, (90 - r.top) / Math.max(1, r.height)));
+    flipBtn.style.setProperty('--sx', `${(p * 38).toFixed(2)}deg`);
+    flipBtn.style.setProperty('--sy', `${(p * 26).toFixed(1)}px`);
+    flipBtn.style.setProperty('--ss', (1 - p * 0.12).toFixed(3));
+    if(!walletCard.classList.contains('flipped') && !hero.matches(':hover')) walletCard.style.setProperty('--sheen', (0.3 + p * 0.9).toFixed(3));
+  });
+})();
+
 /* ===================== rendering ===================== */
 function renderAll(){
   const income = state.txs.filter(x => x.type === 'income').reduce((s,x) => s+x.amount, 0);
@@ -1336,6 +1501,8 @@ function renderAll(){
   fillEl.style.width = pct + '%';
   fillEl.classList.toggle('over', monthExpense > homeBudget && homeBudget > 0);
   tweenNumber(document.getElementById('expenseMonthVal'), monthExpense, fmtMoneyShort);
+
+  renderWalletCard(monthExpense, homeBudget);
 
   renderList('recentList', state.txs.slice(0, 5));
   renderList('fullList', state.txs, true);
