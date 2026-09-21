@@ -8,7 +8,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const path = require('path');
 const db = require('./database');
-const { sendMail, missingMailConfig, explainMailError } = require('./mailer');
+const { sendMail, missingMailConfig, apiKeyProblem, explainMailError } = require('./mailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -698,6 +698,8 @@ async function start() {
     const problems = mailSetupProblems();
     if (problems.length > 0) {
       console.warn(`[อีเมล] ยังตั้งค่าไม่ครบ: ${problems.join(', ')} — ลืมรหัสผ่านจะใช้ได้เฉพาะตอนทดสอบบน localhost (ลิงก์จะแสดงใน console)`);
+    } else if (apiKeyProblem()) {
+      console.warn(`[อีเมล] ${apiKeyProblem()}`);
     } else {
       console.log(`[อีเมล] พร้อมส่งผ่าน Brevo (ผู้ส่ง: ${process.env.MAIL_FROM}, ลิงก์ชี้ไปที่ ${process.env.APP_URL})`);
     }
