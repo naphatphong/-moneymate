@@ -106,8 +106,7 @@
   /* ============ HOME ============ */
   .dash-grid{ display:grid; grid-template-columns:1fr; gap:14px; margin-bottom:14px; }
 
-  .hero{ position:relative; overflow:hidden; padding:24px 22px 22px; border-radius:var(--r-xl); animation: hero-in 0.6s var(--spring-soft) 0.05s both; }
-  @keyframes hero-in{ from{ opacity:0; transform: translateY(12px) scale(0.98); } to{ opacity:1; transform:none; } }
+  .hero{ position:relative; overflow:hidden; padding:24px 22px 22px; border-radius:var(--r-xl); }
   /* วงแหวนแสง (portfolio halo) */
   .hero-ring{
     position:absolute; width:340px; height:340px; right:-120px; top:-150px; border-radius:50%; pointer-events:none;
@@ -222,8 +221,7 @@
   .month-nav span{ font-weight:500; font-size:0.98rem; text-align:center; flex:1; }
 
   .kpi-grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; margin-bottom:14px; }
-  .kpi{ padding:16px; position:relative; overflow:hidden; animation: hero-in 0.5s var(--spring-soft) both; }
-  .kpi:nth-child(2){ animation-delay:0.05s; } .kpi:nth-child(3){ animation-delay:0.1s; } .kpi:nth-child(4){ animation-delay:0.15s; }
+  .kpi{ padding:16px; position:relative; overflow:hidden; }
   .kpi .k-label{ display:flex; align-items:center; gap:8px; font-size:0.78rem; color:var(--text-soft); margin-bottom:10px; }
   .kpi .k-label::before{ content:""; width:8px; height:8px; border-radius:3px; background:var(--kpi-c, var(--accent)); box-shadow: 0 0 10px -1px var(--kpi-c, var(--accent)); flex-shrink:0; }
   .kpi .k-val{ font-size:1.6rem; font-weight:300; letter-spacing:-0.03em; line-height:1.1; font-variant-numeric: tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -346,32 +344,106 @@
   .logout-btn:hover{ background: color-mix(in srgb, var(--coral) 9%, transparent); border-color: color-mix(in srgb, var(--coral) 45%, transparent); }
   .logout-btn:active{ transform: scale(0.97); }
 
-  /* ============ MOBILE: gooey tab bar ============ */
+  /* ============ MOBILE: liquid glass tab bar (แบบ iOS 26) ============ */
+  /* วัสดุแก้ว: เบลอน้อย สีสดขึ้น เห็นเนื้อหาด้านหลังชัด + ขอบสะท้อนแสงมุมบนซ้าย */
+  .tabbar, .fab{
+    --lg-tint: rgba(20,22,26,0.34);
+    --lg-sheen: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02));
+    --lg-edge:
+      inset 1.5px 1.5px 1px -1px rgba(255,255,255,0.62),
+      inset -1px -1px 1px -0.5px rgba(255,255,255,0.2),
+      inset 0 0 0 1px rgba(255,255,255,0.07),
+      inset 0 -12px 22px -14px rgba(255,255,255,0.14);
+    --lg-drop: 0 14px 34px -12px rgba(0,0,0,0.6), 0 1px 3px rgba(0,0,0,0.3);
+    -webkit-backdrop-filter: blur(9px) saturate(190%) brightness(1.08);
+            backdrop-filter: blur(9px) saturate(190%) brightness(1.08);
+  }
+  :root[data-mode="light"] .tabbar, :root[data-mode="light"] .fab{
+    --lg-tint: rgba(255,255,255,0.42);
+    --lg-sheen: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.18));
+    --lg-edge:
+      inset 1.5px 1.5px 1px -1px rgba(255,255,255,1),
+      inset -1px -1px 1px -0.5px rgba(255,255,255,0.7),
+      inset 0 0 0 1px rgba(16,20,26,0.06),
+      inset 0 -12px 22px -14px rgba(255,255,255,0.6);
+    --lg-drop: 0 14px 34px -14px rgba(16,20,26,0.3), 0 1px 3px rgba(16,20,26,0.1);
+  }
+  .tabbar{
+    position:fixed; left:12px; right:86px; bottom:calc(12px + env(safe-area-inset-bottom, 0px)); height:64px; z-index:30;
+    border-radius:999px; padding:5px;
+    background: var(--lg-sheen), var(--lg-tint);
+    box-shadow: var(--lg-edge), var(--lg-drop);
+  }
+  /* แสงสะท้อนนุ่ม ๆ ด้านบน */
+  .tabbar::after, .fab::after{
+    content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+    background: radial-gradient(90% 70% at 28% -10%, rgba(255,255,255,0.16), transparent 60%);
+  }
+  /* หักเหแสงตรงขอบ (เฉพาะเบราว์เซอร์ Chromium ที่ backdrop-filter รองรับ SVG filter) */
+  .tabbar.refract{ -webkit-backdrop-filter: url(#lgBar) blur(3px) saturate(190%) brightness(1.08); backdrop-filter: url(#lgBar) blur(3px) saturate(190%) brightness(1.08); }
+  .fab.refract{ -webkit-backdrop-filter: url(#lgFab) blur(3px) saturate(190%) brightness(1.1); backdrop-filter: url(#lgFab) blur(3px) saturate(190%) brightness(1.1); }
+
+  /* เลนส์แก้วใต้แท็บที่เลือก — กดค้างแล้วลากได้ ตอนเปลี่ยนแท็บจะยืดหดเหมือนหยดน้ำ */
+  .tab-lens{
+    position:absolute; top:5px; bottom:5px; left:5px; width:25%; border-radius:999px; z-index:0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.17), rgba(255,255,255,0.07));
+    box-shadow:
+      inset 1px 1px 1px -0.5px rgba(255,255,255,0.65),
+      inset -1px -1px 1px -0.5px rgba(255,255,255,0.22),
+      inset 0 0 0 1px rgba(255,255,255,0.05),
+      0 4px 14px -6px rgba(0,0,0,0.4);
+    transition: transform 0.55s cubic-bezier(0.3, 1.25, 0.5, 1), width 0.55s cubic-bezier(0.3, 1.25, 0.5, 1),
+                scale 0.4s var(--spring), background 0.3s, box-shadow 0.3s;
+  }
+  :root[data-mode="light"] .tab-lens{
+    background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0.78));
+    box-shadow: inset 0 0 0 1px rgba(16,20,26,0.05), 0 6px 16px -8px rgba(16,20,26,0.35);
+  }
+  .tabbar.dragging .tab-lens{ transition: scale 0.4s var(--spring), background 0.3s, box-shadow 0.3s; }
+  .tabbar.pressing .tab-lens{
+    scale: 1.12 1.1;
+    background: linear-gradient(180deg, rgba(255,255,255,0.26), rgba(255,255,255,0.1));
+    box-shadow: inset 1px 1px 1px -0.5px rgba(255,255,255,0.8), inset -1px -1px 1px -0.5px rgba(255,255,255,0.3), 0 10px 26px -8px rgba(0,0,0,0.5);
+  }
+  .tab-lens.morph{ animation: lens-stretch 0.55s cubic-bezier(0.3, 1, 0.5, 1); }
+  @keyframes lens-stretch{
+    0%{ scale:1 1; }
+    32%{ scale: var(--stretch, 1.2) 0.86; }
+    64%{ scale:0.96 1.04; }
+    100%{ scale:1 1; }
+  }
+
+  .icon-row{ position:relative; z-index:1; height:100%; display:flex; touch-action:none; }
+  .icon-row button{
+    flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    background:none; border:none; cursor:pointer; border-radius:999px; -webkit-user-select:none; user-select:none;
+    color: rgba(255,255,255,0.74); font-size:0.66rem; font-weight:500; letter-spacing:0.01em;
+    transition: color 0.3s, transform 0.3s var(--spring);
+  }
+  .icon-row button span{ text-shadow: 0 1px 2px rgba(0,0,0,0.45); }
+  :root[data-mode="light"] .icon-row button{ color: rgba(16,20,26,0.66); }
+  :root[data-mode="light"] .icon-row button span{ text-shadow: 0 1px 1px rgba(255,255,255,0.6); }
+  :root[data-mode="light"] .icon-row button.is-active, :root[data-mode="light"] .icon-row button.hover{ color: var(--accent); }
+  .icon-row button svg{ width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; transition: transform 0.45s var(--spring); }
+  .icon-row button.is-active, .icon-row button.hover{ color: var(--accent); }
+  .icon-row button.is-active svg{ transform: scale(1.05); }
+
+  /* ปุ่ม + วงกลมแก้วแยกข้างแท็บบาร์ ย้อมสีหลักอ่อน ๆ */
   .fab{
-    position:fixed; right:20px; bottom:100px; z-index:6;
-    width:56px; height:56px; border-radius:18px; background: var(--accent); color: var(--on-accent);
-    border:none; font-size:1.6rem; font-weight:300; cursor:pointer;
-    box-shadow: 0 14px 34px -10px var(--accent-glow), 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent);
-    transition: transform 0.3s var(--spring);
+    position:fixed; right:12px; bottom:calc(12px + env(safe-area-inset-bottom, 0px)); z-index:30;
+    width:64px; height:64px; border-radius:50%; border:none; cursor:pointer; color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    background: var(--lg-sheen), linear-gradient(180deg, color-mix(in srgb, var(--accent) 62%, transparent), color-mix(in srgb, var(--accent) 38%, transparent));
+    box-shadow: var(--lg-edge), 0 14px 30px -12px var(--accent-glow), var(--lg-drop);
+    transition: transform 0.35s var(--spring), scale 0.35s var(--spring);
   }
-  .fab:active{ transform: scale(0.88) rotate(15deg); }
-  .toolbar-wrap{ position:fixed; bottom:16px; left:50%; transform:translateX(-50%); width:264px; height:70px; z-index:6; }
-  .goo-group{ filter: url(#goo); position:absolute; inset:0; }
-  .pill{ position:absolute; left:0; right:0; bottom:0; height:56px; background: var(--pill); border-radius:28px; box-shadow: 0 16px 36px -14px var(--shadow), inset 0 0 0 1px var(--line); }
-  .cutter{ position:absolute; top:0; width:50px; height:50px; border-radius:50%; background: var(--bg); transform: translate(-50%, 0); transition: left 0.5s cubic-bezier(0.65, -0.4, 0.35, 1.4); }
-  .bubble{
-    position:fixed; bottom:36px; z-index:7; width:42px; height:42px; border-radius:50%; background: var(--accent);
-    transform: translate(-50%, 0); transition: left 0.5s cubic-bezier(0.65, -0.4, 0.35, 1.4);
-    display:flex; align-items:center; justify-content:center; box-shadow: 0 8px 20px -4px var(--accent-glow);
-  }
-  .bubble svg{ width:19px; height:19px; stroke:var(--on-accent); fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
-  @keyframes pop-in{ 0%{ transform: translate(-50%, 10px) scale(0.65); opacity:0.6; } 60%{ transform: translate(-50%, -3px) scale(1.08); } 100%{ transform: translate(-50%, 0) scale(1); } }
-  .bubble.pop{ animation: pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
-  .icon-row{ position:absolute; inset:0; bottom:0; height:56px; display:flex; align-items:center; justify-content:space-around; padding: 0 4px; z-index:1; }
-  .icon-row button{ background:none; border:none; cursor:pointer; width:42px; height:42px; display:flex; align-items:center; justify-content:center; border-radius:50%; color: var(--text-soft); transition: opacity 0.3s, transform 0.3s; }
-  .icon-row button svg{ width:19px; height:19px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
-  .icon-row button.is-active{ opacity:0; pointer-events:none; }
-  .icon-row button:not(.is-active):active{ transform: scale(0.85); }
+  :root[data-mode="light"] .fab{ background: linear-gradient(180deg, rgba(255,255,255,0.28), rgba(255,255,255,0) 55%), linear-gradient(180deg, color-mix(in srgb, var(--accent) 96%, transparent), color-mix(in srgb, var(--accent) 84%, transparent)); }
+  .fab svg{ position:relative; z-index:1; width:27px; height:27px; stroke:currentColor; fill:none; stroke-width:2.3; stroke-linecap:round; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.2)); }
+  .fab:active{ scale:0.9; }
+
+  /* ตารางกิจกรรมค่อย ๆ ปรากฏทีละคอลัมน์ตอนเปิดครั้งแรก */
+  .heatmap.intro i{ animation: cell-in 0.55s var(--ease-expo) both; animation-delay: calc(var(--w, 0) * 14ms + 0.15s); }
+  @keyframes cell-in{ from{ opacity:0; scale:0.3; } }
 
   /* ============ MODALS (bottom sheet) ============ */
   .modal-overlay{
@@ -534,7 +606,7 @@
   @media (min-width:900px){
     .sidebar{ display:flex; }
     .main{ padding:30px 40px 60px; }
-    .toolbar-wrap, .bubble, .fab{ display:none; }
+    .tabbar, .fab{ display:none; }
     .add-btn-desktop{ display:inline-flex; }
     .greet-wrap{ display:block; }
     .topbar .tag{ display:none; }
@@ -833,40 +905,39 @@
   </main>
 </div>
 
-<!-- mobile floating controls -->
-<button class="fab" id="fab">+</button>
-<div class="toolbar-wrap">
-  <div class="goo-group">
-    <div class="pill"></div>
-    <div class="cutter" id="cutter"></div>
-  </div>
+<!-- mobile: liquid glass tab bar -->
+<nav class="tabbar" id="tabbar" aria-label="เมนูหลัก">
+  <div class="tab-lens" id="tabLens" aria-hidden="true"></div>
   <div class="icon-row" id="iconRow">
     <button class="is-active" data-view="home" aria-label="หน้าหลัก">
       <svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9h14v-9"/></svg>
+      <span data-i18n="nav_home">หน้าหลัก</span>
     </button>
     <button data-view="activity" aria-label="รายการ">
       <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      <span data-i18n="nav_list">รายการ</span>
     </button>
     <button data-view="reports" aria-label="รายงาน">
       <svg viewBox="0 0 24 24"><path d="M4 19V10M12 19V5M20 19v-6"/></svg>
+      <span data-i18n="nav_report">รายงาน</span>
     </button>
     <button data-view="profile" aria-label="โปรไฟล์">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c1.2-4 4-6 7-6s5.8 2 7 6"/></svg>
+      <span data-i18n="nav_profile">โปรไฟล์</span>
     </button>
   </div>
-</div>
-<div class="bubble" id="bubble">
-  <svg id="bubbleIcon" viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9h14v-9"/></svg>
-</div>
-
-<svg width="0" height="0" style="position:absolute">
-  <defs>
-    <filter id="goo">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="blur" />
-      <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -11" result="goo" />
-      <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
-    </filter>
-  </defs>
+</nav>
+<button class="fab" id="fab" aria-label="เพิ่มรายการ"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+<!-- แผนที่หักเหแสงของแก้ว (ภาพ displacement สร้างด้วย JS ตามขนาดจริง) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="lgBar" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+    <feImage x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="map"/>
+    <feDisplacementMap in="SourceGraphic" in2="map" scale="30" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <filter id="lgFab" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+    <feImage x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="map"/>
+    <feDisplacementMap in="SourceGraphic" in2="map" scale="24" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
 </svg>
 
 <div class="modal-overlay" id="modalOverlay">
@@ -954,6 +1025,8 @@
 
 <div class="toast" id="toast"><span class="check" id="toastIcon">✓</span><span id="toastText">บันทึกรายการแล้ว</span></div>
 </div><!-- /#app -->
+
+<script src="js/motion.js"></script>
 
 <script>
 /* ===================== i18n ===================== */
@@ -1133,6 +1206,20 @@ function fmtMoney(n){
   const v = Number(n) || 0;
   return v.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
 }
+// ตัวเลขเปลี่ยนแบบนับขึ้น/ลง จากค่าเดิมไปค่าใหม่
+function tweenNumber(el, to, fmt){
+  const from = typeof el._v === 'number' ? el._v : 0;
+  el._v = to;
+  cancelAnimationFrame(el._raf);
+  if(from === to || window.Motion && Motion.reduced()){ el.textContent = fmt(to); return; }
+  const start = performance.now(), dur = 950;
+  const step = now => {
+    const p = Math.min(1, (now - start) / dur);
+    el.textContent = fmt(from + (to - from) * (1 - Math.pow(1 - p, 4)));
+    if(p < 1) el._raf = requestAnimationFrame(step);
+  };
+  el._raf = requestAnimationFrame(step);
+}
 function fmtMoneyShort(n){
   const v = Number(n) || 0;
   return '฿' + v.toLocaleString('en-US', { maximumFractionDigits:0 });
@@ -1181,7 +1268,7 @@ async function checkAuthAndEnter(){
     document.getElementById('authGate').style.display = 'none';
     document.getElementById('app').classList.add('ready');
     renderAll();
-    initGooBar();
+    initTabBar();
     if(!handleGoogleReturn()) checkSurveyPopup();
   }catch(err){
     window.location.href = '/login.html';
@@ -1235,7 +1322,7 @@ function renderAll(){
   const expense = state.txs.filter(x => x.type === 'expense').reduce((s,x) => s+x.amount, 0);
   const balance = state.openingBalance + income - expense;
 
-  document.getElementById('balanceFigure').textContent = fmtMoney(balance);
+  tweenNumber(document.getElementById('balanceFigure'), balance, fmtMoney);
   const incomeSubEl = document.getElementById('incomeSub');
   incomeSubEl.textContent = (lang === 'th' ? '↑ รายรับสะสม ฿' : '↑ Total income ฿') + fmtMoney(income);
 
@@ -1248,7 +1335,7 @@ function renderAll(){
   const fillEl = document.getElementById('budgetFill');
   fillEl.style.width = pct + '%';
   fillEl.classList.toggle('over', monthExpense > homeBudget && homeBudget > 0);
-  document.getElementById('expenseMonthVal').textContent = fmtMoneyShort(monthExpense);
+  tweenNumber(document.getElementById('expenseMonthVal'), monthExpense, fmtMoneyShort);
 
   renderList('recentList', state.txs.slice(0, 5));
   renderList('fullList', state.txs, true);
@@ -1310,9 +1397,9 @@ function setDelta(elId, cur, prev, goodWhenUp, asAmount){
 function renderRevenueKpis(){
   const cur = monthTotals(reportsDate);
   const prev = monthTotals(new Date(reportsDate.getFullYear(), reportsDate.getMonth() - 1, 1));
-  document.getElementById('kpiIncome').textContent = fmtMoneyShort(cur.inc);
-  document.getElementById('kpiExpense').textContent = fmtMoneyShort(cur.exp);
-  document.getElementById('kpiNet').textContent = (cur.net < 0 ? '−' : '') + fmtMoneyShort(Math.abs(cur.net));
+  tweenNumber(document.getElementById('kpiIncome'), cur.inc, fmtMoneyShort);
+  tweenNumber(document.getElementById('kpiExpense'), cur.exp, fmtMoneyShort);
+  tweenNumber(document.getElementById('kpiNet'), cur.net, v => (v < 0 ? '−' : '') + fmtMoneyShort(Math.abs(v)));
   document.getElementById('kpiNet').style.color = cur.net < 0 ? 'var(--coral)' : '';
   document.getElementById('kpiRate').textContent = cur.inc > 0 ? Math.round((cur.net / cur.inc) * 100) + '%' : '—';
   setDelta('kpiIncomeDelta', cur.inc, prev.inc, true);
@@ -1493,6 +1580,7 @@ function dayKey(d){
 }
 
 /* ---- heatmap: รายจ่ายรายวัน (แบบ HabitKit) ---- */
+let heatIntroDone = false;
 function renderHeatmap(){
   const el = document.getElementById('heatmap');
   const width = el.clientWidth;
@@ -1523,10 +1611,12 @@ function renderHeatmap(){
   const level = v => v <= 0 ? 0 : v <= cuts[0] ? 1 : v <= cuts[1] ? 2 : v <= cuts[2] ? 3 : 4;
 
   el.style.gridTemplateColumns = `repeat(${weeks}, 1fr)`;
-  el.innerHTML = days.map(x => {
+  el.classList.toggle('intro', !heatIntroDone);
+  heatIntroDone = true;
+  el.innerHTML = days.map((x, i) => {
     if(x.future) return '<i class="future"></i>';
     const tip = `${fmtDate(x.d)} · ${x.v ? '฿' + fmtMoney(x.v) : '—'}`;
-    return `<i class="l${level(x.v)}${x.k === dayKey(today) ? ' today' : ''}" title="${tip}"></i>`;
+    return `<i class="l${level(x.v)}${x.k === dayKey(today) ? ' today' : ''}" style="--w:${Math.floor(i / 7)}" title="${tip}"></i>`;
   }).join('');
 
   // ชื่อเดือนเหนือคอลัมน์แรกของเดือน
@@ -1588,7 +1678,7 @@ function goView(view){
   document.getElementById('view-' + view).classList.add('active');
   document.querySelectorAll('.sidebar .nitem').forEach(n => n.classList.toggle('active', n.dataset.view === view));
   const iconBtn = document.querySelector(`.icon-row button[data-view="${view}"]`);
-  if(iconBtn) moveGooTo(iconBtn, true);
+  if(iconBtn) moveTabLens(iconBtn, true);
   if(view === 'reports') renderRevenueChart();
   if(view === 'home') renderHeatmap();
 }
@@ -1599,48 +1689,147 @@ document.querySelectorAll('[data-goto]').forEach(el => {
   el.addEventListener('click', () => goView(el.dataset.goto));
 });
 
-/* ===================== gooey tab bar ===================== */
-const cutter = document.getElementById('cutter');
-const bubble = document.getElementById('bubble');
-const bubbleIcon = document.getElementById('bubbleIcon');
-const iconSvgs = {
-  home: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9h14v-9"/>',
-  activity: '<path d="M4 6h16M4 12h16M4 18h10"/>',
-  reports: '<path d="M4 19V10M12 19V5M20 19v-6"/>',
-  profile: '<circle cx="12" cy="8" r="3.4"/><path d="M5 20c1.2-4 4-6 7-6s5.8 2 7 6"/>'
-};
+/* ===================== liquid glass tab bar (มือถือ) ===================== */
+const tabbar = document.getElementById('tabbar');
+const tabLens = document.getElementById('tabLens');
+const tabButtons = [...document.querySelectorAll('.icon-row button')];
 
-function moveGooTo(btn, animate){
-  const wrap = document.querySelector('.toolbar-wrap');
-  const wrapRect = wrap.getBoundingClientRect();
-  const btnRect = btn.getBoundingClientRect();
-  const centerX = btnRect.left - wrapRect.left + btnRect.width / 2;
-  const pageX = btnRect.left + btnRect.width / 2;
-
-  cutter.style.left = centerX + 'px';
-  bubble.style.left = pageX + 'px';
-
-  document.querySelectorAll('.icon-row button').forEach(b => b.classList.remove('is-active'));
-  btn.classList.add('is-active');
-  bubbleIcon.innerHTML = iconSvgs[btn.dataset.view];
-
-  if(animate){
-    bubble.classList.remove('pop');
-    void bubble.offsetWidth;
-    bubble.classList.add('pop');
+// เลื่อนเลนส์แก้วไปอยู่ใต้แท็บที่เลือก ถ้า animate จะยืด/หดระหว่างทางเหมือนหยดน้ำ
+function moveTabLens(btn, animate){
+  tabButtons.forEach(b => b.classList.toggle('is-active', b === btn));
+  const x = btn.offsetLeft, w = btn.offsetWidth;
+  if(!w) return; // แท็บบาร์ถูกซ่อน (จอคอมพิวเตอร์)
+  const from = parseFloat(tabLens.dataset.x);
+  if(animate && !isNaN(from) && Math.abs(from - x) > 2){
+    tabLens.style.setProperty('--stretch', Math.min(1.28, 1 + Math.abs(x - from) / 320).toFixed(2));
+    tabLens.classList.remove('morph');
+    void tabLens.offsetWidth;
+    tabLens.classList.add('morph');
   }
+  tabLens.style.width = w + 'px';
+  tabLens.style.transform = `translateX(${x}px)`;
+  tabLens.dataset.x = x;
 }
-function initGooBar(){
-  const active = document.querySelector('.icon-row button.is-active') || document.querySelector('.icon-row button');
-  moveGooTo(active, false);
+
+// ภาพ displacement สำหรับหักเหแสงตรงขอบแก้วทรงแคปซูล/วงกลม
+// ช่องสีแดง/เขียวบอกทิศที่เลื่อนภาพ: ใกล้ขอบดึงภาพจากด้านใน ตรงกลางไม่เลื่อน
+function glassMap(w, h, bezel){
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(w, h);
+  const r = h / 2, hx = w / 2 - r;
+  for(let y = 0; y < h; y++){
+    for(let x = 0; x < w; x++){
+      const px = x + 0.5 - w / 2, py = y + 0.5 - h / 2;
+      // ระยะจากขอบแคปซูลเข้ามาด้านใน และทิศตั้งฉากกับขอบ
+      const cx = Math.max(Math.abs(px) - hx, 0);
+      const len = Math.hypot(cx, py) || 1;
+      const d = r - len;
+      let dx = 0, dy = 0;
+      if(d > 0 && d < bezel){
+        const t = 1 - d / bezel;
+        const m = t * t * (3 - 2 * t);
+        dx = -(cx / len) * Math.sign(px) * m;
+        dy = -(py / len) * m;
+      }
+      const i = (y * w + x) * 4;
+      img.data[i] = 128 + dx * 127;
+      img.data[i + 1] = 128 + dy * 127;
+      img.data[i + 2] = 128;
+      img.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return c.toDataURL();
 }
-document.querySelectorAll('.icon-row button').forEach(btn => {
-  btn.addEventListener('click', () => goView(btn.dataset.view));
+// ใช้ได้เฉพาะ Chromium (Chrome, Edge, Samsung Internet) — เบราว์เซอร์อื่นจะเห็นแก้วใสแบบไม่หักเห
+const canRefract = !!(navigator.userAgentData && navigator.userAgentData.brands.some(b => b.brand === 'Chromium'));
+function applyRefraction(el, filterId){
+  const w = Math.round(el.offsetWidth), h = Math.round(el.offsetHeight);
+  if(!canRefract || !w || !h || el.dataset.mapSize === `${w}x${h}`) return;
+  el.dataset.mapSize = `${w}x${h}`;
+  const img = document.querySelector(`#${filterId} feImage`);
+  img.setAttribute('width', w);
+  img.setAttribute('height', h);
+  img.setAttribute('href', glassMap(w, h, Math.min(20, h * 0.34)));
+  el.classList.add('refract');
+}
+
+function initTabBar(){
+  const active = tabButtons.find(b => b.classList.contains('is-active')) || tabButtons[0];
+  moveTabLens(active, false);
+  // แท็บบาร์เปลี่ยนขนาด/กลับมาแสดง (หมุนจอ, จอคอม → มือถือ) — วางเลนส์และสร้างภาพหักเหใหม่
+  new ResizeObserver(() => {
+    const current = tabButtons.find(b => b.classList.contains('is-active'));
+    if(current) moveTabLens(current, false);
+    applyRefraction(tabbar, 'lgBar');
+    applyRefraction(document.getElementById('fab'), 'lgFab');
+  }).observe(tabbar);
+}
+
+// กดค้างแล้วลากเลนส์ไปแท็บอื่นได้ (ปล่อยนิ้วแล้วเลือกแท็บที่ใกล้ที่สุด) — แตะธรรมดาก็ยังใช้ได้
+let tabDrag = null;
+let suppressTabClick = false;
+const iconRow = document.getElementById('iconRow');
+function nearestTab(x){
+  const w = iconRow.clientWidth / tabButtons.length;
+  return Math.max(0, Math.min(tabButtons.length - 1, Math.round(x / w)));
+}
+iconRow.addEventListener('pointerdown', e => {
+  if(e.button !== 0 || !e.target.closest('button')) return;
+  tabDrag = { startX: e.clientX, moved: false, pointerId: e.pointerId };
+  tabbar.classList.add('pressing');
+});
+iconRow.addEventListener('pointermove', e => {
+  if(!tabDrag) return;
+  if(!tabDrag.moved && Math.abs(e.clientX - tabDrag.startX) < 8) return;
+  if(!tabDrag.moved){
+    tabDrag.moved = true;
+    // จับ pointer เฉพาะตอนลากจริง — ถ้าจับตั้งแต่กด การแตะธรรมดาจะไม่ส่ง click ไปที่ปุ่ม
+    iconRow.setPointerCapture(tabDrag.pointerId);
+  }
+  tabbar.classList.add('dragging');
+  const w = tabLens.offsetWidth;
+  const x = Math.max(0, Math.min(iconRow.clientWidth - w, e.clientX - iconRow.getBoundingClientRect().left - w / 2));
+  tabLens.style.transform = `translateX(${x}px)`;
+  const idx = nearestTab(x);
+  tabButtons.forEach((b, i) => b.classList.toggle('hover', i === idx));
+});
+function endTabDrag(e){
+  if(!tabDrag) return;
+  const moved = tabDrag.moved;
+  tabDrag = null;
+  tabbar.classList.remove('pressing', 'dragging');
+  tabButtons.forEach(b => b.classList.remove('hover'));
+  if(!moved || e.type === 'pointercancel'){
+    if(e.type === 'pointercancel') initTabBar.snap();
+    return;
+  }
+  suppressTabClick = true;
+  setTimeout(() => { suppressTabClick = false; }, 50);
+  const x = e.clientX - iconRow.getBoundingClientRect().left - tabLens.offsetWidth / 2;
+  const btn = tabButtons[nearestTab(x)];
+  tabLens.dataset.x = NaN; // ไม่ต้องยืดอีกรอบตอนหยุด
+  goView(btn.dataset.view);
+}
+initTabBar.snap = () => {
+  const current = tabButtons.find(b => b.classList.contains('is-active'));
+  if(current) moveTabLens(current, false);
+};
+iconRow.addEventListener('pointerup', endTabDrag);
+iconRow.addEventListener('pointercancel', endTabDrag);
+
+tabButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    if(suppressTabClick) return;
+    goView(btn.dataset.view);
+  });
 });
 let revResizeTimer;
 window.addEventListener('resize', () => {
   const active = document.querySelector('.icon-row button.is-active');
-  if(active) moveGooTo(active, false);
+  if(active) moveTabLens(active, false);
   clearTimeout(revResizeTimer);
   revResizeTimer = setTimeout(() => {
     if(document.getElementById('view-reports').classList.contains('active')) renderRevenueChart();
@@ -2378,6 +2567,9 @@ function renderYearDonut(yearLevels){
 
   wrap.innerHTML = `<svg viewBox="0 0 120 120">${circles}</svg><div class="year-legend">${legend}</div>`;
 }
+
+// การ์ดและหัวข้อค่อย ๆ โผล่ขึ้นมาเมื่อเปิดหน้า/เลื่อนมาถึง
+Motion.reveal(document.querySelectorAll('.view .glass, .view .section-title, .view .view-head, .view .month-nav, .view .logout-btn'));
 
 checkAuthAndEnter();
 </script>
