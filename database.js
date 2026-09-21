@@ -64,6 +64,10 @@ async function init() {
   // แฟล็กบอกว่าผู้ใช้กด "ไม่ต้องแสดงอีก" สำหรับป๊อปอัปแบบสอบถามหรือยัง
   await pool.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS survey_dismissed BOOLEAN NOT NULL DEFAULT FALSE`);
 
+  // ธีมที่ผู้ใช้เลือก: โหมด (dark / light / system) และสีหลักของหน้าเว็บ
+  await pool.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS theme_mode TEXT NOT NULL DEFAULT 'dark'`);
+  await pool.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS theme_accent TEXT NOT NULL DEFAULT '#2FBF8F'`);
+
   // ตารางคำตอบแบบสอบถามความพึงพอใจ (14 ข้อให้คะแนน 1-5 + ชั้นปี + ข้อเสนอแนะปลายเปิด)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS survey_responses (
@@ -201,16 +205,18 @@ async function getSettings(userId) {
 }
 
 // อัปเดตค่าตั้งค่า (ส่งเฉพาะฟิลด์ที่ต้องการเปลี่ยนได้ ที่เหลือคงค่าเดิม)
-async function updateSettings(userId, { openingBalance, budget, notif }) {
+async function updateSettings(userId, { openingBalance, budget, notif, themeMode, themeAccent }) {
   const current = await getSettings(userId);
   const newOpening = openingBalance !== undefined ? openingBalance : current.opening_balance;
   const newBudget = budget !== undefined ? budget : current.budget;
   const newNotif = notif !== undefined ? notif : current.notif;
+  const newThemeMode = themeMode !== undefined ? themeMode : current.theme_mode;
+  const newThemeAccent = themeAccent !== undefined ? themeAccent : current.theme_accent;
 
   const { rows } = await pool.query(
-    `UPDATE user_settings SET opening_balance = $2, budget = $3, notif = $4
+    `UPDATE user_settings SET opening_balance = $2, budget = $3, notif = $4, theme_mode = $5, theme_accent = $6
      WHERE user_id = $1 RETURNING *`,
-    [userId, newOpening, newBudget, newNotif]
+    [userId, newOpening, newBudget, newNotif, newThemeMode, newThemeAccent]
   );
   return rows[0];
 }

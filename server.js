@@ -16,6 +16,10 @@ const isProduction = process.env.NODE_ENV === 'production';
 const MAX_CATEGORY_LENGTH = 20;
 const BUILTIN_CATEGORIES = ['food', 'travel', 'entertainment', 'shopping', 'other', 'income'];
 
+// ค่าที่อนุญาตสำหรับธีม: โหมดการแสดงผล และสีหลักแบบ #RRGGBB
+const THEME_MODES = ['dark', 'light', 'system'];
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
 // เมื่อรันหลัง reverse proxy ของโฮสติ้ง (เช่น Render) ต้อง trust proxy
 // เพื่อให้ secure cookie ทำงานถูกต้องผ่าน HTTPS
 if (isProduction) {
@@ -312,7 +316,7 @@ app.get('/api/settings', requireLogin, async (req, res) => {
 // ----- API: อัปเดตค่าตั้งค่า -----
 app.put('/api/settings', requireLogin, async (req, res) => {
   try {
-    const { openingBalance, budget, notif } = req.body;
+    const { openingBalance, budget, notif, themeMode, themeAccent } = req.body;
 
     if (budget !== undefined && (isNaN(parseFloat(budget)) || parseFloat(budget) <= 0)) {
       return res.status(400).json({ error: 'งบประมาณไม่ถูกต้อง' });
@@ -320,11 +324,19 @@ app.put('/api/settings', requireLogin, async (req, res) => {
     if (openingBalance !== undefined && isNaN(parseFloat(openingBalance))) {
       return res.status(400).json({ error: 'ยอดเงินตั้งต้นไม่ถูกต้อง' });
     }
+    if (themeMode !== undefined && !THEME_MODES.includes(themeMode)) {
+      return res.status(400).json({ error: 'โหมดธีมไม่ถูกต้อง' });
+    }
+    if (themeAccent !== undefined && !(typeof themeAccent === 'string' && HEX_COLOR.test(themeAccent))) {
+      return res.status(400).json({ error: 'สีธีมไม่ถูกต้อง' });
+    }
 
     const settings = await db.updateSettings(req.session.userId, {
       openingBalance: openingBalance !== undefined ? parseFloat(openingBalance) : undefined,
       budget: budget !== undefined ? parseFloat(budget) : undefined,
-      notif: notif !== undefined ? !!notif : undefined
+      notif: notif !== undefined ? !!notif : undefined,
+      themeMode,
+      themeAccent: themeAccent !== undefined ? themeAccent.toUpperCase() : undefined
     });
 
     return res.json({ settings });
