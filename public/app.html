@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="css/ui.css">
 <link rel="stylesheet" href="css/analytics.css">
 <link rel="stylesheet" href="css/planner.css">
+<link rel="stylesheet" href="css/ai.css">
 <style>
   /* ============ APP SHELL ============ */
   #authGate{ position:fixed; inset:0; background:var(--bg); z-index:100; display:flex; align-items:center; justify-content:center; overflow:hidden; }
@@ -759,6 +760,9 @@
           <div class="opt th">TH</div>
           <div class="opt en">EN</div>
         </div>
+        <button type="button" class="icon-btn ai-btn" id="aiChatBtn" hidden data-i18n-title="ai_ask" title="ถาม AI" aria-label="ถาม AI">
+          <svg viewBox="0 0 24 24"><path d="M5 18.5V6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v7a2.5 2.5 0 0 1-2.5 2.5H9z"/><path d="M9 9h6M9 12h4"/></svg>
+        </button>
         <div class="icon-btn bell" id="bell" title="แจ้งเตือน">
           <svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg>
           <span class="ping" id="bellPing" style="display:none"></span>
@@ -828,6 +832,8 @@
         </div>
       </div>
 
+      <div id="aiBudgetSlot"></div>
+
       <div class="glass panel heat-card">
         <div class="heat-head">
           <div>
@@ -878,6 +884,7 @@
         </div>
       </div>
 
+      <div id="aiInsightsSlot"></div>
       <div class="rpt-pane" id="paneAnalytics"></div>
 
       <div class="rpt-pane" id="paneMonthly" hidden>
@@ -947,6 +954,7 @@
         <button class="btn btn-primary" id="planAddBtn">+ <span data-i18n="plan_add">เพิ่มในแผน</span></button>
       </div>
       <div id="planRoot"></div>
+      <div id="aiPlanSlot" class="ai-plan-slot"></div>
     </div>
 
     <!-- ===== PROFILE ===== -->
@@ -967,6 +975,13 @@
         <div class="settings-row">
           <span class="t" data-i18n="notif_setting">แจ้งเตือน</span>
           <div class="switch" id="notifSwitch"><div class="knob"></div></div>
+        </div>
+        <div class="settings-row" id="aiRow" style="display:none;">
+          <div>
+            <div class="t" data-i18n="ai_setting">ผู้ช่วย AI</div>
+            <div class="google-status" id="aiStatusText">—</div>
+          </div>
+          <div class="switch" id="aiSwitch" role="switch" tabindex="0"><div class="knob"></div></div>
         </div>
         <div class="settings-row" id="googleRow" style="display:none;">
           <div>
@@ -1173,6 +1188,7 @@
 <script src="js/cc.js"></script>
 <script src="js/analytics.js"></script>
 <script src="js/planner.js"></script>
+<script src="js/ai.js"></script>
 
 <script>
 /* ===================== i18n ===================== */
@@ -1181,6 +1197,8 @@ const translations = {
   balance_label: { th:"ยอดเงินคงเหลือ", en:"Current balance" },
   rpt_analytics: { th:"Analytics", en:"Analytics" },
   nav_plan: { th:"วางแผน", en:"Plan" },
+  ai_setting: { th:"ผู้ช่วย AI", en:"AI assistant" },
+  ai_ask: { th:"ถาม AI", en:"Ask AI" },
   plan_sub: { th:"ดูล่วงหน้าว่าเงินพอใช้ไหม เหลือเท่าไร", en:"See ahead whether your money lasts" },
   plan_add: { th:"เพิ่มในแผน", en:"Add to plan" },
   plan_name: { th:"ชื่อรายการ", en:"Name" },
@@ -1348,6 +1366,10 @@ function applyI18n(){
     const key = el.getAttribute('data-i18n');
     if (translations[key]) el.textContent = translations[key][lang];
   });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const key = el.getAttribute('data-i18n-title');
+    if (translations[key]) { el.title = translations[key][lang]; el.setAttribute('aria-label', translations[key][lang]); }
+  });
   document.querySelectorAll('[data-i18n-ph]').forEach(el => {
     const key = el.getAttribute('data-i18n-ph');
     if (translations[key]) el.placeholder = translations[key][lang];
@@ -1445,6 +1467,7 @@ async function checkAuthAndEnter(){
     document.getElementById('authGate').style.display = 'none';
     document.getElementById('app').classList.add('ready');
     renderAll();
+    AIAssist.init();
     if(window.walletEnter) walletEnter();
     initTabBar();
     if(!handleGoogleReturn()) checkSurveyPopup();
@@ -1626,6 +1649,7 @@ function renderAll(){
   Analytics.render();
   Planner.render();
   Planner.homeTile();
+  AIAssist.refresh();
   if(document.getElementById('view-reports').classList.contains('active')) Analytics.placePill(rptSwitch, rptSwitch.querySelector('button.active'), false);
 }
 
@@ -1984,6 +2008,7 @@ let rptPane = 'analytics';
 try{ if(localStorage.getItem('mm-rpt-pane') === 'monthly') rptPane = 'monthly'; }catch(e){}
 function showReportsPane(animate){
   document.getElementById('paneAnalytics').hidden = rptPane !== 'analytics';
+  document.getElementById('aiInsightsSlot').hidden = rptPane !== 'analytics';
   document.getElementById('paneMonthly').hidden = rptPane !== 'monthly';
   rptSwitch.querySelectorAll('button').forEach(b => {
     const on = b.dataset.pane === rptPane;
@@ -1992,6 +2017,7 @@ function showReportsPane(animate){
   });
   Analytics.placePill(rptSwitch, rptSwitch.querySelector('button.active'), animate);
   if(rptPane === 'analytics') Analytics.render(); else renderRevenueChart();
+  AIAssist.showInsights();
 }
 rptSwitch.addEventListener('click', e => {
   const b = e.target.closest('button[data-pane]');

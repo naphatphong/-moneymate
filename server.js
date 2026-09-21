@@ -8,6 +8,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const path = require('path');
 const db = require('./database');
+const ai = require('./ai');
 const { sendMail, missingMailConfig, apiKeyProblem, explainMailError } = require('./mailer');
 const google = require('./googleAuth');
 
@@ -659,6 +660,186 @@ app.delete('/api/plan/:id', requireLogin, async (req, res) => {
   }
 });
 
+// ----- API: ผู้ช่วย AI (Gemini) -----
+// ทุกคำขอต้องล็อกอิน + ผู้ใช้กดยินยอมแล้ว + ยังไม่เกินโควตารายวัน
+const AI_ERRORS = {
+  quota: [429, 'โควตา AI ของระบบเต็มชั่วคราว ลองใหม่ภายหลัง'],
+  config: [503, 'ระบบ AI ยังตั้งค่าไม่ถูกต้อง'],
+  blocked: [422, 'AI ตอบคำถามนี้ไม่ได้ ลองถามแบบอื่น'],
+  empty: [502, 'AI ตอบกลับไม่สำเร็จ ลองใหม่อีกครั้ง'],
+  upstream: [502, 'เชื่อมต่อ AI ไม่สำเร็จ ลองใหม่อีกครั้ง'],
+  timeout: [504, 'AI ตอบช้าเกินไป ลองใหม่อีกครั้ง']
+};
+const clip = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
+const aiLang = (req) => (req.body && req.body.lang === 'en' ? 'en' : 'th');
+const aiTz = (req) => { // นาทีจาก Date.getTimezoneOffset() ของผู้ใช้ (ไทย = -420)
+  const v = parseInt(req.body && req.body.tzOffset !== undefined ? req.body.tzOffset : req.query.tzOffset, 10);
+  return isNaN(v) ? -420 : Math.max(-840, Math.min(840, v));
+};
+const aiDay = (req) => new Date(Date.now() - aiTz(req) * 60000).toISOString().slice(0, 10);
+
+function sendAiError(res, err) {
+  if (!(err instanceof ai.AiError)) { console.error(err); return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์', code: 'server' }); }
+  if (err.code !== 'quota') console.warn('[AI]', err.code, err.message);
+  const [status, error] = AI_ERRORS[err.code] || AI_ERRORS.upstream;
+  return res.status(status).json({ error, code: err.code });
+}
+
+// ตรวจสิทธิ์ก่อนเรียก AI — คืนจำนวนครั้งที่ใช้ไปแล้ววันนี้ หรือ null ถ้าส่งคำตอบปฏิเสธไปแล้ว
+async function aiGate(req, res, { countsQuota = true } = {}) {
+  if (!ai.enabled()) { res.status(503).json({ error: 'ยังไม่ได้เปิดใช้ AI', code: 'disabled' }); return null; }
+  const settings = await db.getSettings(req.session.userId);
+  if (!settings.ai_consent) { res.status(403).json({ error: 'กรุณากดยินยอมก่อนใช้ผู้ช่วย AI', code: 'consent' }); return null; }
+  const used = await db.getAiUsage(req.session.userId, aiDay(req));
+  if (countsQuota && used >= ai.dailyLimit()) {
+    res.status(429).json({ error: `วันนี้ใช้ AI ครบ ${ai.dailyLimit()} ครั้งแล้ว พรุ่งนี้ใช้ได้ใหม่`, code: 'limit', used, limit: ai.dailyLimit() });
+    return null;
+  }
+  return used;
+}
+
+async function aiContext(req) {
+  const uid = req.session.userId;
+  const [txs, settings, budgets, plan] = await Promise.all([db.getTransactions(uid), db.getSettings(uid), db.getBudgets(uid), db.getPlanItems(uid)]);
+  return ai.buildContext({ txs, settings, budgets, plan, tzOffset: aiTz(req) });
+}
+
+async function aiCall(req, opts) {
+  const result = await ai.generate(opts);
+  const used = await db.bumpAiUsage(req.session.userId, aiDay(req));
+  return { result, used };
+}
+
+app.get('/api/ai/status', requireLogin, async (req, res) => {
+  try {
+    const settings = await db.getSettings(req.session.userId);
+    const used = ai.enabled() ? await db.getAiUsage(req.session.userId, aiDay(req)) : 0;
+    return res.json({ enabled: ai.enabled(), consent: !!settings.ai_consent, used, limit: ai.dailyLimit(), paid: ai.paidTier() });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
+app.put('/api/ai/consent', requireLogin, async (req, res) => {
+  try {
+    const on = !!(req.body && req.body.on);
+    await db.setAiConsent(req.session.userId, on);
+    return res.json({ consent: on });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
+// สรุปและคำแนะนำประจำเดือน — เก็บผลไว้ทั้งวัน กด "สร้างใหม่" (force) ถึงจะเรียก AI อีกครั้ง
+app.post('/api/ai/insights', requireLogin, async (req, res) => {
+  try {
+    const lang = aiLang(req), key = `${aiDay(req)}|${lang}`;
+    if (!req.body.force) {
+      const gate = await aiGate(req, res, { countsQuota: false });
+      if (gate === null) return;
+      const cached = await db.getAiCache(req.session.userId, 'insights');
+      if (cached && cached.cache_key === key) return res.json({ ...JSON.parse(cached.payload), cached: true, used: gate, limit: ai.dailyLimit() });
+    }
+    const gate = await aiGate(req, res);
+    if (gate === null) return;
+    const ctx = await aiContext(req);
+    const task = lang === 'en'
+      ? 'Analyse my spending this month (compare with the same period last month and previous months, budget pace, and my plan forecast). Return JSON: {"headline": string (max 12 words), "summary": string (2-3 sentences), "points": [{"tone": "good"|"warn"|"tip", "title": string (max 8 words), "detail": string (1-2 sentences with numbers)}]} with 3 to 5 points. Mix what is going well, what to watch, and concrete tips.'
+      : 'วิเคราะห์การใช้เงินเดือนนี้ของฉัน (เทียบช่วงเดียวกันของเดือนก่อนและเดือนก่อนๆ จังหวะการใช้งบ และคาดการณ์จากแผน) ตอบเป็น JSON: {"headline": ข้อความสั้นไม่เกิน 1 ประโยค, "summary": 2-3 ประโยค, "points": [{"tone": "good"|"warn"|"tip", "title": หัวข้อสั้นๆ, "detail": 1-2 ประโยคพร้อมตัวเลข}]} จำนวน 3-5 ข้อ ให้มีทั้งสิ่งที่ทำได้ดี สิ่งที่ควรระวัง และคำแนะนำที่ทำได้จริง';
+    const { result, used } = await aiCall(req, { system: ai.systemPrompt(lang, ctx), messages: [{ role: 'user', text: task }], json: true, temperature: 0.5 });
+    const points = (Array.isArray(result.points) ? result.points : []).slice(0, 5)
+      .map((p) => ({ tone: ['good', 'warn', 'tip'].includes(p && p.tone) ? p.tone : 'tip', title: clip(p && p.title, 90), detail: clip(p && p.detail, 360) }))
+      .filter((p) => p.title || p.detail);
+    const payload = { headline: clip(result.headline, 160), summary: clip(result.summary, 700), points, generatedAt: new Date().toISOString() };
+    if (!payload.headline && !payload.summary && !points.length) throw new ai.AiError('empty', 'empty insights');
+    await db.setAiCache(req.session.userId, 'insights', key, payload);
+    return res.json({ ...payload, cached: false, used, limit: ai.dailyLimit() });
+  } catch (err) {
+    return sendAiError(res, err);
+  }
+});
+
+// คำแนะนำเมื่อใช้เงินใกล้ถึงงบ (80% ขึ้นไป) หรือเกินงบ — ไม่ถึงเกณฑ์ก็ไม่เรียก AI
+app.post('/api/ai/budget-advice', requireLogin, async (req, res) => {
+  try {
+    const gate0 = await aiGate(req, res, { countsQuota: false });
+    if (gate0 === null) return;
+    const ctx = await aiContext(req);
+    const m = ctx.this_month;
+    const level = m.budget > 0 && m.spent > m.budget ? 'over' : m.budget > 0 && m.spent >= m.budget * 0.8 ? 'near' : 'ok';
+    if (level === 'ok') return res.json({ level });
+    const lang = aiLang(req), key = `${aiDay(req)}|${level}|${lang}`;
+    const cached = await db.getAiCache(req.session.userId, 'budget');
+    if (cached && cached.cache_key === key) return res.json({ ...JSON.parse(cached.payload), cached: true, used: gate0, limit: ai.dailyLimit() });
+    const gate = await aiGate(req, res);
+    if (gate === null) return;
+    const task = lang === 'en'
+      ? `My spending this month is ${level === 'over' ? 'OVER' : 'close to'} my budget. Give me calm, practical advice for the rest of the month. Return JSON: {"message": string (1-2 sentences: where I stand and roughly how much per day I can still spend, or how much I went over), "tips": [string, string, string] (short, specific actions based on my categories)}`
+      : `เดือนนี้ฉันใช้เงิน${level === 'over' ? 'เกินงบแล้ว' : 'ใกล้ถึงงบแล้ว'} ช่วยแนะนำแบบใจเย็นและทำได้จริงสำหรับวันที่เหลือของเดือน ตอบเป็น JSON: {"message": 1-2 ประโยค (ตอนนี้อยู่ตรงไหน ใช้ได้อีกประมาณวันละเท่าไร หรือเกินไปเท่าไร), "tips": [3 ข้อสั้นๆ เจาะจงตามหมวดที่ฉันใช้]}`;
+    const { result, used } = await aiCall(req, { system: ai.systemPrompt(lang, ctx), messages: [{ role: 'user', text: task }], json: true, temperature: 0.5, maxTokens: 1200 });
+    const payload = {
+      level, spent: m.spent, budget: m.budget,
+      message: clip(result.message, 400),
+      tips: (Array.isArray(result.tips) ? result.tips : []).map((x) => clip(x, 200)).filter(Boolean).slice(0, 3),
+      generatedAt: new Date().toISOString()
+    };
+    if (!payload.message) throw new ai.AiError('empty', 'empty advice');
+    await db.setAiCache(req.session.userId, 'budget', key, payload);
+    return res.json({ ...payload, cached: false, used, limit: ai.dailyLimit() });
+  } catch (err) {
+    return sendAiError(res, err);
+  }
+});
+
+// แชทถาม-ตอบ (ประวัติแชทเก็บไว้ที่เบราว์เซอร์ ไม่บันทึกลงฐานข้อมูล)
+app.post('/api/ai/chat', requireLogin, async (req, res) => {
+  try {
+    const raw = Array.isArray(req.body.messages) ? req.body.messages.slice(-12) : [];
+    const messages = raw
+      .map((m) => ({ role: m && m.role === 'model' ? 'model' : 'user', text: clip(m && m.text, 1000) }))
+      .filter((m) => m.text);
+    if (!messages.length || messages[messages.length - 1].role !== 'user') {
+      return res.status(400).json({ error: 'กรุณาพิมพ์คำถาม', code: 'input' });
+    }
+    while (messages[0].role !== 'user') messages.shift();
+    const gate = await aiGate(req, res);
+    if (gate === null) return;
+    const lang = aiLang(req);
+    const ctx = await aiContext(req);
+    const { result, used } = await aiCall(req, { system: ai.systemPrompt(lang, ctx), messages, temperature: 0.7, maxTokens: 1500 });
+    return res.json({ reply: result.slice(0, 4000), used, limit: ai.dailyLimit() });
+  } catch (err) {
+    return sendAiError(res, err);
+  }
+});
+
+// ผู้ช่วยวางแผน: เสนอรายการในแผน (ผู้ใช้กดเลือกเพิ่มเอง ระบบไม่บันทึกให้อัตโนมัติ)
+app.post('/api/ai/plan', requireLogin, async (req, res) => {
+  try {
+    const goal = clip(req.body.goal, 300);
+    if (goal.length < 3) return res.status(400).json({ error: 'กรุณาบอกเป้าหมายหรือสิ่งที่อยากให้ช่วยวางแผน', code: 'input' });
+    const gate = await aiGate(req, res);
+    if (gate === null) return;
+    const lang = aiLang(req);
+    const ctx = await aiContext(req);
+    const task = (lang === 'en'
+      ? 'Help me plan for this goal: "' + goal + '". Suggest up to 6 NEW plan items (do not repeat items already in plan_items) that make the goal realistic given my history and forecast — e.g. a monthly saving transfer as an expense named "Savings", realistic daily food caps, one-off purchases on a date. Return JSON: {"summary": string (2-4 sentences explaining the plan with numbers and whether it is realistic), "items": [{"type": "income"|"expense", "name": string, "amount": number, "freq": "daily"|"weekly"|"monthly"|"once", "day": integer (1-31 for monthly, 0-6 for weekly with 0 = Sunday, omit otherwise), "onDate": "YYYY-MM-DD" (only for once, must be after today)}]}'
+      : 'ช่วยวางแผนเพื่อเป้าหมายนี้: "' + goal + '" เสนอรายการในแผนใหม่ไม่เกิน 6 รายการ (ห้ามซ้ำกับ plan_items ที่มีอยู่) ที่ทำให้เป้าหมายเป็นไปได้จริงตามประวัติและคาดการณ์ของฉัน เช่น เงินเก็บรายเดือน (ใส่เป็นรายจ่ายชื่อ "เงินเก็บ") เพดานค่ากินรายวันที่สมเหตุสมผล หรือรายการซื้อครั้งเดียวในวันที่กำหนด ตอบเป็น JSON: {"summary": 2-4 ประโยคอธิบายแผนพร้อมตัวเลข และบอกว่าเป็นไปได้จริงไหม, "items": [{"type": "income"|"expense", "name": ชื่อรายการภาษาไทย, "amount": ตัวเลข, "freq": "daily"|"weekly"|"monthly"|"once", "day": จำนวนเต็ม (1-31 ถ้ารายเดือน, 0-6 ถ้ารายสัปดาห์ 0 = อาทิตย์), "onDate": "YYYY-MM-DD" (เฉพาะครั้งเดียว ต้องหลังวันนี้)}]}');
+    const { result, used } = await aiCall(req, { system: ai.systemPrompt(lang, ctx), messages: [{ role: 'user', text: task }], json: true, temperature: 0.4 });
+    const items = (Array.isArray(result.items) ? result.items : []).slice(0, 6)
+      .map((x) => parsePlanItem(x || {}))
+      .filter((p) => p.item && (p.item.freq !== 'once' || p.item.onDate > ctx.today))
+      .map((p) => p.item);
+    const summary = clip(result.summary, 800);
+    if (!summary && !items.length) throw new ai.AiError('empty', 'empty plan');
+    return res.json({ summary, items, used, limit: ai.dailyLimit() });
+  } catch (err) {
+    return sendAiError(res, err);
+  }
+});
+
 app.delete('/api/categories/:id', requireLogin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -924,6 +1105,9 @@ async function start() {
     } else {
       console.log(`[อีเมล] พร้อมส่งผ่าน Brevo (ผู้ส่ง: ${process.env.MAIL_FROM}, ลิงก์ชี้ไปที่ ${process.env.APP_URL})`);
     }
+    console.log(ai.enabled()
+      ? `[AI] เปิดใช้ Gemini (จำกัด ${ai.dailyLimit()} ครั้ง/คน/วัน)`
+      : '[AI] ปิดอยู่ — ตั้งค่า GEMINI_API_KEY เพื่อเปิดผู้ช่วย AI');
   });
 }
 

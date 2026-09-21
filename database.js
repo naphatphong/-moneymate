@@ -73,6 +73,8 @@ async function init() {
   // ธีมที่ผู้ใช้เลือก: โหมด (dark / light / system) และสีหลักของหน้าเว็บ
   await pool.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS theme_mode TEXT NOT NULL DEFAULT 'dark'`);
   await pool.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS theme_accent TEXT NOT NULL DEFAULT '#2FBF8F'`);
+  // ผู้ใช้ยินยอมให้ส่งข้อมูลสรุปไปให้ AI วิเคราะห์หรือยัง (ค่าเริ่มต้น = ยังไม่ยินยอม)
+  await pool.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS ai_consent BOOLEAN NOT NULL DEFAULT FALSE`);
 
   // ตารางคำตอบแบบสอบถามความพึงพอใจ (14 ข้อให้คะแนน 1-5 + ชั้นปี + ข้อเสนอแนะปลายเปิด)
   await pool.query(`
@@ -122,6 +124,26 @@ async function init() {
     )
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_plan_items_user ON plan_items(user_id)`);
+
+  // AI: นับจำนวนครั้งที่เรียกต่อวัน และเก็บผลล่าสุดของแต่ละแบบไว้ใช้ซ้ำ (ประหยัดโควตา)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ai_usage (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      day TEXT NOT NULL,
+      count INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (user_id, day)
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ai_cache (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL,
+      cache_key TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (user_id, kind)
+    )
+  `);
 
   // โทเค็นรีเซ็ตรหัสผ่าน (เก็บเฉพาะค่า hash ของโทเค็น ไม่เก็บตัวจริง)
   await pool.query(`
@@ -389,6 +411,42 @@ async function deletePlanItem(id, userId) {
   return rows.length > 0;
 }
 
+// ----- AI -----
+
+async function setAiConsent(userId, on) {
+  await getSettings(userId);
+  await pool.query('UPDATE user_settings SET ai_consent = $2 WHERE user_id = $1', [userId, !!on]);
+  if (!on) await pool.query('DELETE FROM ai_cache WHERE user_id = $1', [userId]);
+}
+
+async function getAiUsage(userId, day) {
+  const { rows } = await pool.query('SELECT count FROM ai_usage WHERE user_id = $1 AND day = $2', [userId, day]);
+  return rows.length ? rows[0].count : 0;
+}
+
+async function bumpAiUsage(userId, day) {
+  const { rows } = await pool.query(
+    `INSERT INTO ai_usage (user_id, day, count) VALUES ($1, $2, 1)
+     ON CONFLICT (user_id, day) DO UPDATE SET count = ai_usage.count + 1
+     RETURNING count`,
+    [userId, day]
+  );
+  return rows[0].count;
+}
+
+async function getAiCache(userId, kind) {
+  const { rows } = await pool.query('SELECT cache_key, payload, created_at FROM ai_cache WHERE user_id = $1 AND kind = $2', [userId, kind]);
+  return rows[0] || null;
+}
+
+async function setAiCache(userId, kind, cacheKey, payload) {
+  await pool.query(
+    `INSERT INTO ai_cache (user_id, kind, cache_key, payload, created_at) VALUES ($1, $2, $3, $4, NOW())
+     ON CONFLICT (user_id, kind) DO UPDATE SET cache_key = EXCLUDED.cache_key, payload = EXCLUDED.payload, created_at = NOW()`,
+    [userId, kind, cacheKey, JSON.stringify(payload)]
+  );
+}
+
 // ----- ค่าตั้งค่าต่อผู้ใช้ (ยอดเงินตั้งต้น / งบประมาณ / แจ้งเตือน) -----
 
 // ดึงค่าตั้งค่า ถ้ายังไม่มีให้สร้างค่าเริ่มต้นให้อัตโนมัติ
@@ -624,6 +682,11 @@ module.exports = {
   createPlanItem,
   updatePlanItem,
   deletePlanItem,
+  setAiConsent,
+  getAiUsage,
+  bumpAiUsage,
+  getAiCache,
+  setAiCache,
   getSettings,
   updateSettings,
   getBudgets,

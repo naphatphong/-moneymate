@@ -486,5 +486,5 @@
     renderItems(P);
   }
 
-  window.Planner = { render, homeTile, initEditor, openEditor };
+  window.Planner = { render, homeTile, initEditor, openEditor, ruleText };
 })();
