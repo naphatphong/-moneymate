@@ -1,0 +1,165 @@
+// scripts/seed-demo.js
+// สร้างบัญชีตัวอย่างพร้อมข้อมูลการใช้งานย้อนหลัง 1 ปี (นักศึกษาที่ทำงานพิเศษ)
+// ใช้กับฐานข้อมูลที่ตั้งไว้ใน DATABASE_URL (.env)
+//
+//   npm run seed:demo -- --password <รหัสผ่าน>
+//   npm run seed:demo -- --username demo --email demo@example.com --password <รหัสผ่าน>
+//   npm run seed:demo -- --reset          (ลบบัญชีตัวอย่างเดิมแล้วสร้างใหม่)
+//
+// ถ้าไม่ใส่ --password จะสุ่มรหัสผ่านให้และแสดงตอนจบ
+require('dotenv').config();
+
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+const db = require('../database');
+
+// ---------- อ่าน argument ----------
+const args = process.argv.slice(2);
+const opt = (name) => {
+  const i = args.indexOf(`--${name}`);
+  return i !== -1 && args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : null;
+};
+const USERNAME = opt('username') || 'demo';
+const EMAIL = opt('email') || 'demo@example.com';
+const PASSWORD = opt('password') || crypto.randomBytes(6).toString('base64url');
+const RESET = args.includes('--reset');
+
+// ---------- สุ่มแบบกำหนด seed (รันกี่ครั้งก็ได้ข้อมูลชุดเดิม) ----------
+let seed = 20260921;
+const rnd = () => {
+  seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+const pick = (list) => list[Math.floor(rnd() * list.length)];
+const between = (a, b) => Math.round(a + rnd() * (b - a));
+const chance = (p) => rnd() < p;
+
+const FOOD = ['ข้าวมันไก่', 'กะเพราหมูสับไข่ดาว', 'ก๋วยเตี๋ยวเรือ', 'ข้าวผัดกุ้ง', 'ส้มตำไก่ย่าง', 'ข้าวขาหมู', 'โจ๊กหมู', 'ราดหน้า', 'ข้าวไข่เจียว', 'สุกี้น้ำ'];
+const DRINK = ['ชาไข่มุก', 'กาแฟเย็น', 'ชาเขียวนม', 'น้ำปั่น', 'โกโก้เย็น'];
+const TRAVEL_DAILY = ['ค่ารถเมล์', 'ค่าวินมอเตอร์ไซค์', 'ค่ารถไฟฟ้า', 'ค่าสองแถว'];
+const TRAVEL_BIG = ['Grab', 'Bolt', 'แท็กซี่'];
+const FUN = ['ดูหนัง', 'คาราโอเกะ', 'โบว์ลิ่ง', 'คาเฟ่กับเพื่อน', 'บอร์ดเกมคาเฟ่', 'หมูกระทะกับเพื่อน'];
+const SHOP = ['Shopee', 'Lazada', 'เสื้อผ้า', 'ของใช้ส่วนตัว', 'เครื่องเขียน', 'รองเท้า', 'หนังสือเรียน'];
+const OTHER = ['ถ่ายเอกสาร', 'ซักรีด', 'ตัดผม', 'ทำบุญ', 'ของขวัญเพื่อน'];
+const SALES = ['ขายเสื้อมือสอง', 'ขายชีทสรุป', 'ขายขนมในคณะ', 'รับวาดรูป'];
+
+// เวลาสุ่มในวันนั้น (ช่วงเช้า-ค่ำ)
+const at = (day, fromHour, toHour) => {
+  const d = new Date(day);
+  d.setHours(between(fromHour, toHour), between(0, 59), 0, 0);
+  return d;
+};
+
+function generate(today) {
+  const txs = [];
+  const add = (type, cat, title, amount, date) => txs.push({ type, cat, title, amount, date });
+  const start = new Date(today);
+  start.setFullYear(start.getFullYear() - 1);
+  start.setDate(start.getDate() + 1);
+
+  for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+    const day = new Date(d);
+    const dom = day.getDate();
+    const month = day.getMonth(); // 0 = ม.ค.
+    const dow = day.getDay();     // 0 = อาทิตย์
+    const weekend = dow === 0 || dow === 6;
+    const monthsAgo = (today.getFullYear() - day.getFullYear()) * 12 + today.getMonth() - month;
+
+    // ---- รายรับประจำ ----
+    if (dom === 1) add('income', 'allowance', 'ค่าขนมประจำเดือน', monthsAgo <= 5 ? 7500 : 7000, at(day, 8, 10));
+    if (dow === 6 && chance(0.85)) add('income', 'parttime', 'สอนพิเศษวันเสาร์', between(6, 9) * 100, at(day, 16, 19));
+    if (dom === 15 && (month === 5 || month === 10)) add('income', 'scholarship', 'ทุนเรียนดี (ภาคเรียน)', 10000, at(day, 10, 12));
+    if (chance(0.06)) add('income', 'sales', pick(SALES), between(3, 15) * 100, at(day, 12, 21));
+    if (month === 0 && dom === 1) add('income', 'ของขวัญ', 'อั่งเปา/ของขวัญปีใหม่', 2000, at(day, 11, 14));
+    if (month === 3 && dom === 13) add('income', 'ของขวัญ', 'เงินจากญาติช่วงสงกรานต์', 1500, at(day, 11, 14));
+
+    // ---- รายจ่ายประจำ ----
+    if (dom === 3) add('expense', 'ค่าหอ', 'ค่าหอพัก + ค่าน้ำไฟ', between(3400, 3800), at(day, 9, 12));
+    if (dom === 5) add('expense', 'other', 'ค่าโทรศัพท์รายเดือน', 299, at(day, 9, 12));
+    if (dom === 20 && (month === 5 || month === 10)) add('expense', 'ค่าเทอม', 'ค่าบำรุงการศึกษา', 9000, at(day, 9, 11));
+
+    // ---- เทศกาล ----
+    if (month === 3 && dom === 11) add('expense', 'travel', 'ตั๋วรถทัวร์กลับบ้าน (สงกรานต์)', 1200, at(day, 8, 10));
+    if (month === 3 && dom === 17) add('expense', 'travel', 'ตั๋วรถทัวร์กลับหอ', 1200, at(day, 14, 18));
+    if (month === 10 && dom === 11) add('expense', 'shopping', 'โปร 11.11', between(15, 30) * 100, at(day, 0, 2));
+    if (month === 11 && dom === 12) add('expense', 'shopping', 'โปร 12.12', between(10, 25) * 100, at(day, 0, 2));
+    if (month === 11 && dom === 31) add('expense', 'entertainment', 'เคานต์ดาวน์กับเพื่อน', 1500, at(day, 19, 22));
+    if (month === 7 && dom === 24) add('expense', 'entertainment', 'บัตรคอนเสิร์ต', 2800, at(day, 10, 12));
+
+    // บางวันไม่ได้บันทึก (ลืม/ไม่ได้ใช้จ่าย) — ทำให้ตารางกิจกรรมดูเป็นธรรมชาติ
+    if (chance(0.1)) continue;
+
+    // ---- ใช้จ่ายรายวัน ----
+    const meals = weekend ? between(1, 3) : between(1, 2);
+    for (let m = 0; m < meals; m++) add('expense', 'food', pick(FOOD), between(4, 12) * 5 + (weekend ? 15 : 0), at(day, 7 + m * 5, 9 + m * 5));
+    if (chance(0.45)) add('expense', 'food', pick(DRINK), between(5, 9) * 5, at(day, 13, 17));
+    if (!weekend && chance(0.7)) add('expense', 'travel', pick(TRAVEL_DAILY), between(3, 10) * 5, at(day, 7, 9));
+    if (chance(0.08)) add('expense', 'travel', pick(TRAVEL_BIG), between(8, 25) * 10, at(day, 18, 23));
+    if (weekend && chance(0.4)) add('expense', 'entertainment', pick(FUN), between(12, 60) * 10, at(day, 14, 21));
+    if (chance(0.09)) add('expense', 'shopping', pick(SHOP), between(15, 150) * 10, at(day, 10, 22));
+    if (chance(0.05)) add('expense', 'other', pick(OTHER), between(4, 30) * 10, at(day, 9, 19));
+  }
+  return txs;
+}
+
+async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('ไม่พบ DATABASE_URL — ใส่ใน .env ก่อน (ดู .env.example)');
+    process.exit(1);
+  }
+  await db.init();
+
+  // ถ้ามีบัญชีนี้อยู่แล้ว: ลบได้เฉพาะเมื่อสั่ง --reset และทั้งชื่อผู้ใช้กับอีเมลตรงกัน (กันลบบัญชีคนอื่น)
+  const byName = await db.findByLogin(USERNAME);
+  const byEmail = await db.findByEmail(EMAIL);
+  if (byName || byEmail) {
+    const same = byName && byEmail && byName.id === byEmail.id && byName.username === USERNAME;
+    if (!RESET) {
+      console.error(`มีบัญชีที่ใช้ชื่อ "${USERNAME}" หรืออีเมล "${EMAIL}" อยู่แล้ว — ถ้าต้องการสร้างใหม่ให้เพิ่ม --reset`);
+      process.exit(1);
+    }
+    if (!same) {
+      console.error('ชื่อผู้ใช้และอีเมลไม่ได้เป็นของบัญชีเดียวกัน — ไม่ลบให้ เพื่อกันลบบัญชีของคนอื่น กรุณาใช้ชื่อ/อีเมลอื่น');
+      process.exit(1);
+    }
+    await db.deleteUser(byName.id);
+    console.log(`ลบบัญชีตัวอย่างเดิม (${USERNAME}) แล้ว`);
+  }
+
+  const user = await db.createUser({ username: USERNAME, email: EMAIL, passwordHash: await bcrypt.hash(PASSWORD, 10) });
+  await db.getSettings(user.id); // สร้างแถวค่าตั้งค่าเริ่มต้น
+  await db.updateSettings(user.id, { openingBalance: 12000, budget: 9500 });
+  await db.dismissSurvey(user.id);
+  await db.createCategory(user.id, 'expense', 'ค่าหอ');
+  await db.createCategory(user.id, 'expense', 'ค่าเทอม');
+  await db.createCategory(user.id, 'income', 'ของขวัญ');
+
+  const today = new Date();
+  today.setHours(23, 59, 0, 0);
+  const txs = generate(today).filter((t) => t.date <= new Date());
+  txs.sort((a, b) => a.date - b.date);
+  await db.createTransactionsBulk(user.id, txs);
+
+  // งบประมาณรายเดือน 13 เดือน (ธันวาคมตั้งสูงขึ้นเพราะมีเทศกาล)
+  for (let i = 0; i <= 12; i++) {
+    const m = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    const budget = m.getMonth() === 11 ? 12000 : m.getMonth() === 3 ? 11000 : 9500;
+    await db.upsertBudget(user.id, m.getFullYear(), m.getMonth() + 1, budget);
+  }
+
+  const income = txs.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const expense = txs.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const fmt = (n) => n.toLocaleString('en-US');
+  console.log('\nสร้างบัญชีตัวอย่างเรียบร้อย');
+  console.log(`  ชื่อผู้ใช้ : ${USERNAME}`);
+  console.log(`  อีเมล     : ${EMAIL}`);
+  console.log(`  รหัสผ่าน  : ${PASSWORD}${opt('password') ? '' : '   (สุ่มให้ — จดไว้ด้วย)'}`);
+  console.log(`  รายการ    : ${fmt(txs.length)} รายการ (${txs[0].date.toLocaleDateString('th-TH')} – ${txs[txs.length - 1].date.toLocaleDateString('th-TH')})`);
+  console.log(`  รายรับรวม ฿${fmt(income)} · รายจ่ายรวม ฿${fmt(expense)} · ยอดคงเหลือ ฿${fmt(12000 + income - expense)}`);
+}
+
+main()
+  .catch((err) => { console.error('สร้างบัญชีตัวอย่างไม่สำเร็จ:', err.message); process.exitCode = 1; })
+  .finally(() => db.close());

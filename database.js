@@ -256,6 +256,34 @@ async function createTransaction({ userId, type, cat, title, amount, date }) {
   return rows[0];
 }
 
+// เพิ่มหลายรายการในคำสั่งเดียว (ใช้กับสคริปต์สร้างบัญชีตัวอย่าง — เร็วกว่าเพิ่มทีละรายการมาก)
+async function createTransactionsBulk(userId, txs) {
+  const CHUNK = 500; // 500 แถว x 6 ค่า = 3,000 พารามิเตอร์ต่อคำสั่ง
+  for (let i = 0; i < txs.length; i += CHUNK) {
+    const part = txs.slice(i, i + CHUNK);
+    const params = [];
+    const values = part.map((t, j) => {
+      const b = j * 6;
+      params.push(userId, t.type, t.cat, t.title, t.amount, t.date);
+      return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6})`;
+    });
+    await pool.query(
+      `INSERT INTO transactions (user_id, type, cat, title, amount, tx_date) VALUES ${values.join(', ')}`,
+      params
+    );
+  }
+}
+
+// ลบบัญชี (ข้อมูลทุกตารางที่ผูกกับผู้ใช้ถูกลบตามด้วย ON DELETE CASCADE)
+async function deleteUser(id) {
+  await pool.query('DELETE FROM users WHERE id = $1', [id]);
+}
+
+// ปิดการเชื่อมต่อฐานข้อมูล (ใช้ตอนสคริปต์ทำงานเสร็จ)
+async function close() {
+  await pool.end();
+}
+
 // ลบรายการ (เฉพาะของผู้ใช้ที่เป็นเจ้าของเท่านั้น)
 async function deleteTransaction(id, userId) {
   const { rows } = await pool.query(
@@ -504,6 +532,9 @@ async function getSurveyStats() {
 
 module.exports = {
   init,
+  close,
+  deleteUser,
+  createTransactionsBulk,
   userExists,
   findByLogin,
   findById,
