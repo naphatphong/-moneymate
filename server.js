@@ -12,9 +12,12 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const isProduction = process.env.NODE_ENV === 'production';
 
-// หมวดหมู่รายจ่ายมาตรฐาน และความยาวสูงสุดของชื่อหมวดหมู่ที่ผู้ใช้สร้างเอง
+// หมวดหมู่มาตรฐาน (รายจ่ายและรายรับ) และความยาวสูงสุดของชื่อหมวดหมู่ที่ผู้ใช้สร้างเอง
 const MAX_CATEGORY_LENGTH = 20;
-const BUILTIN_CATEGORIES = ['food', 'travel', 'entertainment', 'shopping', 'other', 'income'];
+const BUILTIN_CATEGORIES = [
+  'food', 'travel', 'entertainment', 'shopping', 'other',
+  'income', 'allowance', 'salary', 'parttime', 'scholarship', 'sales'
+];
 
 // ค่าที่อนุญาตสำหรับธีม: โหมดการแสดงผล และสีหลักแบบ #RRGGBB
 const THEME_MODES = ['dark', 'light', 'system'];
@@ -216,11 +219,11 @@ app.post('/api/transactions', requireLogin, async (req, res) => {
       return res.status(400).json({ error: 'วันที่ไม่ถูกต้อง' });
     }
 
-    const expenseCat = typeof cat === 'string' ? cat.trim().slice(0, MAX_CATEGORY_LENGTH) : '';
+    const cleanCat = typeof cat === 'string' ? cat.trim().slice(0, MAX_CATEGORY_LENGTH) : '';
     const transaction = await db.createTransaction({
       userId: req.session.userId,
       type,
-      cat: type === 'income' ? 'income' : (expenseCat || 'other'),
+      cat: cleanCat || (type === 'income' ? 'income' : 'other'),
       title: (title || '').trim(),
       amount: amt,
       date: txDate
@@ -268,6 +271,10 @@ app.get('/api/categories', requireLogin, async (req, res) => {
 app.post('/api/categories', requireLogin, async (req, res) => {
   try {
     const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+    const type = req.body.type === undefined ? 'expense' : req.body.type;
+    if (type !== 'income' && type !== 'expense') {
+      return res.status(400).json({ error: 'ประเภทหมวดหมู่ไม่ถูกต้อง' });
+    }
     if (!name) {
       return res.status(400).json({ error: 'กรุณาระบุชื่อหมวดหมู่' });
     }
@@ -277,7 +284,7 @@ app.post('/api/categories', requireLogin, async (req, res) => {
     if (BUILTIN_CATEGORIES.includes(name.toLowerCase())) {
       return res.status(400).json({ error: 'ชื่อนี้ถูกใช้เป็นหมวดหมู่มาตรฐานแล้ว' });
     }
-    const category = await db.createCategory(req.session.userId, name);
+    const category = await db.createCategory(req.session.userId, type, name);
     return res.status(201).json({ category });
   } catch (err) {
     console.error(err);

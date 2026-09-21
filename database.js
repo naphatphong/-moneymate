@@ -81,15 +81,21 @@ async function init() {
     )
   `);
 
-  // ตารางหมวดหมู่รายจ่ายที่ผู้ใช้สร้างเอง (นอกเหนือจากหมวดหมู่มาตรฐาน)
+  // ตารางหมวดหมู่ที่ผู้ใช้สร้างเอง (นอกเหนือจากหมวดหมู่มาตรฐาน) แยกตามประเภทรายรับ/รายจ่าย
   await pool.query(`
     CREATE TABLE IF NOT EXISTS user_categories (
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type TEXT NOT NULL DEFAULT 'expense' CHECK (type IN ('income', 'expense')),
       name TEXT NOT NULL,
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      UNIQUE(user_id, name)
+      created_at TIMESTAMPTZ DEFAULT NOW()
     )
+  `);
+  // ฐานข้อมูลที่สร้างไว้ก่อนมีหมวดรายรับ: เพิ่มคอลัมน์ type และให้ชื่อซ้ำกันได้ถ้าคนละประเภท
+  await pool.query(`ALTER TABLE user_categories ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'expense' CHECK (type IN ('income', 'expense'))`);
+  await pool.query(`ALTER TABLE user_categories DROP CONSTRAINT IF EXISTS user_categories_user_id_name_key`);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_user_categories_user_type_name ON user_categories(user_id, type, name)
   `);
 }
 
@@ -158,22 +164,22 @@ async function deleteTransaction(id, userId) {
 
 // ----- หมวดหมู่ที่ผู้ใช้สร้างเอง -----
 
-// ดึงหมวดหมู่ที่ผู้ใช้สร้างไว้ (เรียงตามลำดับที่สร้าง)
+// ดึงหมวดหมู่ที่ผู้ใช้สร้างไว้ทั้งรายรับและรายจ่าย (เรียงตามลำดับที่สร้าง)
 async function getCategories(userId) {
   const { rows } = await pool.query(
-    'SELECT id, name FROM user_categories WHERE user_id = $1 ORDER BY id',
+    'SELECT id, type, name FROM user_categories WHERE user_id = $1 ORDER BY id',
     [userId]
   );
   return rows;
 }
 
-// เพิ่มหมวดหมู่ใหม่ (ถ้ามีชื่อนี้อยู่แล้วจะคืนค่าตัวเดิม)
-async function createCategory(userId, name) {
+// เพิ่มหมวดหมู่ใหม่ (ถ้ามีชื่อนี้ในประเภทเดียวกันอยู่แล้วจะคืนค่าตัวเดิม)
+async function createCategory(userId, type, name) {
   const { rows } = await pool.query(
-    `INSERT INTO user_categories (user_id, name) VALUES ($1, $2)
-     ON CONFLICT (user_id, name) DO UPDATE SET name = EXCLUDED.name
-     RETURNING id, name`,
-    [userId, name]
+    `INSERT INTO user_categories (user_id, type, name) VALUES ($1, $2, $3)
+     ON CONFLICT (user_id, type, name) DO UPDATE SET name = EXCLUDED.name
+     RETURNING id, type, name`,
+    [userId, type, name]
   );
   return rows[0];
 }

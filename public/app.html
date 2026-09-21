@@ -1053,7 +1053,7 @@ window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', ()
     <h3 data-i18n="modal_title">เพิ่มรายการ</h3>
     <div class="type-switch">
       <button class="active exp" id="typeExp" data-i18n="expense">รายจ่าย</button>
-      <button id="typeInc" data-i18n="income">รายรับ</button>
+      <button class="inc" id="typeInc" data-i18n="income">รายรับ</button>
     </div>
     <div class="cats" id="catGrid"></div>
     <div class="field">
@@ -1160,6 +1160,13 @@ const translations = {
   cat_entertainment_short: { th:"บันเทิง", en:"Fun" },
   cat_shopping_short: { th:"ช้อปปิ้ง", en:"Shopping" },
   cat_other_short: { th:"อื่นๆ", en:"Other" },
+  cat_allowance_short: { th:"เงินจากที่บ้าน", en:"Allowance" },
+  cat_salary_short: { th:"เงินเดือน", en:"Salary" },
+  cat_parttime_short: { th:"งานพิเศษ", en:"Part-time" },
+  cat_scholarship_short: { th:"ทุนการศึกษา", en:"Scholarship" },
+  cat_sales_short: { th:"ขายของ", en:"Sales" },
+  ph_expense: { th:"เช่น ข้าวมันไก่, ค่ารถเมล์", en:"e.g. Lunch, Bus fare" },
+  ph_income: { th:"เช่น ค่าขนมประจำเดือน, ค่าจ้างสอนพิเศษ", en:"e.g. Monthly allowance, Tutoring pay" },
   field_title: { th:"รายการ", en:"Description" },
   field_amount: { th:"จำนวนเงิน (บาท)", en:"Amount (THB)" },
   field_date: { th:"วันที่", en:"Date" },
@@ -1197,10 +1204,20 @@ const translations = {
   theme_custom: { th:"เลือกสีเอง", en:"Custom color" },
   toast_theme_saved: { th:"บันทึกธีมแล้ว", en:"Theme saved" }
 };
-const catLabel = { food:'cat_food_short', travel:'cat_travel_short', entertainment:'cat_entertainment_short', shopping:'cat_shopping_short', other:'cat_other_short', income:'cat_income' };
+const catLabel = {
+  food:'cat_food_short', travel:'cat_travel_short', entertainment:'cat_entertainment_short', shopping:'cat_shopping_short', other:'cat_other_short',
+  income:'cat_income', allowance:'cat_allowance_short', salary:'cat_salary_short', parttime:'cat_parttime_short', scholarship:'cat_scholarship_short', sales:'cat_sales_short'
+};
 translations.cat_income = { th:"รายรับ", en:"Income" };
-const catColor = { food:'var(--amber)', travel:'var(--blue)', entertainment:'var(--purple)', shopping:'var(--coral)', other:'var(--text-soft)', income:'var(--emerald)' };
-const BUILTIN_EXPENSE_CATS = ['food', 'travel', 'entertainment', 'shopping'];
+const catColor = {
+  food:'var(--amber)', travel:'var(--blue)', entertainment:'var(--purple)', shopping:'var(--coral)', other:'var(--text-soft)',
+  income:'var(--emerald)', allowance:'var(--emerald)', salary:'var(--blue)', parttime:'var(--amber)', scholarship:'var(--purple)', sales:'var(--coral)'
+};
+// หมวดหมู่มาตรฐานของแต่ละประเภท (อันแรกคือค่าที่เลือกไว้ตอนเริ่ม)
+const BUILTIN_CATS = {
+  expense: ['food', 'travel', 'entertainment', 'shopping'],
+  income: ['allowance', 'salary', 'parttime', 'scholarship', 'sales']
+};
 
 // ชื่อที่แสดงของหมวดหมู่: หมวดมาตรฐานแปลตามภาษา หมวดที่ผู้ใช้สร้างเองใช้ชื่อตามที่ตั้ง
 function catName(c){ return catLabel[c] ? t(catLabel[c]) : c; }
@@ -1223,7 +1240,7 @@ function applyI18n(){
     if (translations[key]) el.textContent = translations[key][lang];
   });
   renderAll();
-  renderCatGrid();
+  setType(modalType);
   renderThemePicker();
 }
 document.getElementById('langToggle').addEventListener('click', () => {
@@ -1667,7 +1684,8 @@ window.addEventListener('resize', () => {
 
 /* ===================== add-transaction modal ===================== */
 let modalType = 'expense';
-let modalCat = 'food';
+// หมวดที่เลือกไว้ของแต่ละประเภท สลับแท็บรายจ่าย/รายรับแล้วยังจำอันที่เลือกไว้
+const modalCats = { expense: BUILTIN_CATS.expense[0], income: BUILTIN_CATS.income[0] };
 const overlay = document.getElementById('modalOverlay');
 function openModal(){
   document.getElementById('txDate').value = new Date().toISOString().slice(0,10);
@@ -1691,7 +1709,9 @@ function setType(tp){
   modalType = tp;
   document.getElementById('typeExp').classList.toggle('active', tp === 'expense');
   document.getElementById('typeInc').classList.toggle('active', tp === 'income');
-  document.getElementById('catGrid').style.display = tp === 'income' ? 'none' : 'grid';
+  document.getElementById('txTitle').placeholder = t(tp === 'income' ? 'ph_income' : 'ph_expense');
+  addingCat = false;
+  renderCatGrid();
 }
 document.getElementById('typeExp').addEventListener('click', () => setType('expense'));
 document.getElementById('typeInc').addEventListener('click', () => setType('income'));
@@ -1704,14 +1724,14 @@ let catChips = [];
 
 function renderCatGrid(){
   catChips = [
-    ...BUILTIN_EXPENSE_CATS.map(k => ({ key:k })),
-    ...state.customCats.map(c => ({ key:c.name, id:c.id }))
+    ...BUILTIN_CATS[modalType].map(k => ({ key:k })),
+    ...state.customCats.filter(c => (c.type || 'expense') === modalType).map(c => ({ key:c.name, id:c.id }))
   ];
-  if(!catChips.some(c => c.key === modalCat)) modalCat = 'food';
+  if(!catChips.some(c => c.key === modalCats[modalType])) modalCats[modalType] = BUILTIN_CATS[modalType][0];
   catGrid.innerHTML = catChips.map((c, i) => {
     const label = escapeHtml(catName(c.key));
     const del = c.id ? `<span class="del" data-idx="${i}" title="${t('cat_delete')}">✕</span>` : '';
-    return `<button type="button" class="${c.key === modalCat ? 'active' : ''} ${c.id ? 'custom' : ''}" data-idx="${i}">${label}${del}</button>`;
+    return `<button type="button" class="${c.key === modalCats[modalType] ? 'active' : ''} ${c.id ? 'custom' : ''}" data-idx="${i}">${label}${del}</button>`;
   }).join('') + (addingCat
     ? `<input class="cat-input" id="catInput" maxlength="20" placeholder="${t('cat_placeholder')}">`
     : `<button type="button" class="add" id="catAddBtn" title="${t('cat_add')}" aria-label="${t('cat_add')}">+</button>`);
@@ -1729,10 +1749,11 @@ function renderCatGrid(){
 
 async function saveNewCategory(raw){
   if(catSaving) return;
+  const type = modalType;
   const name = raw.trim();
   const existing = catChips.find(c => catName(c.key).toLowerCase() === name.toLowerCase());
   if(!name || existing){
-    if(existing) modalCat = existing.key;
+    if(existing) modalCats[type] = existing.key;
     addingCat = false;
     renderCatGrid();
     return;
@@ -1742,12 +1763,12 @@ async function saveNewCategory(raw){
     const res = await fetch('/api/categories', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ name })
+      body: JSON.stringify({ name, type })
     });
     const data = await res.json();
     if(!res.ok){ showToast(data.error || t('toast_error'), true); return; }
     if(!state.customCats.some(c => c.id === data.category.id)) state.customCats.push(data.category);
-    modalCat = data.category.name;
+    modalCats[type] = data.category.name;
     addingCat = false;
     renderCatGrid();
     showToast(t('toast_cat_added'), false);
@@ -1782,11 +1803,11 @@ catGrid.addEventListener('click', (e) => {
   if(e.target.closest('#catAddBtn')){ addingCat = true; renderCatGrid(); return; }
   const btn = e.target.closest('button[data-idx]');
   if(btn){
-    modalCat = catChips[+btn.dataset.idx].key;
+    modalCats[modalType] = catChips[+btn.dataset.idx].key;
     catGrid.querySelectorAll('button[data-idx]').forEach(b => b.classList.toggle('active', b === btn));
   }
 });
-renderCatGrid();
+setType(modalType);
 
 document.getElementById('btnSave').addEventListener('click', async () => {
   const amt = parseFloat(document.getElementById('txAmount').value);
@@ -1801,8 +1822,8 @@ document.getElementById('btnSave').addEventListener('click', async () => {
 
   const payload = {
     type: modalType,
-    cat: modalType === 'income' ? 'income' : modalCat,
-    title: title || catName(modalType === 'income' ? 'income' : modalCat),
+    cat: modalCats[modalType],
+    title: title || catName(modalCats[modalType]),
     amount: amt,
     date: date.toISOString()
   };
