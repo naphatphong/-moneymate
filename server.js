@@ -197,8 +197,13 @@ function mailSetupProblems() {
 }
 
 // เช็คจาก IP ที่ต่อเข้ามาจริง (ปลอมผ่าน header ไม่ได้) — จริงเฉพาะตอนเปิดเว็บจากเครื่องตัวเอง
+// ต้องเช็คทั้ง IP และชื่อโฮสต์: บน Render คำขอจาก proxy ก็มาจาก 127.0.0.1 เหมือนกัน
+// ถ้าเช็คแค่ IP จะคิดว่าเป็น localhost แล้วสร้าง redirect URI เป็น http://<โดเมน Render> (Google ตอบ redirect_uri_mismatch)
+const LOCAL_HOSTNAMES = ['localhost', '127.0.0.1', '[::1]', '::1'];
 function isLocalRequest(req) {
-  return ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
+  const fromLoopback = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
+  const host = String(req.get('host') || '').toLowerCase().replace(/:\d+$/, '');
+  return fromLoopback && LOCAL_HOSTNAMES.includes(host);
 }
 
 // ซ่อนอีเมลบางส่วนใน log เช่น mi***@example.com
