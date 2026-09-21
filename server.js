@@ -12,6 +12,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const isProduction = process.env.NODE_ENV === 'production';
 
+// หมวดหมู่รายจ่ายมาตรฐาน และความยาวสูงสุดของชื่อหมวดหมู่ที่ผู้ใช้สร้างเอง
+const MAX_CATEGORY_LENGTH = 20;
+const BUILTIN_CATEGORIES = ['food', 'travel', 'entertainment', 'shopping', 'other', 'income'];
+
 // เมื่อรันหลัง reverse proxy ของโฮสติ้ง (เช่น Render) ต้อง trust proxy
 // เพื่อให้ secure cookie ทำงานถูกต้องผ่าน HTTPS
 if (isProduction) {
@@ -208,10 +212,11 @@ app.post('/api/transactions', requireLogin, async (req, res) => {
       return res.status(400).json({ error: 'วันที่ไม่ถูกต้อง' });
     }
 
+    const expenseCat = typeof cat === 'string' ? cat.trim().slice(0, MAX_CATEGORY_LENGTH) : '';
     const transaction = await db.createTransaction({
       userId: req.session.userId,
       type,
-      cat: type === 'income' ? 'income' : (cat || 'other'),
+      cat: type === 'income' ? 'income' : (expenseCat || 'other'),
       title: (title || '').trim(),
       amount: amt,
       date: txDate
@@ -238,6 +243,55 @@ app.delete('/api/transactions/:id', requireLogin, async (req, res) => {
     }
 
     return res.json({ message: 'ลบรายการแล้ว' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
+// ----- API: หมวดหมู่รายจ่ายที่ผู้ใช้สร้างเอง -----
+
+app.get('/api/categories', requireLogin, async (req, res) => {
+  try {
+    const categories = await db.getCategories(req.session.userId);
+    return res.json({ categories });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
+app.post('/api/categories', requireLogin, async (req, res) => {
+  try {
+    const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+    if (!name) {
+      return res.status(400).json({ error: 'กรุณาระบุชื่อหมวดหมู่' });
+    }
+    if (name.length > MAX_CATEGORY_LENGTH) {
+      return res.status(400).json({ error: `ชื่อหมวดหมู่ยาวได้ไม่เกิน ${MAX_CATEGORY_LENGTH} ตัวอักษร` });
+    }
+    if (BUILTIN_CATEGORIES.includes(name.toLowerCase())) {
+      return res.status(400).json({ error: 'ชื่อนี้ถูกใช้เป็นหมวดหมู่มาตรฐานแล้ว' });
+    }
+    const category = await db.createCategory(req.session.userId, name);
+    return res.status(201).json({ category });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
+app.delete('/api/categories/:id', requireLogin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'รหัสหมวดหมู่ไม่ถูกต้อง' });
+    }
+    const deleted = await db.deleteCategory(id, req.session.userId);
+    if (!deleted) {
+      return res.status(404).json({ error: 'ไม่พบหมวดหมู่นี้' });
+    }
+    return res.json({ message: 'ลบหมวดหมู่แล้ว' });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });

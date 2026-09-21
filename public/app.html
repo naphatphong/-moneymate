@@ -584,6 +584,19 @@
     color:var(--text-soft); font-size:0.78rem; cursor:pointer; transition: all 0.25s var(--spring);
   }
   .cats button.active{ border-color: var(--emerald); color: var(--emerald); background: var(--emerald-dim); transform: scale(1.04); }
+  .cats button.custom{ position:relative; padding-left:18px; padding-right:18px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cats button .del{
+    position:absolute; top:50%; right:5px; transform:translateY(-50%);
+    width:16px; height:16px; border-radius:50%; font-size:0.7rem; line-height:16px;
+    color:var(--text-soft); background:rgba(255,255,255,0.06); opacity:0.7;
+  }
+  .cats button .del:hover{ color:var(--coral); opacity:1; }
+  .cats button.add{ border-style:dashed; font-size:1.1rem; line-height:1; color:var(--emerald); }
+  .cats button.add:hover{ background: var(--emerald-dim); }
+  .cats .cat-input{
+    min-width:0; width:100%; padding:11px 10px; border-radius:12px; border:1px solid var(--emerald);
+    background: rgba(255,255,255,0.04); color:var(--text); font-size:0.78rem; font-family:'Inter'; outline:none;
+  }
   .field{ margin-bottom:16px; }
   .field label{ display:block; font-size:0.78rem; color:var(--text-soft); margin-bottom:6px; }
   .field input{
@@ -869,13 +882,7 @@
       <button class="active exp" id="typeExp" data-i18n="expense">รายจ่าย</button>
       <button id="typeInc" data-i18n="income">รายรับ</button>
     </div>
-    <div class="cats" id="catGrid">
-      <button class="active" data-cat="food" data-i18n="cat_food_short">อาหาร</button>
-      <button data-cat="travel" data-i18n="cat_travel_short">เดินทาง</button>
-      <button data-cat="entertainment" data-i18n="cat_entertainment_short">บันเทิง</button>
-      <button data-cat="shopping" data-i18n="cat_shopping_short">ช้อปปิ้ง</button>
-      <button data-cat="other" data-i18n="cat_other_short">อื่นๆ</button>
-    </div>
+    <div class="cats" id="catGrid"></div>
     <div class="field">
       <label data-i18n="field_title">รายการ</label>
       <input type="text" id="txTitle" placeholder="เช่น ข้าวมันไก่, ค่ารถเมล์">
@@ -1001,11 +1008,27 @@ const translations = {
   kpi_net: { th:"คงเหลือสุทธิ", en:"Net" },
   kpi_rate: { th:"อัตราการออม", en:"Savings rate" },
   kpi_rate_hint: { th:"ของรายได้เดือนนี้", en:"of this month's income" },
-  vs_prev: { th:"จากเดือนก่อน", en:"vs last month" }
+  vs_prev: { th:"จากเดือนก่อน", en:"vs last month" },
+  cat_add: { th:"เพิ่มหมวดหมู่", en:"Add category" },
+  cat_placeholder: { th:"ชื่อหมวดหมู่", en:"Category name" },
+  cat_delete: { th:"ลบหมวดหมู่", en:"Delete category" },
+  toast_cat_added: { th:"เพิ่มหมวดหมู่แล้ว", en:"Category added" },
+  toast_cat_deleted: { th:"ลบหมวดหมู่แล้ว", en:"Category deleted" }
 };
 const catLabel = { food:'cat_food_short', travel:'cat_travel_short', entertainment:'cat_entertainment_short', shopping:'cat_shopping_short', other:'cat_other_short', income:'cat_income' };
 translations.cat_income = { th:"รายรับ", en:"Income" };
 const catColor = { food:'var(--amber)', travel:'var(--blue)', entertainment:'var(--purple)', shopping:'var(--coral)', other:'var(--text-soft)', income:'var(--emerald)' };
+const BUILTIN_EXPENSE_CATS = ['food', 'travel', 'entertainment', 'shopping'];
+
+// ชื่อที่แสดงของหมวดหมู่: หมวดมาตรฐานแปลตามภาษา หมวดที่ผู้ใช้สร้างเองใช้ชื่อตามที่ตั้ง
+function catName(c){ return catLabel[c] ? t(catLabel[c]) : c; }
+// สีของหมวดหมู่: หมวดที่ผู้ใช้สร้างเองได้สีคงที่จากชื่อ
+function catColorOf(c){
+  if(catColor[c]) return catColor[c];
+  let h = 0;
+  for(const ch of String(c)) h = (h * 31 + ch.codePointAt(0)) % 360;
+  return `hsl(${h}, 55%, 62%)`;
+}
 const monthsTH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 const monthsEN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -1018,6 +1041,7 @@ function applyI18n(){
     if (translations[key]) el.textContent = translations[key][lang];
   });
   renderAll();
+  renderCatGrid();
 }
 document.getElementById('langToggle').addEventListener('click', () => {
   lang = lang === 'th' ? 'en' : 'th';
@@ -1026,7 +1050,7 @@ document.getElementById('langToggle').addEventListener('click', () => {
 });
 
 /* ===================== state ===================== */
-let state = { user:null, openingBalance:0, budget:0, notif:true, txs:[], monthlyBudgets:{} };
+let state = { user:null, openingBalance:0, budget:0, notif:true, txs:[], monthlyBudgets:{}, customCats:[] };
 let reportsDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
 function getBudgetForMonth(year, month0){
@@ -1092,10 +1116,11 @@ async function checkAuthAndEnter(){
 
 async function loadData(){
   try{
-    const [settingsRes, txRes, budgetsRes] = await Promise.all([
+    const [settingsRes, txRes, budgetsRes, catsRes] = await Promise.all([
       fetch('/api/settings'),
       fetch('/api/transactions'),
-      fetch('/api/budgets')
+      fetch('/api/budgets'),
+      fetch('/api/categories')
     ]);
     if(settingsRes.ok){
       const sData = await settingsRes.json();
@@ -1117,6 +1142,11 @@ async function loadData(){
         state.monthlyBudgets[`${row.year}-${row.month - 1}`] = parseFloat(row.budget);
       });
     }
+    if(catsRes.ok){
+      const cData = await catsRes.json();
+      state.customCats = cData.categories;
+    }
+    renderCatGrid();
   }catch(err){
     console.error(err);
     showToast(t('toast_error'), true);
@@ -1348,11 +1378,11 @@ function renderList(elId, txs){
     return;
   }
   el.innerHTML = txs.map((x,i) => {
-    const label = t(catLabel[x.cat] || 'cat_other_short');
+    const label = catName(x.cat);
     const sign = x.type === 'income' ? '+' : '−';
     return `<div class="row" style="animation-delay:${Math.min(i,6)*0.06}s">
-      <div class="dot" style="background:${catColor[x.cat] || 'var(--text-soft)'}"></div>
-      <div class="info"><div class="name">${escapeHtml(x.title || label)}</div><div class="meta">${label} · ${fmtDate(x.date)}</div></div>
+      <div class="dot" style="background:${catColorOf(x.cat)}"></div>
+      <div class="info"><div class="name">${escapeHtml(x.title || label)}</div><div class="meta">${escapeHtml(label)} · ${fmtDate(x.date)}</div></div>
       <div class="amt ${x.type==='income'?'pos':''}">${sign}${fmtMoney(x.amount)}</div>
     </div>`;
   }).join('');
@@ -1373,8 +1403,8 @@ function renderBreakdown(elId, limit, refDate){
   el.innerHTML = cats.map(c => {
     const pct = total > 0 ? Math.round((byCat[c]/total)*100) : 0;
     return `<div class="cat-item">
-      <div class="swatch" style="background:${catColor[c]||'var(--text-soft)'}"></div>
-      <div class="label">${t(catLabel[c] || 'cat_other_short')}</div>
+      <div class="swatch" style="background:${catColorOf(c)}"></div>
+      <div class="label">${escapeHtml(catName(c))}</div>
       <div class="pct">${pct}%</div>
     </div>`;
   }).join('');
@@ -1460,6 +1490,7 @@ function openModal(){
 }
 function closeModal(){
   overlay.classList.remove('open');
+  if(addingCat){ addingCat = false; renderCatGrid(); }
   document.getElementById('txTitle').value = '';
   document.getElementById('txAmount').value = '';
   document.getElementById('txError').style.display = 'none';
@@ -1480,13 +1511,97 @@ function setType(tp){
 document.getElementById('typeExp').addEventListener('click', () => setType('expense'));
 document.getElementById('typeInc').addEventListener('click', () => setType('income'));
 
-document.querySelectorAll('#catGrid button').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('#catGrid button').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    modalCat = btn.dataset.cat;
-  });
+/* ---- category chips: built-in + user-created + "+" to add a new one ---- */
+const catGrid = document.getElementById('catGrid');
+let addingCat = false;
+let catSaving = false;
+let catChips = [];
+
+function renderCatGrid(){
+  catChips = [
+    ...BUILTIN_EXPENSE_CATS.map(k => ({ key:k })),
+    ...state.customCats.map(c => ({ key:c.name, id:c.id }))
+  ];
+  if(!catChips.some(c => c.key === modalCat)) modalCat = 'food';
+  catGrid.innerHTML = catChips.map((c, i) => {
+    const label = escapeHtml(catName(c.key));
+    const del = c.id ? `<span class="del" data-idx="${i}" title="${t('cat_delete')}">✕</span>` : '';
+    return `<button type="button" class="${c.key === modalCat ? 'active' : ''} ${c.id ? 'custom' : ''}" data-idx="${i}">${label}${del}</button>`;
+  }).join('') + (addingCat
+    ? `<input class="cat-input" id="catInput" maxlength="20" placeholder="${t('cat_placeholder')}">`
+    : `<button type="button" class="add" id="catAddBtn" title="${t('cat_add')}" aria-label="${t('cat_add')}">+</button>`);
+
+  if(addingCat){
+    const input = document.getElementById('catInput');
+    input.focus();
+    input.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter'){ e.preventDefault(); saveNewCategory(input.value); }
+      if(e.key === 'Escape'){ addingCat = false; renderCatGrid(); }
+    });
+    input.addEventListener('blur', () => { if(addingCat) saveNewCategory(input.value); });
+  }
+}
+
+async function saveNewCategory(raw){
+  if(catSaving) return;
+  const name = raw.trim();
+  const existing = catChips.find(c => catName(c.key).toLowerCase() === name.toLowerCase());
+  if(!name || existing){
+    if(existing) modalCat = existing.key;
+    addingCat = false;
+    renderCatGrid();
+    return;
+  }
+  catSaving = true;
+  try{
+    const res = await fetch('/api/categories', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name })
+    });
+    const data = await res.json();
+    if(!res.ok){ showToast(data.error || t('toast_error'), true); return; }
+    if(!state.customCats.some(c => c.id === data.category.id)) state.customCats.push(data.category);
+    modalCat = data.category.name;
+    addingCat = false;
+    renderCatGrid();
+    showToast(t('toast_cat_added'), false);
+  }catch(err){
+    console.error(err);
+    showToast(t('toast_error'), true);
+  }finally{
+    catSaving = false;
+  }
+}
+
+async function deleteCategory(cat){
+  try{
+    const res = await fetch('/api/categories/' + cat.id, { method:'DELETE' });
+    if(!res.ok){
+      const data = await res.json().catch(() => ({}));
+      showToast(data.error || t('toast_error'), true);
+      return;
+    }
+    state.customCats = state.customCats.filter(c => c.id !== cat.id);
+    renderCatGrid();
+    showToast(t('toast_cat_deleted'), false);
+  }catch(err){
+    console.error(err);
+    showToast(t('toast_error'), true);
+  }
+}
+
+catGrid.addEventListener('click', (e) => {
+  const del = e.target.closest('.del');
+  if(del){ deleteCategory(catChips[+del.dataset.idx]); return; }
+  if(e.target.closest('#catAddBtn')){ addingCat = true; renderCatGrid(); return; }
+  const btn = e.target.closest('button[data-idx]');
+  if(btn){
+    modalCat = catChips[+btn.dataset.idx].key;
+    catGrid.querySelectorAll('button[data-idx]').forEach(b => b.classList.toggle('active', b === btn));
+  }
 });
+renderCatGrid();
 
 document.getElementById('btnSave').addEventListener('click', async () => {
   const amt = parseFloat(document.getElementById('txAmount').value);
@@ -1502,7 +1617,7 @@ document.getElementById('btnSave').addEventListener('click', async () => {
   const payload = {
     type: modalType,
     cat: modalType === 'income' ? 'income' : modalCat,
-    title: title || t(catLabel[modalType === 'income' ? 'income' : modalCat]),
+    title: title || catName(modalType === 'income' ? 'income' : modalCat),
     amount: amt,
     date: date.toISOString()
   };

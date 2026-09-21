@@ -76,6 +76,17 @@ async function init() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+
+  // ตารางหมวดหมู่รายจ่ายที่ผู้ใช้สร้างเอง (นอกเหนือจากหมวดหมู่มาตรฐาน)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_categories (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(user_id, name)
+    )
+  `);
 }
 
 // ตรวจสอบว่ามี username หรือ email นี้ในระบบแล้วหรือยัง
@@ -136,6 +147,37 @@ async function createTransaction({ userId, type, cat, title, amount, date }) {
 async function deleteTransaction(id, userId) {
   const { rows } = await pool.query(
     'DELETE FROM transactions WHERE id = $1 AND user_id = $2 RETURNING id',
+    [id, userId]
+  );
+  return rows.length > 0;
+}
+
+// ----- หมวดหมู่ที่ผู้ใช้สร้างเอง -----
+
+// ดึงหมวดหมู่ที่ผู้ใช้สร้างไว้ (เรียงตามลำดับที่สร้าง)
+async function getCategories(userId) {
+  const { rows } = await pool.query(
+    'SELECT id, name FROM user_categories WHERE user_id = $1 ORDER BY id',
+    [userId]
+  );
+  return rows;
+}
+
+// เพิ่มหมวดหมู่ใหม่ (ถ้ามีชื่อนี้อยู่แล้วจะคืนค่าตัวเดิม)
+async function createCategory(userId, name) {
+  const { rows } = await pool.query(
+    `INSERT INTO user_categories (user_id, name) VALUES ($1, $2)
+     ON CONFLICT (user_id, name) DO UPDATE SET name = EXCLUDED.name
+     RETURNING id, name`,
+    [userId, name]
+  );
+  return rows[0];
+}
+
+// ลบหมวดหมู่ (รายการที่เคยบันทึกด้วยหมวดนี้ยังอยู่ครบ)
+async function deleteCategory(id, userId) {
+  const { rows } = await pool.query(
+    'DELETE FROM user_categories WHERE id = $1 AND user_id = $2 RETURNING id',
     [id, userId]
   );
   return rows.length > 0;
@@ -354,6 +396,9 @@ module.exports = {
   getTransactions,
   createTransaction,
   deleteTransaction,
+  getCategories,
+  createCategory,
+  deleteCategory,
   getSettings,
   updateSettings,
   getBudgets,

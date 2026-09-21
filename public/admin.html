@@ -488,7 +488,7 @@ function renderCategoryBars(categories){
   const max = Math.max(...categories.map(c => parseFloat(c.total)), 1);
   el.innerHTML = categories.slice(0,6).map(c => `
     <div class="cat-bar-row">
-      <div class="cname">${catLabel[c.cat] || c.cat}</div>
+      <div class="cname">${catLabel[c.cat] || escapeHtml(c.cat)}</div>
       <div class="track"><div class="fill" data-w="${Math.round((parseFloat(c.total)/max)*100)}" style="background:${catColor[c.cat]||'#8FA39B'}"></div></div>
       <div class="val">฿${fmtMoney(c.total)}</div>
     </div>
