@@ -104,6 +104,25 @@ async function init() {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_user_categories_user_type_name ON user_categories(user_id, type, name)
   `);
 
+  // แผนการเงินล่วงหน้า: รายรับ/รายจ่ายที่คาดไว้ (ทุกวัน / ทุกสัปดาห์ / ทุกเดือน / ครั้งเดียว)
+  //   day     = วันที่ของเดือน (1-31) สำหรับรายเดือน หรือวันในสัปดาห์ (0 = อาทิตย์) สำหรับรายสัปดาห์
+  //   on_date = วันที่ 'YYYY-MM-DD' สำหรับรายการครั้งเดียว (เก็บเป็นข้อความ ไม่ให้เลื่อนตามเขตเวลา)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS plan_items (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+      name TEXT NOT NULL,
+      amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
+      freq TEXT NOT NULL CHECK (freq IN ('daily', 'weekly', 'monthly', 'once')),
+      day INTEGER,
+      on_date TEXT,
+      cat TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_plan_items_user ON plan_items(user_id)`);
+
   // โทเค็นรีเซ็ตรหัสผ่าน (เก็บเฉพาะค่า hash ของโทเค็น ไม่เก็บตัวจริง)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS password_resets (
@@ -319,6 +338,52 @@ async function createCategory(userId, type, name) {
 async function deleteCategory(id, userId) {
   const { rows } = await pool.query(
     'DELETE FROM user_categories WHERE id = $1 AND user_id = $2 RETURNING id',
+    [id, userId]
+  );
+  return rows.length > 0;
+}
+
+// ----- แผนการเงินล่วงหน้า -----
+
+const PLAN_COLUMNS = 'id, type, name, amount, freq, day, on_date, cat';
+
+async function getPlanItems(userId) {
+  const { rows } = await pool.query(
+    `SELECT ${PLAN_COLUMNS} FROM plan_items WHERE user_id = $1 ORDER BY id`,
+    [userId]
+  );
+  return rows;
+}
+
+async function countPlanItems(userId) {
+  const { rows } = await pool.query('SELECT COUNT(*)::int AS n FROM plan_items WHERE user_id = $1', [userId]);
+  return rows[0].n;
+}
+
+async function createPlanItem(userId, p) {
+  const { rows } = await pool.query(
+    `INSERT INTO plan_items (user_id, type, name, amount, freq, day, on_date, cat)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     RETURNING ${PLAN_COLUMNS}`,
+    [userId, p.type, p.name, p.amount, p.freq, p.day, p.onDate, p.cat]
+  );
+  return rows[0];
+}
+
+// แก้ไขได้เฉพาะรายการของผู้ใช้คนนั้น — คืน null ถ้าไม่พบ
+async function updatePlanItem(id, userId, p) {
+  const { rows } = await pool.query(
+    `UPDATE plan_items SET type = $3, name = $4, amount = $5, freq = $6, day = $7, on_date = $8, cat = $9
+     WHERE id = $1 AND user_id = $2
+     RETURNING ${PLAN_COLUMNS}`,
+    [id, userId, p.type, p.name, p.amount, p.freq, p.day, p.onDate, p.cat]
+  );
+  return rows[0] || null;
+}
+
+async function deletePlanItem(id, userId) {
+  const { rows } = await pool.query(
+    'DELETE FROM plan_items WHERE id = $1 AND user_id = $2 RETURNING id',
     [id, userId]
   );
   return rows.length > 0;
@@ -554,6 +619,11 @@ module.exports = {
   getCategories,
   createCategory,
   deleteCategory,
+  getPlanItems,
+  countPlanItems,
+  createPlanItem,
+  updatePlanItem,
+  deletePlanItem,
   getSettings,
   updateSettings,
   getBudgets,

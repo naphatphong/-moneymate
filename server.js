@@ -575,6 +575,90 @@ app.post('/api/categories', requireLogin, async (req, res) => {
   }
 });
 
+// ----- API: แผนการเงินล่วงหน้า -----
+const MAX_PLAN_ITEMS = 100;
+const MAX_PLAN_NAME = 40;
+
+// ตรวจและแปลงข้อมูลรายการในแผน คืน { error } ถ้าไม่ถูกต้อง
+function parsePlanItem(body) {
+  const type = body.type;
+  if (type !== 'income' && type !== 'expense') return { error: 'ประเภทรายการไม่ถูกต้อง' };
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  if (!name) return { error: 'กรุณาระบุชื่อรายการ' };
+  if (name.length > MAX_PLAN_NAME) return { error: `ชื่อรายการยาวได้ไม่เกิน ${MAX_PLAN_NAME} ตัวอักษร` };
+  const amount = Math.round(parseFloat(body.amount) * 100) / 100;
+  if (!isFinite(amount) || amount <= 0 || amount >= 1e10) return { error: 'กรุณาระบุจำนวนเงินให้ถูกต้อง' };
+  const freq = body.freq;
+  if (!['daily', 'weekly', 'monthly', 'once'].includes(freq)) return { error: 'ความถี่ไม่ถูกต้อง' };
+  let day = null, onDate = null;
+  if (freq === 'monthly' || freq === 'weekly') {
+    day = parseInt(body.day, 10);
+    const [lo, hi] = freq === 'monthly' ? [1, 31] : [0, 6];
+    if (isNaN(day) || day < lo || day > hi) return { error: 'วันที่ของรายการไม่ถูกต้อง' };
+  }
+  if (freq === 'once') {
+    onDate = typeof body.onDate === 'string' ? body.onDate : '';
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(onDate);
+    const d = m && new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    if (!d || d.getUTCMonth() !== +m[2] - 1 || d.getUTCDate() !== +m[3]) return { error: 'วันที่ของรายการไม่ถูกต้อง' };
+  }
+  const cat = typeof body.cat === 'string' && body.cat.trim() ? body.cat.trim().slice(0, MAX_CATEGORY_LENGTH) : null;
+  return { item: { type, name, amount, freq, day, onDate, cat } };
+}
+
+app.get('/api/plan', requireLogin, async (req, res) => {
+  try {
+    const items = await db.getPlanItems(req.session.userId);
+    return res.json({ items });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
+app.post('/api/plan', requireLogin, async (req, res) => {
+  try {
+    const { item, error } = parsePlanItem(req.body || {});
+    if (error) return res.status(400).json({ error });
+    if (await db.countPlanItems(req.session.userId) >= MAX_PLAN_ITEMS) {
+      return res.status(400).json({ error: `มีรายการในแผนได้ไม่เกิน ${MAX_PLAN_ITEMS} รายการ` });
+    }
+    const saved = await db.createPlanItem(req.session.userId, item);
+    return res.status(201).json({ item: saved });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
+app.put('/api/plan/:id', requireLogin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'รหัสรายการไม่ถูกต้อง' });
+    const { item, error } = parsePlanItem(req.body || {});
+    if (error) return res.status(400).json({ error });
+    const saved = await db.updatePlanItem(id, req.session.userId, item);
+    if (!saved) return res.status(404).json({ error: 'ไม่พบรายการนี้' });
+    return res.json({ item: saved });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
+app.delete('/api/plan/:id', requireLogin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'รหัสรายการไม่ถูกต้อง' });
+    const deleted = await db.deletePlanItem(id, req.session.userId);
+    if (!deleted) return res.status(404).json({ error: 'ไม่พบรายการนี้' });
+    return res.json({ message: 'ลบรายการแล้ว' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+  }
+});
+
 app.delete('/api/categories/:id', requireLogin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);

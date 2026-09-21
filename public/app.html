@@ -11,6 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/ui.css">
 <link rel="stylesheet" href="css/analytics.css">
+<link rel="stylesheet" href="css/planner.css">
 <style>
   /* ============ APP SHELL ============ */
   #authGate{ position:fixed; inset:0; background:var(--bg); z-index:100; display:flex; align-items:center; justify-content:center; overflow:hidden; }
@@ -438,7 +439,7 @@
 
   /* เลนส์แก้วใต้แท็บที่เลือก — กดค้างแล้วลากได้ ตอนเปลี่ยนแท็บจะยืดหดเหมือนหยดน้ำ */
   .tab-lens{
-    position:absolute; top:5px; bottom:5px; left:5px; width:25%; border-radius:999px; z-index:0;
+    position:absolute; top:5px; bottom:5px; left:5px; width:20%; border-radius:999px; z-index:0;
     background: linear-gradient(180deg, rgba(255,255,255,0.17), rgba(255,255,255,0.07));
     box-shadow:
       inset 1px 1px 1px -0.5px rgba(255,255,255,0.65),
@@ -719,6 +720,10 @@
         <svg viewBox="0 0 24 24"><path d="M4 19V10M12 19V5M20 19v-6"/></svg>
         <span data-i18n="nav_report">รายงาน</span>
       </div>
+      <div class="nitem" data-view="plan">
+        <svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="m9 15 2 2 4-4"/></svg>
+        <span data-i18n="nav_plan">วางแผน</span>
+      </div>
       <div class="nitem" data-view="profile">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c1.2-4 4-6 7-6s5.8 2 7 6"/></svg>
         <span data-i18n="nav_profile">โปรไฟล์</span>
@@ -812,6 +817,13 @@
               <div class="t" data-i18n="expense_month_label">รายจ่ายเดือนนี้</div>
             </div>
             <div class="v" id="expenseMonthVal">฿0</div>
+          </div>
+          <div class="glass panel mini-stat plan-tile" data-goto="plan" role="button" tabindex="0">
+            <div>
+              <div class="eyebrow">Plan</div>
+              <div class="t" id="homePlanText">ดูว่าเดือนนี้เงินพอไหม</div>
+            </div>
+            <div class="v plan-v empty" id="homePlanVal">เริ่มวางแผน</div>
           </div>
         </div>
       </div>
@@ -928,6 +940,15 @@
       </div><!-- /#paneMonthly -->
     </div>
 
+    <!-- ===== PLAN ===== -->
+    <div class="view" id="view-plan">
+      <div class="view-head rpt-head">
+        <h1 class="two-tone"><span data-i18n="nav_plan">วางแผน</span><span class="muted" data-i18n="plan_sub">ดูล่วงหน้าว่าเงินพอใช้ไหม เหลือเท่าไร</span></h1>
+        <button class="btn btn-primary" id="planAddBtn">+ <span data-i18n="plan_add">เพิ่มในแผน</span></button>
+      </div>
+      <div id="planRoot"></div>
+    </div>
+
     <!-- ===== PROFILE ===== -->
     <div class="view" id="view-profile">
       <div class="view-head">
@@ -1005,6 +1026,10 @@
       <svg viewBox="0 0 24 24"><path d="M4 19V10M12 19V5M20 19v-6"/></svg>
       <span data-i18n="nav_report">รายงาน</span>
     </button>
+    <button data-view="plan" aria-label="วางแผน">
+      <svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="m9 15 2 2 4-4"/></svg>
+      <span data-i18n="nav_plan">วางแผน</span>
+    </button>
     <button data-view="profile" aria-label="โปรไฟล์">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c1.2-4 4-6 7-6s5.8 2 7 6"/></svg>
       <span data-i18n="nav_profile">โปรไฟล์</span>
@@ -1049,6 +1074,40 @@
       <button class="cancel" id="btnCancel" data-i18n="cancel">ยกเลิก</button>
       <button class="save" id="btnSave" data-i18n="save">บันทึกรายการ</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="planOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="plModalTitle">
+    <h3 id="plModalTitle">เพิ่มรายการในแผน</h3>
+    <div class="type-switch" id="plType">
+      <button type="button" class="exp active" data-t="expense" data-i18n="expense">รายจ่าย</button>
+      <button type="button" class="inc" data-t="income" data-i18n="income">รายรับ</button>
+    </div>
+    <div class="field">
+      <label for="plName" data-i18n="plan_name">ชื่อรายการ</label>
+      <input type="text" id="plName" maxlength="40" data-i18n-ph="plan_name_ph" placeholder="เช่น ค่าหอ, ค่าเน็ต, ค่ากิน">
+    </div>
+    <div class="field">
+      <label for="plAmount" data-i18n="field_amount">จำนวนเงิน (บาท)</label>
+      <input type="number" id="plAmount" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+    </div>
+    <div class="field">
+      <label data-i18n="plan_freq">ความถี่</label>
+      <div class="pl-freq" id="plFreq">
+        <button type="button" data-f="daily" data-i18n="plan_daily">ทุกวัน</button>
+        <button type="button" data-f="weekly" data-i18n="plan_weekly">ทุกสัปดาห์</button>
+        <button type="button" data-f="monthly" data-i18n="plan_monthly">ทุกเดือน</button>
+        <button type="button" data-f="once" data-i18n="plan_once">ครั้งเดียว</button>
+      </div>
+    </div>
+    <div class="field" id="plWhen"></div>
+    <div class="err" id="plErr"></div>
+    <div class="modal-actions">
+      <button type="button" class="cancel" id="plCancel" data-i18n="cancel">ยกเลิก</button>
+      <button type="button" class="save" id="plSave" data-i18n="save_plan">บันทึก</button>
+    </div>
+    <button type="button" class="pl-del" id="plDelete" hidden data-i18n="plan_delete">ลบออกจากแผน</button>
   </div>
 </div>
 
@@ -1113,6 +1172,7 @@
 <script src="js/motion.js"></script>
 <script src="js/cc.js"></script>
 <script src="js/analytics.js"></script>
+<script src="js/planner.js"></script>
 
 <script>
 /* ===================== i18n ===================== */
@@ -1120,6 +1180,18 @@ const translations = {
   account_tag_short: { th:"บัญชีหลัก", en:"Main account" },
   balance_label: { th:"ยอดเงินคงเหลือ", en:"Current balance" },
   rpt_analytics: { th:"Analytics", en:"Analytics" },
+  nav_plan: { th:"วางแผน", en:"Plan" },
+  plan_sub: { th:"ดูล่วงหน้าว่าเงินพอใช้ไหม เหลือเท่าไร", en:"See ahead whether your money lasts" },
+  plan_add: { th:"เพิ่มในแผน", en:"Add to plan" },
+  plan_name: { th:"ชื่อรายการ", en:"Name" },
+  plan_name_ph: { th:"เช่น ค่าหอ, ค่าเน็ต, ค่ากิน", en:"e.g. Rent, Internet, Food" },
+  plan_freq: { th:"ความถี่", en:"Repeats" },
+  plan_daily: { th:"ทุกวัน", en:"Daily" },
+  plan_weekly: { th:"ทุกสัปดาห์", en:"Weekly" },
+  plan_monthly: { th:"ทุกเดือน", en:"Monthly" },
+  plan_once: { th:"ครั้งเดียว", en:"Once" },
+  save_plan: { th:"บันทึก", en:"Save" },
+  plan_delete: { th:"ลบออกจากแผน", en:"Remove from plan" },
   rpt_monthly: { th:"รายเดือน", en:"Monthly" },
   card_hint: { th:"แตะบัตรเพื่อพลิกดูสรุปเดือนนี้", en:"Tap the card for this month's summary" },
   budget_label: { th:"งบประมาณเดือนนี้", en:"Monthly budget" },
@@ -1276,6 +1348,10 @@ function applyI18n(){
     const key = el.getAttribute('data-i18n');
     if (translations[key]) el.textContent = translations[key][lang];
   });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    const key = el.getAttribute('data-i18n-ph');
+    if (translations[key]) el.placeholder = translations[key][lang];
+  });
   renderAll();
   setType(modalType);
   renderThemePicker();
@@ -1295,7 +1371,7 @@ document.getElementById('langToggle').addEventListener('click', () => {
 });
 
 /* ===================== state ===================== */
-let state = { user:null, openingBalance:0, budget:0, notif:true, txs:[], monthlyBudgets:{}, customCats:[] };
+let state = { user:null, openingBalance:0, budget:0, notif:true, txs:[], monthlyBudgets:{}, customCats:[], plan:[] };
 let reportsDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
 function getBudgetForMonth(year, month0){
@@ -1379,11 +1455,12 @@ async function checkAuthAndEnter(){
 
 async function loadData(){
   try{
-    const [settingsRes, txRes, budgetsRes, catsRes] = await Promise.all([
+    const [settingsRes, txRes, budgetsRes, catsRes, planRes] = await Promise.all([
       fetch('/api/settings'),
       fetch('/api/transactions'),
       fetch('/api/budgets'),
-      fetch('/api/categories')
+      fetch('/api/categories'),
+      fetch('/api/plan').catch(() => null)
     ]);
     if(settingsRes.ok){
       const sData = await settingsRes.json();
@@ -1410,6 +1487,10 @@ async function loadData(){
     if(catsRes.ok){
       const cData = await catsRes.json();
       state.customCats = cData.categories;
+    }
+    if(planRes && planRes.ok){
+      const pData = await planRes.json();
+      state.plan = pData.items;
     }
     renderCatGrid();
   }catch(err){
@@ -1543,6 +1624,8 @@ function renderAll(){
   renderBreakdown('catBreakdown', 5);
   renderReportsView();
   Analytics.render();
+  Planner.render();
+  Planner.homeTile();
   if(document.getElementById('view-reports').classList.contains('active')) Analytics.placePill(rptSwitch, rptSwitch.querySelector('button.active'), false);
 }
 
@@ -1881,6 +1964,7 @@ function goView(view){
   const iconBtn = document.querySelector(`.icon-row button[data-view="${view}"]`);
   if(iconBtn) moveTabLens(iconBtn, true);
   if(view === 'reports') showReportsPane(false);
+  if(view === 'plan') Planner.render();
   if(view === 'home') renderHeatmap();
 }
 document.querySelectorAll('.sidebar .nitem, .sidebar .user').forEach(el => {
@@ -1889,6 +1973,10 @@ document.querySelectorAll('.sidebar .nitem, .sidebar .user').forEach(el => {
 document.querySelectorAll('[data-goto]').forEach(el => {
   el.addEventListener('click', () => goView(el.dataset.goto));
 });
+
+/* ===================== วางแผน ===================== */
+Planner.initEditor();
+document.querySelector('.plan-tile').addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); goView('plan'); } });
 
 /* ===================== แท็บรายงาน: สลับ Analytics / รายเดือน ===================== */
 const rptSwitch = document.getElementById('rptSwitch');
@@ -2057,6 +2145,7 @@ window.addEventListener('resize', () => {
   clearTimeout(revResizeTimer);
   revResizeTimer = setTimeout(() => {
     if(document.getElementById('view-reports').classList.contains('active')) showReportsPane(false);
+    if(document.getElementById('view-plan').classList.contains('active')) Planner.render();
     if(document.getElementById('view-home').classList.contains('active')) renderHeatmap();
   }, 150);
 });
