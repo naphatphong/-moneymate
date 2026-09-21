@@ -10,8 +10,8 @@
   const esc = (s) => escapeHtml(String(s == null ? '' : s));
   const AI = {
     enabled: false, consent: false, paid: false, used: 0, limit: 30,
-    insights: null, insightsLang: null, insightsBusy: false, insightsErr: null,
-    advice: null, adviceKey: null, adviceBusy: false, adviceErr: null,
+    insights: null, insightsChecked: false, insightsBusy: false, insightsErr: null,
+    advice: null, adviceChecked: null, adviceBusy: false, adviceErr: null,
     chat: [], chatBusy: false, plan: null, planBusy: false, planErr: null, added: new Set()
   };
   const MARK = '<span class="ai-mark" aria-hidden="true">AI</span>';
@@ -48,7 +48,12 @@
   const remaining = () => Math.max(0, AI.limit - AI.used);
   const quotaText = () => L(`เหลือ ${remaining()}/${AI.limit} ครั้งวันนี้`, `${remaining()}/${AI.limit} left today`);
   const disclaimer = () => L('คำแนะนำทั่วไปจาก AI อาจคลาดเคลื่อน ไม่ใช่คำแนะนำทางการเงินจากผู้เชี่ยวชาญ', 'General guidance from AI — may be inaccurate and is not professional financial advice');
-  const timeOf = (iso) => new Date(iso).toLocaleTimeString(lang === 'th' ? 'th-TH' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+  // เวลาที่ AI สร้างผล: วันนี้แสดงแค่เวลา วันอื่นแสดงวันที่ด้วย
+  const whenOf = (iso) => {
+    const d = new Date(iso), loc = lang === 'th' ? 'th-TH' : 'en-US';
+    const time = d.toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' });
+    return d.toDateString() === new Date().toDateString() ? time : `${d.toLocaleDateString(loc, { day: 'numeric', month: 'short' })} ${time}`;
+  };
 
   // ข้อความจาก AI → HTML ที่ปลอดภัย (escape ก่อน แล้วค่อยแปลง **ตัวหนา** และรายการ "- ")
   function rich(text) {
@@ -82,55 +87,66 @@
       const res = await fetch('/api/ai/consent', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on }) });
       if (!res.ok) throw new Error('consent');
       AI.consent = on;
-      if (!on) { AI.insights = null; AI.advice = null; AI.adviceKey = null; AI.chat = []; AI.plan = null; }
+      if (!on) { AI.insights = null; AI.insightsChecked = false; AI.insightsErr = null; AI.advice = null; AI.adviceChecked = null; AI.adviceErr = null; AI.chat = []; AI.plan = null; }
       showToast(on ? L('เปิดใช้ผู้ช่วย AI แล้ว', 'AI assistant turned on') : L('ปิดผู้ช่วย AI แล้ว', 'AI assistant turned off'), false);
       renderAll();
-      if (on) { if (insightsVisible()) loadInsights(false); loadAdvice(); }
+      if (on) { if (insightsVisible()) loadSavedInsights(); loadSavedAdvice(); }
     } catch (e) { showToast(L('บันทึกไม่สำเร็จ', 'Could not save'), true); }
   }
   document.addEventListener('click', (e) => { if (e.target.closest('[data-ai-consent]')) setConsent(true); });
 
-  /* ---------- 1) สรุปและคำแนะนำ (Analytics) ---------- */
+  /* ---------- 1) สรุปและคำแนะนำ (Analytics) ----------
+     AI จะวิเคราะห์ใหม่เฉพาะตอนผู้ใช้กดปุ่มเท่านั้น — เปิดหน้า/สลับหน้า/เปลี่ยนภาษา แค่ดึงผลล่าสุดที่เก็บไว้ (ไม่เสียโควตา) */
   function insightsVisible() {
     const slot = $('aiInsightsSlot');
     return slot && !slot.hidden && $('view-reports').classList.contains('active');
   }
-  async function loadInsights(force) {
+  async function loadSavedInsights() {
+    if (!AI.enabled || !AI.consent || AI.insightsChecked || AI.insightsBusy) return;
+    AI.insightsChecked = true;
+    AI.insightsBusy = 'peek'; renderInsights();
+    try { const d = await api('/api/ai/insights', {}); if (!d.none) AI.insights = d; } catch (e) { /* ไม่มีผลเดิมก็แค่แสดงปุ่ม */ }
+    AI.insightsBusy = false; renderInsights();
+  }
+  async function generateInsights() {
     if (!AI.enabled || !AI.consent || AI.insightsBusy) return;
-    AI.insightsBusy = true; AI.insightsErr = null; renderInsights();
-    try {
-      AI.insights = await api('/api/ai/insights', { force: !!force });
-      AI.insightsLang = lang;
-    } catch (e) { AI.insightsErr = e.code === 'consent' ? null : errText(e); }
+    AI.insightsBusy = 'gen'; AI.insightsErr = null; renderInsights();
+    try { AI.insights = await api('/api/ai/insights', { generate: true }); } catch (e) { AI.insightsErr = e.code === 'consent' ? null : errText(e); }
     AI.insightsBusy = false; renderInsights();
   }
   function renderInsights() {
     const slot = $('aiInsightsSlot');
     if (!slot) return;
     if (!AI.enabled) { slot.innerHTML = ''; return; }
-    const head = `<div class="ai-head">${MARK}<div class="ai-ht"><h3>${L('สรุปและคำแนะนำจาก AI', 'AI summary & advice')}</h3><div class="ax-en">AI INSIGHTS${AI.insights && AI.insights.generatedAt ? ' · ' + L('อัปเดต ', 'UPDATED ') + timeOf(AI.insights.generatedAt) : ''}</div></div>
-      ${AI.consent && AI.insights && !AI.insightsBusy ? `<button type="button" class="ai-ghost" id="aiRefresh">${L('สร้างใหม่', 'Refresh')}</button>` : ''}</div>`;
+    const I = AI.insights;
+    const head = `<div class="ai-head">${MARK}<div class="ai-ht"><h3>${L('สรุปและคำแนะนำจาก AI', 'AI summary & advice')}</h3><div class="ax-en">AI INSIGHTS${I && I.generatedAt ? ' · ' + L('วิเคราะห์เมื่อ ', 'ANALYSED ') + whenOf(I.generatedAt) : ''}</div></div>
+      ${AI.consent && I && !AI.insightsBusy ? `<button type="button" class="ai-ghost" id="aiGen" title="${L('ใช้โควตา 1 ครั้ง', 'Uses 1 request')}">${L('วิเคราะห์ใหม่', 'Analyse again')}</button>` : ''}</div>`;
     let body;
     if (!AI.consent) body = consentBlock(false);
-    else if (AI.insightsBusy) body = `<div class="ai-skel"><i style="width:62%"></i><i></i><i style="width:88%"></i><i style="width:74%"></i></div><p class="ai-wait">${L('AI กำลังอ่านข้อมูลของคุณ…', 'AI is reading your numbers…')}</p>`;
-    else if (AI.insightsErr) body = `<p class="ai-err">${esc(AI.insightsErr)}</p><button type="button" class="ai-ghost" id="aiRetry">${L('ลองอีกครั้ง', 'Try again')}</button>`;
-    else if (AI.insights) {
+    else if (AI.insightsBusy === 'gen') body = `<div class="ai-skel"><i style="width:62%"></i><i></i><i style="width:88%"></i><i style="width:74%"></i></div><p class="ai-wait">${L('AI กำลังอ่านข้อมูลของคุณ…', 'AI is reading your numbers…')}</p>`;
+    else if (AI.insightsBusy === 'peek' && !I) body = '<div class="ai-skel"><i style="width:48%"></i></div>';
+    else if (AI.insightsErr && !I) body = `<p class="ai-err">${esc(AI.insightsErr)}</p><button type="button" class="ai-ghost" id="aiGen">${L('ลองอีกครั้ง', 'Try again')}</button>`;
+    else if (I) {
       const tag = { good: ['GOOD', 'good'], warn: ['WATCH', 'warn'], tip: ['TIP', 'tip'] };
-      body = `${AI.insights.headline ? `<p class="ai-headline">${esc(AI.insights.headline)}</p>` : ''}
-        ${AI.insights.summary ? `<p class="ai-summary">${esc(AI.insights.summary)}</p>` : ''}
-        <div class="ai-points">${AI.insights.points.map((p) => `<div class="ai-point"><span class="ai-tag ${tag[p.tone][1]}">${tag[p.tone][0]}</span><div><b>${esc(p.title)}</b><p>${esc(p.detail)}</p></div></div>`).join('')}</div>
+      body = `${AI.insightsErr ? `<p class="ai-err">${esc(AI.insightsErr)}</p>` : ''}
+        ${I.headline ? `<p class="ai-headline">${esc(I.headline)}</p>` : ''}
+        ${I.summary ? `<p class="ai-summary">${esc(I.summary)}</p>` : ''}
+        <div class="ai-points">${I.points.map((p) => `<div class="ai-point"><span class="ai-tag ${tag[p.tone][1]}">${tag[p.tone][0]}</span><div><b>${esc(p.title)}</b><p>${esc(p.detail)}</p></div></div>`).join('')}</div>
+        ${I.lang && I.lang !== lang ? `<p class="ai-note">${L('ผลนี้วิเคราะห์เป็นภาษาอังกฤษ — กด "วิเคราะห์ใหม่" ถ้าต้องการภาษาไทย', 'This was generated in Thai — press "Analyse again" for English')}</p>` : ''}
         <p class="ai-foot">${disclaimer()} · ${quotaText()}</p>`;
-    } else body = `<button type="button" class="btn btn-primary" id="aiRetry">${L('ให้ AI สรุปเดือนนี้', 'Summarise this month')}</button>`;
+    } else {
+      body = `<p class="ai-summary">${L('ให้ AI อ่านตัวเลขของคุณแล้วสรุปสิ่งที่ทำได้ดี สิ่งที่ควรระวัง และคำแนะนำที่ทำได้จริง', 'Let AI read your numbers and summarise what is going well, what to watch, and practical tips.')}</p>
+        <div class="ai-cta"><button type="button" class="btn btn-primary" id="aiGen">${L('ให้ AI วิเคราะห์', 'Analyse with AI')}</button><span>${L('ใช้ 1 ครั้ง', 'Uses 1 request')} · ${quotaText()}</span></div>`;
+    }
     slot.innerHTML = `<section class="glass ai-card">${head}${body}</section>`;
-    const r = $('aiRefresh'); if (r) r.onclick = () => loadInsights(true);
-    const t = $('aiRetry'); if (t) t.onclick = () => loadInsights(false);
+    const g = $('aiGen'); if (g) g.onclick = generateInsights;
   }
   function showInsights() {
     renderInsights();
-    if (AI.enabled && AI.consent && insightsVisible() && !AI.insightsBusy && (!AI.insights || AI.insightsLang !== lang) && !AI.insightsErr) loadInsights(false);
+    if (insightsVisible()) loadSavedInsights();
   }
 
-  /* ---------- 4) คำแนะนำเมื่อใช้เงินใกล้ถึง/เกินงบ (หน้าหลัก) ---------- */
+  /* ---------- 4) คำแนะนำเมื่อใช้เงินใกล้ถึง/เกินงบ (หน้าหลัก) — AI ตอบเมื่อผู้ใช้กดขอเท่านั้น ---------- */
   function budgetState() {
     const now = new Date();
     const budget = getBudgetForMonth(now.getFullYear(), now.getMonth());
@@ -138,15 +154,19 @@
     const level = budget > 0 && spent > budget ? 'over' : budget > 0 && spent >= budget * 0.8 ? 'near' : 'ok';
     const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const daysLeft = dim - now.getDate() + 1;
-    return { level, budget, spent, pct: budget > 0 ? Math.round((spent / budget) * 100) : 0, perDay: Math.max(0, (budget - spent) / daysLeft), daysLeft };
+    return { level, budget, spent, pct: budget > 0 ? Math.round((spent / budget) * 100) : 0, perDay: Math.max(0, (budget - spent) / daysLeft), daysLeft, key: `${now.getFullYear()}-${now.getMonth()}|${level}` };
   }
-  async function loadAdvice() {
+  async function loadSavedAdvice() {
     const b = budgetState();
-    if (!AI.enabled || !AI.consent || b.level === 'ok' || AI.adviceBusy) return;
-    const key = `${new Date().toDateString()}|${b.level}|${lang}`;
-    if (AI.adviceKey === key && (AI.advice || AI.adviceErr)) return;
-    AI.adviceBusy = true; AI.adviceErr = null; AI.adviceKey = key; renderAdvice();
-    try { AI.advice = await api('/api/ai/budget-advice', {}); } catch (e) { AI.advice = null; AI.adviceErr = e.code === 'consent' ? null : errText(e); }
+    if (!AI.enabled || !AI.consent || b.level === 'ok' || AI.adviceBusy || AI.adviceChecked === b.key) return;
+    AI.adviceChecked = b.key;
+    try { const d = await api('/api/ai/budget-advice', {}); AI.advice = d.none || d.level === 'ok' ? null : d; } catch (e) { /* แสดงปุ่มให้กดขอแทน */ }
+    renderAdvice();
+  }
+  async function generateAdvice() {
+    if (!AI.enabled || !AI.consent || AI.adviceBusy) return;
+    AI.adviceBusy = true; AI.adviceErr = null; renderAdvice();
+    try { AI.advice = await api('/api/ai/budget-advice', { generate: true }); } catch (e) { AI.adviceErr = e.code === 'consent' ? null : errText(e); }
     AI.adviceBusy = false; renderAdvice();
   }
   function renderAdvice() {
@@ -158,16 +178,23 @@
     const rule = over
       ? L(`เดือนนี้ใช้ไป ${fmtMoneyShort(b.spent)} เกินงบ ${fmtMoneyShort(b.spent - b.budget)} แล้ว`, `You've spent ${fmtMoneyShort(b.spent)} — ${fmtMoneyShort(b.spent - b.budget)} over budget`)
       : L(`ใช้ไป ${b.pct}% ของงบแล้ว เหลือใช้ได้อีกประมาณวันละ ${fmtMoneyShort(b.perDay)} (${b.daysLeft} วัน)`, `${b.pct}% of budget used — about ${fmtMoneyShort(b.perDay)}/day left for ${b.daysLeft} days`);
+    const A = AI.advice && AI.advice.level === b.level && AI.advice.message ? AI.advice : null;
     let body;
     if (!AI.consent) body = `<p class="ai-summary">${rule}</p>${consentBlock(true)}`;
     else if (AI.adviceBusy) body = `<p class="ai-summary">${rule}</p><div class="ai-skel"><i style="width:80%"></i><i style="width:64%"></i></div>`;
-    else if (AI.advice && AI.advice.message) {
-      body = `<p class="ai-summary">${esc(AI.advice.message)}</p>${AI.advice.tips.length ? `<ul class="ai-tips">${AI.advice.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}<p class="ai-foot">${disclaimer()}</p>`;
-    } else body = `<p class="ai-summary">${rule}</p>${AI.adviceErr ? `<p class="ai-err">${esc(AI.adviceErr)}</p>` : ''}`;
+    else if (A) {
+      body = `<p class="ai-summary">${esc(A.message)}</p>${A.tips.length ? `<ul class="ai-tips">${A.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
+        ${AI.adviceErr ? `<p class="ai-err">${esc(AI.adviceErr)}</p>` : ''}
+        <div class="ai-cta"><button type="button" class="ai-ghost" id="aiAdviceGen">${L('ขอคำแนะนำใหม่', 'New advice')}</button><span>${L('แนะนำเมื่อ ', 'Given ')}${whenOf(A.generatedAt)} · ${disclaimer()}</span></div>`;
+    } else {
+      body = `<p class="ai-summary">${rule}</p>${AI.adviceErr ? `<p class="ai-err">${esc(AI.adviceErr)}</p>` : ''}
+        <div class="ai-cta"><button type="button" class="btn btn-primary" id="aiAdviceGen">${L('ขอคำแนะนำจาก AI', 'Get AI advice')}</button><span>${L('ใช้ 1 ครั้ง', 'Uses 1 request')} · ${quotaText()}</span></div>`;
+    }
     slot.innerHTML = `<section class="glass ai-card ai-budget ${b.level}">
-      <div class="ai-head">${MARK}<div class="ai-ht"><h3>${over ? L('ใช้เกินงบแล้ว — คำแนะนำจาก AI', 'Over budget — AI advice') : L('ใกล้ถึงงบแล้ว — คำแนะนำจาก AI', 'Close to budget — AI advice')}</h3><div class="ax-en">BUDGET ADVICE</div></div>
+      <div class="ai-head">${MARK}<div class="ai-ht"><h3>${over ? L('ใช้เกินงบแล้ว', 'Over budget') : L('ใกล้ถึงงบแล้ว', 'Close to budget')}</h3><div class="ax-en">BUDGET ADVICE</div></div>
         <span class="ax-chip ${over ? 'down' : 'warn'}">${b.pct}%</span></div>
       <div class="ai-meter"><i style="width:${Math.min(100, b.pct)}%"></i></div>${body}</section>`;
+    const g = $('aiAdviceGen'); if (g) g.onclick = generateAdvice;
   }
 
   /* ---------- 2) แชท ---------- */
@@ -350,13 +377,13 @@
     if (btn) btn.onclick = openChat;
     $('aiSwitch').onclick = () => setConsent(!AI.consent);
     renderAll();
-    loadAdvice();
+    loadSavedAdvice();
   }
   // เรียกทุกครั้งที่ข้อมูลหรือภาษาเปลี่ยน
   function refresh() {
     if (!AI.enabled) return;
     renderAll();
-    loadAdvice();
+    loadSavedAdvice();
   }
 
   window.AIAssist = { init, refresh, showInsights, renderPlan, openChat };

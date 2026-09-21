@@ -732,15 +732,17 @@ app.put('/api/ai/consent', requireLogin, async (req, res) => {
   }
 });
 
-// สรุปและคำแนะนำประจำเดือน — เก็บผลไว้ทั้งวัน กด "สร้างใหม่" (force) ถึงจะเรียก AI อีกครั้ง
+// สรุปและคำแนะนำประจำเดือน
+// เรียก AI เฉพาะเมื่อผู้ใช้กดปุ่ม (generate: true) — ไม่งั้นคืนผลล่าสุดที่เก็บไว้ (ไม่เสียโควตา ไม่ว่าจะของวันไหน/ภาษาไหน)
 app.post('/api/ai/insights', requireLogin, async (req, res) => {
   try {
     const lang = aiLang(req), key = `${aiDay(req)}|${lang}`;
-    if (!req.body.force) {
+    if (!req.body.generate) {
       const gate = await aiGate(req, res, { countsQuota: false });
       if (gate === null) return;
       const cached = await db.getAiCache(req.session.userId, 'insights');
-      if (cached && cached.cache_key === key) return res.json({ ...JSON.parse(cached.payload), cached: true, used: gate, limit: ai.dailyLimit() });
+      if (!cached) return res.json({ none: true, used: gate, limit: ai.dailyLimit() });
+      return res.json({ ...JSON.parse(cached.payload), cached: true, used: gate, limit: ai.dailyLimit() });
     }
     const gate = await aiGate(req, res);
     if (gate === null) return;
@@ -752,7 +754,7 @@ app.post('/api/ai/insights', requireLogin, async (req, res) => {
     const points = (Array.isArray(result.points) ? result.points : []).slice(0, 5)
       .map((p) => ({ tone: ['good', 'warn', 'tip'].includes(p && p.tone) ? p.tone : 'tip', title: clip(p && p.title, 90), detail: clip(p && p.detail, 360) }))
       .filter((p) => p.title || p.detail);
-    const payload = { headline: clip(result.headline, 160), summary: clip(result.summary, 700), points, generatedAt: new Date().toISOString() };
+    const payload = { headline: clip(result.headline, 160), summary: clip(result.summary, 700), points, lang, generatedAt: new Date().toISOString() };
     if (!payload.headline && !payload.summary && !points.length) throw new ai.AiError('empty', 'empty insights');
     await db.setAiCache(req.session.userId, 'insights', key, payload);
     return res.json({ ...payload, cached: false, used, limit: ai.dailyLimit() });
@@ -762,6 +764,7 @@ app.post('/api/ai/insights', requireLogin, async (req, res) => {
 });
 
 // คำแนะนำเมื่อใช้เงินใกล้ถึงงบ (80% ขึ้นไป) หรือเกินงบ — ไม่ถึงเกณฑ์ก็ไม่เรียก AI
+// เรียก AI เฉพาะเมื่อผู้ใช้กดปุ่ม (generate: true) — ไม่งั้นคืนคำแนะนำล่าสุดของเดือนนี้ที่ระดับเดียวกัน
 app.post('/api/ai/budget-advice', requireLogin, async (req, res) => {
   try {
     const gate0 = await aiGate(req, res, { countsQuota: false });
@@ -770,9 +773,12 @@ app.post('/api/ai/budget-advice', requireLogin, async (req, res) => {
     const m = ctx.this_month;
     const level = m.budget > 0 && m.spent > m.budget ? 'over' : m.budget > 0 && m.spent >= m.budget * 0.8 ? 'near' : 'ok';
     if (level === 'ok') return res.json({ level });
-    const lang = aiLang(req), key = `${aiDay(req)}|${level}|${lang}`;
-    const cached = await db.getAiCache(req.session.userId, 'budget');
-    if (cached && cached.cache_key === key) return res.json({ ...JSON.parse(cached.payload), cached: true, used: gate0, limit: ai.dailyLimit() });
+    const lang = aiLang(req), key = `${m.month}|${level}`;
+    if (!req.body.generate) {
+      const cached = await db.getAiCache(req.session.userId, 'budget');
+      if (cached && cached.cache_key === key) return res.json({ ...JSON.parse(cached.payload), cached: true, used: gate0, limit: ai.dailyLimit() });
+      return res.json({ level, none: true, used: gate0, limit: ai.dailyLimit() });
+    }
     const gate = await aiGate(req, res);
     if (gate === null) return;
     const task = lang === 'en'
@@ -780,7 +786,7 @@ app.post('/api/ai/budget-advice', requireLogin, async (req, res) => {
       : `เดือนนี้ฉันใช้เงิน${level === 'over' ? 'เกินงบแล้ว' : 'ใกล้ถึงงบแล้ว'} ช่วยแนะนำแบบใจเย็นและทำได้จริงสำหรับวันที่เหลือของเดือน ตอบเป็น JSON: {"message": 1-2 ประโยค (ตอนนี้อยู่ตรงไหน ใช้ได้อีกประมาณวันละเท่าไร หรือเกินไปเท่าไร), "tips": [3 ข้อสั้นๆ เจาะจงตามหมวดที่ฉันใช้]}`;
     const { result, used } = await aiCall(req, { system: ai.systemPrompt(lang, ctx), messages: [{ role: 'user', text: task }], json: true, temperature: 0.5, maxTokens: 1200 });
     const payload = {
-      level, spent: m.spent, budget: m.budget,
+      level, spent: m.spent, budget: m.budget, lang,
       message: clip(result.message, 400),
       tips: (Array.isArray(result.tips) ? result.tips : []).map((x) => clip(x, 200)).filter(Boolean).slice(0, 3),
       generatedAt: new Date().toISOString()
