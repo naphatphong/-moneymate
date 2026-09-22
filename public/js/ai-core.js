@@ -1,7 +1,9 @@
 /* ai-core.js — "แกน AI" ทำจากอนุภาค (canvas 2D) ใช้ในหน้าแรก
    const core = AICore.mount(canvas, { shapes: ['sphere', 'bars'], count: 1000 });
    core.set(p)  — p = 0 คือรูปแรก, 1 คือรูปที่สอง ... (ทศนิยมได้ ใช้เปลี่ยนรูปตามการเลื่อน)
-   - หมุนและเอียงตามเมาส์ อนุภาคหลบเคอร์เซอร์
+   - ลูกบอลหมุนเอง / รูปแบน (กราฟ เกจ แชท) หันหน้าเข้าจอเสมอ
+   - ลากเพื่อหมุนได้ทั้งเมาส์และนิ้ว (ปล่อยแล้วหมุนต่อด้วยแรงเฉื่อย รูปแบนค่อย ๆ หันกลับมาตรง)
+   - เอียงตามเมาส์เล็กน้อย อนุภาคหลบเคอร์เซอร์
    - หยุดวาดเมื่อไม่อยู่บนจอ / แท็บถูกซ่อน และวาดภาพนิ่งเมื่อผู้ใช้ตั้งค่า "ลดการเคลื่อนไหว"
    รูปทรงที่มี: sphere, cloud, bars, calendar, gauge, bubble */
 (function () {
@@ -151,6 +153,9 @@
     const ctx = canvas.getContext('2d');
     let W = 0, H = 0, dpr = 1, prog = 0, target = 0, running = false, visible = false, raf = 0, frameN = 0, spin = 0, last = 0;
     const mouse = { x: -1e5, y: -1e5, nx: 0, ny: 0, tx: 0, ty: 0 };
+    // การลากหมุน: yaw/pitch ที่ผู้ใช้หมุนเอง + ความเร็วสำหรับแรงเฉื่อย
+    const drag = { on: false, id: null, x: 0, y: 0, t: 0, yaw: 0, pitch: 0, vy: 0, vp: 0 };
+    const TAU = Math.PI * 2;
     let base = [255, 255, 255], hi = [47, 191, 143], light = false;
 
     function readColors() {
@@ -178,8 +183,20 @@
       mouse.ny += (mouse.ty - mouse.ny) * Math.min(1, dt * 3);
       const i0 = Math.min(shapes.length - 1, Math.floor(prog)), i1 = Math.min(shapes.length - 1, i0 + 1), t = shapes.length > 1 ? prog - i0 : 0;
       const spinW = spins[i0] * (1 - t) + spins[i1] * t;
-      if (!still) spin += dt * 0.32 * spinW;
-      const ry = spin + mouse.nx * 0.55, rx = -mouse.ny * 0.4 + 0.22 * spinW;
+      if (!still) {
+        // ลูกบอลหมุนเอง; พอเปลี่ยนเป็นรูปแบน มุมหมุนค่อย ๆ คืนสู่ด้านหน้า (รอบที่ใกล้สุด) ไม่ค้างเอียงข้าง
+        if (!drag.on) spin += dt * 0.32 * spinW;
+        const flat = 1 - spinW;
+        spin += (Math.round(spin / TAU) * TAU - spin) * Math.min(1, dt * 4 * flat);
+        if (!drag.on) {
+          // แรงเฉื่อยหลังปล่อย แล้วรูปแบนสปริงกลับมาตรง (ลูกบอลค้างมุมที่หมุนไว้)
+          drag.yaw += drag.vy * dt; drag.pitch += drag.vp * dt;
+          const fr = Math.exp(-dt * 2.6); drag.vy *= fr; drag.vp *= fr;
+          if (flat > 0.001) drag.yaw += (Math.round(drag.yaw / TAU) * TAU - drag.yaw) * Math.min(1, dt * 3.2 * flat);
+          drag.pitch += (0 - drag.pitch) * Math.min(1, dt * 2.4);
+        }
+      }
+      const ry = spin + drag.yaw + mouse.nx * 0.3, rx = -mouse.ny * 0.22 + 0.22 * spinW + drag.pitch;
       const cr = Math.cos(ry), sr = Math.sin(ry), cx_ = Math.cos(rx), sx_ = Math.sin(rx);
       const breathe = still ? 1 : 1 + Math.sin(time * 1.1) * 0.012;
       const Sc = Math.min(W, H) * scaleK * breathe, D = 3.4, cx = W / 2, cy = H / 2;
@@ -197,7 +214,7 @@
         // หลบเคอร์เซอร์
         const dx = px - mouse.x, dy = py - mouse.y, d2 = dx * dx + dy * dy;
         let tx = 0, ty = 0;
-        if (d2 < R2 && !still) { const d = Math.sqrt(d2) || 1, f = 1 - d / R; tx = (dx / d) * f * f * push; ty = (dy / d) * f * f * push; }
+        if (d2 < R2 && !still && !drag.on) { const d = Math.sqrt(d2) || 1, f = 1 - d / R; tx = (dx / d) * f * f * push; ty = (dy / d) * f * f * push; }
         p.ox += (tx - p.ox) * 0.16; p.oy += (ty - p.oy) * 0.16;
         X[k] = px + p.ox; Y[k] = py + p.oy;
         const depth = clamp01((1 - z2) / 2);
@@ -239,6 +256,7 @@
     }
     function update() {
       const should = visible && !document.hidden && !reduce.matches;
+      if (!should) { drag.on = false; drag.vy = drag.vp = 0; }
       if (should && !running) { running = true; last = 0; raf = requestAnimationFrame(loop); }
       else if (!should && running) { running = false; cancelAnimationFrame(raf); }
     }
@@ -258,6 +276,40 @@
       mouse.ty = Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height / 2)) / (r.height / 2)));
     });
     target_.addEventListener('pointerleave', () => { mouse.x = mouse.y = -1e5; mouse.tx = mouse.ty = 0; });
+
+    // ลากเพื่อหมุน — นิ้วลากแนวนอนหมุน ลากแนวตั้งยังเลื่อนหน้าได้ปกติ (touch-action: pan-y)
+    canvas.style.touchAction = 'pan-y';
+    canvas.style.cursor = 'grab';
+    canvas.addEventListener('pointerdown', (e) => {
+      if (reduce.matches || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      Object.assign(drag, { on: true, id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), vy: 0, vp: 0 });
+      canvas.setPointerCapture(e.pointerId);
+      canvas.style.cursor = 'grabbing';
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (!drag.on || e.pointerId !== drag.id) return;
+      const now = performance.now(), dt = Math.max(1, now - drag.t) / 1000;
+      const k = 5.2 / Math.max(260, canvas.clientWidth); // ลากเต็มความกว้าง ≈ หมุนเกือบรอบ
+      const dy = (e.clientX - drag.x) * k, dp = (e.clientY - drag.y) * k * 0.6;
+      drag.yaw += dy;
+      drag.pitch = Math.max(-0.7, Math.min(0.7, drag.pitch + dp));
+      // ความเร็วเฉลี่ยนุ่ม ๆ ใช้ตอนปล่อย
+      drag.vy = drag.vy * 0.6 + (dy / dt) * 0.4;
+      drag.vp = drag.vp * 0.6 + (dp / dt) * 0.4;
+      drag.x = e.clientX; drag.y = e.clientY; drag.t = now;
+      if (!running) draw(now);
+    });
+    const release = (e) => {
+      if (!drag.on || e.pointerId !== drag.id) return;
+      drag.on = false;
+      // ค้างนิ่งก่อนปล่อย = ไม่ต้องหมุนต่อ
+      if (performance.now() - drag.t > 90) drag.vy = drag.vp = 0;
+      drag.vy = Math.max(-9, Math.min(9, drag.vy));
+      drag.vp = Math.max(-4, Math.min(4, drag.vp));
+      canvas.style.cursor = 'grab';
+    };
+    canvas.addEventListener('pointerup', release);
+    canvas.addEventListener('pointercancel', release);
 
     readColors();
     resize();
