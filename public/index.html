@@ -14,7 +14,8 @@
 <link rel="stylesheet" href="css/ui.css">
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.min.js" defer></script>
 <style>
-  .page{ position:relative; z-index:1; max-width:1120px; margin:0 auto; padding:0 20px; }
+  /* overflow-x:clip ตัดแสงฟุ้งที่ยื่นเลยขอบจอ ไม่ให้หน้าเลื่อนซ้ายขวาได้ (clip ไม่ทำให้ position:sticky เสีย) */
+  .page{ position:relative; z-index:1; max-width:1120px; margin:0 auto; padding:0 20px; overflow-x:clip; }
 
   /* ---- แสงตามเมาส์ทั้งหน้า ---- */
   .cursor-aura{
@@ -177,73 +178,229 @@
   .plan-copy .eyebrow{ margin-bottom:12px; }
   .plan-copy h2{ font-size:clamp(1.7rem, 4vw, 2.5rem); margin-bottom:16px; }
   .plan-copy > p{ color:var(--text-soft); line-height:1.75; margin:0 0 22px; max-width:460px; }
-  .plan-list{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:14px; }
-  .plan-list li{ display:grid; grid-template-columns:28px 1fr; gap:12px; font-size:0.9rem; line-height:1.6; color:var(--text-soft); }
+  .plan-list{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:4px; }
+  .plan-list li{
+    position:relative; display:grid; grid-template-columns:28px 1fr; gap:12px; padding:10px 0 14px;
+    font-size:0.9rem; line-height:1.6; color:var(--text-soft); cursor:pointer; opacity:0.42; transition: opacity 0.45s;
+  }
+  .plan-list li:hover{ opacity:0.75; }
+  .plan-list li.on{ opacity:1; }
   .plan-list li b{ color:var(--text); font-weight:500; display:block; }
   .plan-list .n{ font:500 0.66rem var(--mono); color:var(--accent); padding-top:4px; }
-  .plan-mock{ padding:20px; border-radius:var(--r-xl); position:relative; overflow:hidden; }
-  .plan-mock::before{ content:""; position:absolute; left:10%; right:10%; top:0; height:1px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 75%, transparent), transparent); opacity:0.6; }
-  .pm-months{ display:flex; gap:8px; margin-bottom:16px; overflow-x:auto; scrollbar-width:none; }
-  .pm-months::-webkit-scrollbar{ display:none; }
-  .pm-m{
-    position:relative; overflow:hidden; flex:0 0 auto; min-width:78px; display:flex; flex-direction:column; align-items:flex-start; gap:2px;
-    padding:8px 12px 9px; border-radius:13px; border:1px solid var(--line); background: rgba(var(--tint),0.03); color:var(--text-soft);
-    font-family:var(--font); cursor:pointer; text-align:left; transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.25s var(--spring);
+  .plan-list .pbar{ position:absolute; left:40px; right:0; bottom:0; height:2px; border-radius:2px; background: rgba(var(--tint),0.08); overflow:hidden; }
+  .plan-list .pbar::after{ content:""; position:absolute; inset:0; background:var(--accent); transform-origin:left; transform: scaleX(var(--p, 0)); }
+
+  /* โมเดลจำลองการวางแผน: เล่นเองเป็นฉาก ๆ (js/showcase.js) */
+  .plan-show{ perspective:1400px; }
+  .sim{
+    position:relative; overflow:hidden; padding:20px; border-radius:var(--r-xl);
+    transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform 0.6s var(--spring-soft);
   }
-  .pm-m:hover{ border-color:var(--line-strong); color:var(--text); }
-  .pm-m:active{ transform:scale(0.96); }
-  .pm-m .mn{ font-size:0.8rem; font-weight:500; }
-  .pm-m .mv{ font:500 0.7rem var(--mono); }
-  .pm-m.short .mv{ color:var(--coral); } .pm-m.tight .mv{ color:var(--amber); }
-  .pm-m::after{ content:""; position:absolute; left:12px; right:12px; bottom:0; height:2px; border-radius:2px; }
-  .pm-m.short::after{ background:var(--coral); } .pm-m.tight::after{ background: color-mix(in srgb, var(--amber) 70%, transparent); }
-  .pm-m.active{ border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: var(--accent-dim); color:var(--text); }
-  .pm-top{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
-  .pm-top small{ font:500 0.6rem var(--mono); letter-spacing:0.16em; color:var(--text-soft); }
-  .pm-chip{ font:500 0.66rem var(--mono); padding:3px 8px; border-radius:6px; }
+  .sim::before{ content:""; position:absolute; left:10%; right:10%; top:0; height:1px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 75%, transparent), transparent); opacity:0.6; }
+  .sim-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .sim-head small{ font:500 0.6rem var(--mono); letter-spacing:0.16em; color:var(--text-soft); }
+  .pm-chip{ font:500 0.66rem var(--mono); padding:3px 8px; border-radius:6px; color:var(--text-soft); background: rgba(var(--tint),0.06); transition: color 0.3s, background 0.3s; white-space:nowrap; }
   .pm-chip.ok{ color:var(--emerald); background: color-mix(in srgb, var(--emerald) 13%, transparent); }
   .pm-chip.short{ color:var(--coral); background: color-mix(in srgb, var(--coral) 13%, transparent); }
-  .pm-chip.tight{ color:var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); }
-  .pm-label{ margin-top:14px; font-size:0.8rem; color:var(--text-soft); }
-  .pm-big{ font-size:2.4rem; font-weight:300; letter-spacing:-0.035em; line-height:1.15; font-variant-numeric:tabular-nums; }
+  .sim-items{ display:flex; flex-wrap:wrap; gap:6px; min-height:62px; margin:14px 0 8px; align-content:flex-start; }
+  .sim-it{
+    display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; border:1px solid var(--line);
+    background: rgba(var(--tint),0.04); font-size:0.72rem; color:var(--text-soft); white-space:nowrap;
+    opacity:0; transform: translateY(10px) scale(0.9); transition: opacity 0.4s, transform 0.5s var(--spring), border-color 0.3s;
+  }
+  .sim-it.show{ opacity:1; transform:none; }
+  .sim-it b{ font:500 0.72rem var(--mono); color:var(--text); }
+  .sim-it b.pos{ color:var(--emerald); }
+  .sim-it em{ font-style:normal; font-size:0.64rem; color:var(--text-faint); }
+  .sim-it strong{ display:none; font:500 0.64rem var(--mono); color:var(--accent); }
+  .sim-it.moved{ border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+  .sim-it.moved b{ text-decoration: line-through; color:var(--text-faint); }
+  .sim-it.moved em{ display:none; }
+  .sim-it.moved strong{ display:inline; }
+  .pm-label{ font-size:0.8rem; color:var(--text-soft); }
+  .pm-big{ font-size:2.4rem; font-weight:300; letter-spacing:-0.035em; line-height:1.15; font-variant-numeric:tabular-nums; transition: color 0.3s; }
   .pm-big.neg{ color:var(--coral); }
-  .pm-chart{ margin:12px 0 4px; }
-  .pm-chart svg{ display:block; width:100%; height:auto; overflow:visible; }
-  .pm-grid{ stroke:var(--line); stroke-dasharray:2 5; }
-  .pm-zero{ stroke:var(--line-strong); }
-  .pm-line{ fill:none; stroke:var(--accent); stroke-width:2.4; stroke-linejoin:round; stroke-linecap:round; }
-  .pm-line.neg{ stroke:var(--coral); }
-  .pm-neg{ fill: color-mix(in srgb, var(--coral) 18%, transparent); }
-  .pm-call{ margin:10px 0 0; padding-left:12px; border-left:2px solid var(--emerald); font-size:0.84rem; line-height:1.6; color:var(--text-soft); }
+  .sim-chart{ position:relative; margin:10px 0 14px; }
+  .sim-chart svg{ display:block; width:100%; height:auto; overflow:visible; }
+  .sim-grid{ stroke:var(--line); stroke-dasharray:2 5; }
+  .sim-zero{ stroke:var(--line-strong); }
+  .sim-ax{ font:10px var(--mono); fill:var(--text-faint); dominant-baseline:hanging; }
+  .sim-line{ fill:none; stroke:var(--accent); stroke-width:2.4; stroke-linejoin:round; stroke-linecap:round; }
+  .sim-line.neg{ stroke:var(--coral); }
+  .sim-neg{ fill: color-mix(in srgb, var(--coral) 18%, transparent); }
+  .sim-scrub{ transition: opacity 0.3s; }
+  .sim-scrub line{ stroke:var(--line-strong); stroke-dasharray:3 3; }
+  .sim-scrub circle{ fill:var(--bg); stroke:var(--accent); stroke-width:2.5; }
+  .sim-scrub circle.neg{ stroke:var(--coral); }
+  .sim-pin{
+    position:absolute; z-index:2; translate:-50% calc(-100% - 8px); padding:3px 7px; border-radius:7px; pointer-events:none;
+    font:500 0.6rem var(--mono); white-space:nowrap; background: var(--panel-solid); border:1px solid var(--line-strong); color:var(--text-soft);
+    opacity:0; transform: translateY(6px) scale(0.85); transition: opacity 0.3s, transform 0.45s var(--spring), top 0.2s linear;
+  }
+  .sim-pin.show{ opacity:1; transform:none; }
+  .sim-pin.below{ translate:-50% 12px; }
+  .sim-pin[data-edge="l"]{ translate:-10px calc(-100% - 8px); }
+  .sim-pin.below[data-edge="l"]{ translate:-10px 12px; }
+  .sim-pin[data-edge="r"]{ translate:calc(-100% + 10px) calc(-100% - 8px); }
+  .sim-pin.pos{ color:var(--emerald); }
+  .sim-pin.neg{ color:var(--coral); border-color: color-mix(in srgb, var(--coral) 40%, transparent); }
+  .sim-pin.moved{ opacity:0.4; text-decoration: line-through; }
+  .pm-call{ min-height:1.6em; margin:0; padding-left:12px; border-left:2px solid var(--emerald); font-size:0.84rem; line-height:1.6; color:var(--text-soft); }
+  .pm-call:empty{ visibility:hidden; }
   .pm-call b{ color:var(--text); font-weight:500; }
-  .pm-call.short{ border-color:var(--coral); } .pm-call.short b{ color:var(--coral); }
-  .pm-call.tight{ border-color:var(--amber); }
-  .pm-ai{ display:flex; gap:10px; align-items:flex-start; margin-top:12px; padding:10px 12px; border-radius:12px; border:1px dashed var(--line-strong); font-size:0.8rem; line-height:1.6; color:var(--text-soft); }
-  .pm-ai .ai-mark{ width:24px; height:24px; border-radius:7px; font-size:0.5rem; }
+  .pm-call.short{ border-color:var(--coral); }
+  .pm-call.short b{ color:var(--coral); }
+  .sim-ai{
+    display:flex; gap:10px; align-items:flex-start; margin-top:12px; padding:10px 12px; border-radius:12px; border:1px dashed var(--line-strong);
+    font-size:0.8rem; line-height:1.6; color:var(--text-soft); opacity:0; transform: translateY(10px); transition: opacity 0.5s, transform 0.6s var(--spring-soft);
+  }
+  .sim-ai.show{ opacity:1; transform:none; }
+  .sim-ai .ai-mark{ width:24px; height:24px; border-radius:7px; font-size:0.5rem; }
+  .sim-apply{
+    display:inline-flex; margin-left:8px; padding:2px 10px; border-radius:999px; background:var(--accent-dim); color:var(--accent);
+    font:500 0.7rem var(--font); white-space:nowrap; transition: transform 0.2s var(--spring), background 0.3s, color 0.3s;
+  }
+  .sim-apply.press{ transform:scale(0.88); background:var(--accent); color:var(--on-accent); }
+  .sim-apply.done{ background:transparent; color:var(--emerald); padding-left:0; }
 
   /* ---- features ---- */
   section{ margin-bottom:90px; }
   .sec-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:28px; }
   .sec-head h2{ font-size:clamp(1.7rem, 4vw, 2.4rem); }
   .sec-head .eyebrow{ margin-bottom:12px; }
-  .features{ display:grid; grid-template-columns:1fr; gap:14px; }
-  .feature{ position:relative; overflow:hidden; padding:24px; transition: transform 0.35s var(--spring-soft), border-color 0.25s; }
-  .feature::before{
-    content:""; position:absolute; inset:0; pointer-events:none; opacity:0; transition: opacity 0.35s;
-    background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), var(--accent-dim), transparent 70%);
+  .bento{ display:grid; grid-template-columns:1fr; gap:14px; perspective:1600px; }
+  .tile{
+    position:relative; overflow:hidden; display:flex; flex-direction:column; padding:0;
+    transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform 0.55s var(--spring-soft), border-color 0.25s;
   }
-  .feature:hover::before{ opacity:1; }
-  .feature:hover{ transform: translateY(-4px); border-color: var(--line-strong); }
-  .feature .num{ font-family:var(--mono); font-size:0.72rem; color:var(--text-faint); }
-  .feature .fi{
-    width:44px; height:44px; border-radius:13px; margin:18px 0 20px; display:flex; align-items:center; justify-content:center;
-    background: linear-gradient(180deg, rgba(var(--tint),0.08), rgba(var(--tint),0.02)); border:1px solid var(--line); color: var(--text);
+  .tile:hover{ border-color: var(--line-strong); }
+  .tile::after{
+    content:""; position:absolute; inset:0; z-index:4; pointer-events:none; opacity:0; transition: opacity 0.35s;
+    background: radial-gradient(280px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%);
   }
-  .feature .fi svg{ width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
-  .feature .fi.ai{ font:600 0.7rem var(--mono); letter-spacing:0.08em; box-shadow: inset 0 1px 0 rgba(var(--tint),0.1), 0 0 0 3px var(--accent-dim); border-color:var(--line-strong); }
-  .feature h3{ margin:0 0 8px; font-size:1.05rem; font-weight:500; }
-  .feature p{ margin:0; font-size:0.88rem; color:var(--text-soft); line-height:1.7; }
-  .feature .tag{ position:absolute; top:22px; right:22px; font:500 0.56rem var(--mono); letter-spacing:0.16em; color:var(--accent); }
+  .tile:hover::after{ opacity:1; }
+  .tile .tag{
+    position:absolute; top:14px; right:14px; z-index:3; padding:3px 7px; border-radius:6px;
+    font:500 0.56rem var(--mono); letter-spacing:0.16em; color:var(--accent); background: var(--accent-dim);
+  }
+  .tile-stage{
+    position:relative; isolation:isolate; min-height:212px; overflow:hidden; border-bottom:1px solid var(--line);
+    background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 70%);
+  }
+  .tile-stage::before{
+    content:""; position:absolute; inset:0; z-index:-1; pointer-events:none;
+    background-image: radial-gradient(rgba(var(--tint),0.07) 1px, transparent 1.3px); background-size:16px 16px;
+    -webkit-mask-image: linear-gradient(180deg, #000, transparent 92%); mask-image: linear-gradient(180deg, #000, transparent 92%);
+  }
+  .tile-copy{ padding:16px 20px 20px; }
+  .tile-copy .num{ font:500 0.66rem var(--mono); color:var(--text-faint); }
+  .tile-copy h3{ margin:6px 0 6px; font-size:1.02rem; font-weight:500; }
+  .tile-copy p{ margin:0; font-size:0.84rem; color:var(--text-soft); line-height:1.65; }
+  .mi{ width:28px; height:28px; flex-shrink:0; border-radius:9px; display:grid; place-items:center; color:var(--c); background: linear-gradient(180deg, rgba(var(--tint),0.07), rgba(var(--tint),0.02)); border:1px solid var(--line); }
+  .mi svg{ width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+
+  /* 01 บันทึก */
+  .sA{ display:grid; grid-template-columns: 0.9fr 1.1fr; gap:14px; align-items:center; padding:40px 18px 18px; }
+  .rec-pad{ padding:12px; border-radius:14px; background: rgba(var(--tint),0.04); border:1px solid var(--line); }
+  .rec-amt{ display:flex; align-items:center; gap:4px; font-size:1.7rem; font-weight:300; letter-spacing:-0.03em; font-variant-numeric:tabular-nums; line-height:1.2; }
+  .rec-amt span{ color:var(--accent); font-size:1.1rem; }
+  .rec-amt i{ width:2px; height:1.1em; background:var(--accent); animation: blink 1s steps(1) infinite; }
+  .rec-cats{ display:flex; gap:5px; margin:10px 0; flex-wrap:wrap; }
+  .rec-cats span{ padding:3px 9px; border-radius:999px; border:1px solid var(--line); font-size:0.68rem; color:var(--text-soft); transition: all 0.3s var(--spring); }
+  .rec-cats span.sel{ border-color:var(--accent); background:var(--accent-dim); color:var(--text); transform: scale(1.06); }
+  .rec-save{ text-align:center; padding:6px; border-radius:999px; background:var(--accent); color:var(--on-accent); font-size:0.76rem; font-weight:500; transition: transform 0.18s var(--spring); }
+  .rec-save.press{ transform:scale(0.9); }
+  .rec-list{ display:flex; flex-direction:column; min-width:0; }
+  .rec-row{ display:flex; align-items:center; gap:9px; padding:7px 0; border-bottom:1px solid var(--line); font-size:0.76rem; }
+  .rec-row:last-child{ border-bottom:0; }
+  .rec-info{ flex:1; min-width:0; }
+  .rec-info b{ display:block; font-weight:500; font-size:0.78rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rec-info small{ display:block; font-size:0.64rem; color:var(--text-faint); }
+  .rec-v{ font:500 0.74rem var(--mono); white-space:nowrap; }
+  .rec-new{ max-height:0; padding:0; opacity:0; overflow:hidden; border-bottom-color:transparent; transition: max-height 0.5s var(--spring-soft), padding 0.5s var(--spring-soft), opacity 0.4s, border-color 0.4s; }
+  .rec-new.show{ max-height:60px; padding:7px 0; opacity:1; border-bottom-color:var(--line); }
+  .rec-new b::after{ content:"ใหม่"; margin-left:6px; font:500 0.56rem var(--mono); color:var(--accent); }
+  .rec-timer{ position:absolute; top:12px; left:18px; padding:3px 8px; border-radius:6px; font:500 0.6rem var(--mono); letter-spacing:0.06em; color:var(--text-faint); background: rgba(var(--tint),0.05); transition: color 0.3s, background 0.3s; }
+  .rec-timer.done{ color:var(--emerald); background: color-mix(in srgb, var(--emerald) 13%, transparent); }
+
+  /* 02 วางแผน 12 เดือน */
+  .sB{ padding:34px 16px 30px; }
+  .mb{ position:relative; height:150px; display:flex; gap:3px; }
+  .mb::after{ content:""; position:absolute; left:0; right:0; bottom:24%; height:1px; background:var(--line-strong); }
+  .mb-col{ position:relative; flex:1; }
+  .mb-bar{
+    position:absolute; left:14%; right:14%; bottom:24%; height:0; border-radius:3px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 85%, #fff 15%), color-mix(in srgb, var(--accent) 35%, transparent));
+    transition: bottom 0.8s var(--spring-soft), height 0.8s var(--spring-soft), background 0.5s, box-shadow 0.5s; transition-delay: var(--d, 0s);
+  }
+  .mb-bar.neg{ background: linear-gradient(0deg, var(--coral), color-mix(in srgb, var(--coral) 35%, transparent)); }
+  .mb-bar.fix{ box-shadow: 0 0 16px -2px var(--accent-glow); }
+  .mb-m{ position:absolute; left:-4px; right:-4px; bottom:-20px; text-align:center; font:500 0.5rem var(--mono); color:var(--text-faint); }
+  .mb-pin{
+    position:absolute; z-index:2; translate:-50% 0; padding:3px 7px; border-radius:7px; white-space:nowrap; pointer-events:none;
+    font:500 0.6rem var(--mono); background: var(--panel-solid); border:1px solid var(--line-strong);
+    opacity:0; transform: translateY(6px); transition: opacity 0.3s, transform 0.45s var(--spring), bottom 0.8s var(--spring-soft);
+  }
+  .mb-pin.show{ opacity:1; transform:none; }
+  .mb-pin.neg{ color:var(--coral); border-color: color-mix(in srgb, var(--coral) 40%, transparent); }
+  .mb-pin.ok{ color:var(--emerald); }
+
+  /* 03 Analytics */
+  .sC{ display:flex; align-items:center; gap:18px; padding:22px 20px; }
+  .dn{ position:relative; width:118px; height:118px; flex-shrink:0; }
+  .dn svg{ width:100%; height:100%; transform: rotate(-90deg); overflow:visible; }
+  .dn-track{ fill:none; stroke: rgba(var(--tint),0.06); stroke-width:13; }
+  .dn-seg{ fill:none; stroke-width:13; stroke-dasharray:0 277; transition: stroke-dasharray 0.8s var(--spring-soft); }
+  .dn-c{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .dn-c small{ font:500 0.52rem var(--mono); letter-spacing:0.14em; color:var(--text-faint); }
+  .dn-c b{ font-size:0.95rem; font-weight:500; font-variant-numeric:tabular-nums; }
+  .dn-leg{ flex:1; min-width:0; display:flex; flex-direction:column; gap:9px; }
+  .dl{ display:grid; grid-template-columns:8px 1fr auto; gap:4px 8px; align-items:center; font-size:0.72rem; color:var(--text-soft); }
+  .dl i{ width:8px; height:8px; border-radius:2px; background:var(--c); }
+  .dl em{ font:500 0.66rem var(--mono); font-style:normal; color:var(--text); }
+  .dl u{ grid-column: 2 / 4; height:3px; border-radius:3px; background: rgba(var(--tint),0.06); overflow:hidden; text-decoration:none; }
+  .dl u s{ display:block; height:100%; width:0; border-radius:inherit; background:var(--c); transition: width 0.9s var(--spring-soft); }
+  .sC.on .dl u s{ width:var(--w); }
+
+  /* 04 AI สรุป */
+  .sD{ padding:20px 22px; }
+  .ins-top{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .ins-top b{ display:block; font-size:0.84rem; font-weight:500; }
+  .ins-top small{ display:block; font:500 0.6rem var(--mono); letter-spacing:0.1em; color:var(--text-faint); }
+  .ins-skel{ display:none; flex-direction:column; gap:10px; margin-top:6px; }
+  .ins-skel i{ display:block; height:9px; border-radius:6px; background: linear-gradient(90deg, rgba(var(--tint),0.05), rgba(var(--tint),0.14), rgba(var(--tint),0.05)); background-size:200% 100%; animation: shimmer 1.2s linear infinite; }
+  @keyframes shimmer{ from{ background-position:100% 0; } to{ background-position:-100% 0; } }
+  .ins.loading .ins-skel{ display:flex; }
+  .ins.loading .ins-head, .ins.loading .ins-rows{ display:none; }
+  .ins-head{ margin:0 0 8px; min-height:1.5em; font-size:1rem; font-weight:500; }
+  .ins-row{ display:grid; grid-template-columns:60px 1fr; gap:10px; padding:7px 0; border-top:1px solid var(--line); font-size:0.78rem; color:var(--text-soft); opacity:0; transform: translateY(8px); transition: opacity 0.4s, transform 0.5s var(--spring-soft); }
+  .ins-row.show{ opacity:1; transform:none; }
+  .ins-row .t{ padding-top:2px; font:500 0.56rem var(--mono); letter-spacing:0.16em; color:var(--text-faint); }
+  .ins-row .t.good{ color:var(--emerald); }
+  .ins-row .t.warn{ color:var(--amber); }
+
+  /* 05 ถาม */
+  .sE{ display:flex; flex-direction:column; justify-content:center; gap:4px; padding:24px 18px; }
+
+  /* 06 หน้าปัดงบ */
+  .sF{ display:grid; grid-template-columns: 190px 1fr; gap:20px; align-items:center; padding:22px; }
+  .gg svg{ width:100%; display:block; overflow:visible; }
+  .gg-track{ fill:none; stroke: rgba(var(--tint),0.08); stroke-width:14; stroke-linecap:round; }
+  .gg-val{ fill:none; stroke:var(--amber); stroke-width:14; stroke-linecap:round; stroke-dasharray:251.33; stroke-dashoffset:251.33; transition: stroke-dashoffset 1.4s var(--spring-soft); }
+  .gg-needle{ transform-box: view-box; transform-origin: 100px 100px; transform: rotate(-90deg); transition: transform 1.4s var(--spring-soft); }
+  .gg-needle line{ stroke:var(--text); stroke-width:3; stroke-linecap:round; }
+  .gg-needle circle{ fill:var(--text); }
+  .gg-num{ margin-top:2px; text-align:center; }
+  .gg-num b{ display:block; font-size:1.5rem; font-weight:300; letter-spacing:-0.03em; font-variant-numeric:tabular-nums; color:var(--amber); }
+  .gg-num small{ font-size:0.66rem; color:var(--text-faint); }
+  .gg-tips{ display:flex; flex-direction:column; gap:8px; min-width:0; }
+  .gg-tips > small{ font:500 0.56rem var(--mono); letter-spacing:0.16em; color:var(--text-faint); }
+  .tip{
+    display:grid; grid-template-columns:20px 1fr; gap:8px; padding:8px 11px; border-radius:11px; background: rgba(var(--tint),0.035); border:1px solid var(--line);
+    font-size:0.76rem; line-height:1.5; color:var(--text-soft); opacity:0; transform: translateX(12px); transition: opacity 0.4s, transform 0.5s var(--spring-soft);
+  }
+  .tip.show{ opacity:1; transform:none; }
+  .tip em{ padding-top:1px; font:500 0.6rem var(--mono); font-style:normal; color:var(--accent); }
 
   /* ---- CTA band ---- */
   .cta-band{ position:relative; overflow:hidden; padding:48px 28px; text-align:center; border-radius:var(--r-xl); }
@@ -266,7 +423,8 @@
     .stat{ border-bottom:none; }
     .stat:nth-child(2n){ border-right:1px solid var(--line); }
     .stat:last-child{ border-right:none; }
-    .features{ grid-template-columns:repeat(2, 1fr); }
+    .bento{ grid-template-columns:repeat(2, 1fr); }
+    .tile.wide{ grid-column: span 2; }
   }
   @media (min-width:960px){
     .hero{ grid-template-columns: 1fr 1.05fr; padding:70px 0 80px; min-height:100vh; }
@@ -274,13 +432,17 @@
     .bot-hint{ left:auto; right:2%; translate:none; }
     .story-sticky{ grid-template-rows:none; grid-template-columns: 0.9fr 1.1fr; padding-top:0; }
     .plan-show{ grid-template-columns: 0.9fr 1.1fr; gap:56px; }
-    .features{ grid-template-columns:repeat(3, 1fr); }
+    .bento{ grid-template-columns:repeat(3, 1fr); }
+    .tile.w3{ grid-column: span 2; }
   }
   @media (max-width:520px){
     .nav-links .text-link{ display:none; }
     .ichip{ padding:8px 11px; font-size:0.76rem; }
     .ichip.c1{ right:0; } .ichip.c2{ left:0; } .ichip.c3{ right:0; }
     .pm-big{ font-size:2rem; }
+    .sA{ grid-template-columns:1fr; }
+    .sF{ grid-template-columns:1fr; }
+    .gg{ width:190px; margin:0 auto; }
   }
   @media (max-width:440px){ .nav-links .btn-ghost{ display:none; } }
   @media (prefers-reduced-motion: reduce){
@@ -290,7 +452,8 @@
     .step{ position:static; opacity:1; translate:none; filter:none; margin-bottom:26px; }
     .story-progress, .stage-cap{ display:none; }
     .story-stage{ min-height:340px; }
-    .ichip, .bot-hint i{ animation:none; }
+    .ichip, .bot-hint i, .ins-skel i, .rec-amt i{ animation:none; }
+    .tile, .sim{ transform:none; }
     .cursor-aura{ display:none; }
   }
 </style>
@@ -394,21 +557,28 @@
     <div class="plan-copy rv">
       <div class="eyebrow">Plan ahead</div>
       <h2 class="two-tone">รู้ก่อนว่าเงินพอไหม<span class="muted">ล่วงหน้า 12 เดือน</span></h2>
-      <p>ไม่ต้องรอให้เงินหมดแล้วค่อยรู้ตัว ระบบวางแผนของ MoneyMate คำนวณยอดเงินทีละวันจากรายการประจำของคุณ แล้วบอกล่วงหน้าว่าเดือนไหนตึงมือ</p>
-      <ul class="plan-list">
-        <li><span class="n">01</span><div><b>ใส่รายจ่ายประจำครั้งเดียว</b>ค่าหอ ค่าเน็ต ค่ากินรายวัน หรือค่าเทอมที่จ่ายครั้งเดียว</div></li>
-        <li><span class="n">02</span><div><b>เห็นยอดเงินล่วงหน้าทุกวัน</b>รู้ว่าวันไหนจะติดลบ และใช้ได้อีกวันละเท่าไร</div></li>
-        <li><span class="n">03</span><div><b>ให้ AI ช่วยปรับแผน</b>บอกเป้าหมาย เช่น เก็บเงินซื้อโน้ตบุ๊ก แล้วเลือกเพิ่มรายการที่เสนอมาได้ทันที</div></li>
-      </ul>
+      <p>ดูตัวอย่างได้เลย ระบบรวมรายการประจำของคุณ ไล่คำนวณยอดเงินทีละวัน แล้วบอกล่วงหน้าว่าวันไหนเงินจะไม่พอ</p>
+      <ol class="plan-list" id="planSteps">
+        <li><span class="n">01</span><div><b>ใส่รายการประจำครั้งเดียว</b>ค่าหอ ค่ากินรายวัน ค่าเทอม หรือของที่อยากซื้อ</div><i class="pbar" aria-hidden="true"></i></li>
+        <li><span class="n">02</span><div><b>ระบบไล่คำนวณทีละวัน</b>เห็นทันทีว่าวันไหนจะติดลบ และขาดเท่าไร</div><i class="pbar" aria-hidden="true"></i></li>
+        <li><span class="n">03</span><div><b>ให้ AI ช่วยปรับแผน</b>กดใช้คำแนะนำ แล้วดูยอดทั้งเดือนเปลี่ยนตาม</div><i class="pbar" aria-hidden="true"></i></li>
+      </ol>
     </div>
-    <div class="card plan-mock rv" data-delay="0.15" id="planMock">
-      <div class="pm-months" id="pmMonths"></div>
-      <div class="pm-top"><small id="pmTitle">FORECAST</small><span class="pm-chip" id="pmChip"></span></div>
-      <div class="pm-label">คาดว่าจะเหลือสิ้นเดือน</div>
-      <div class="pm-big" id="pmBig">฿0</div>
-      <div class="pm-chart" id="pmChart"></div>
-      <p class="pm-call" id="pmCall"></p>
-      <div class="pm-ai" id="pmAi"><span class="ai-mark">AI</span><span id="pmAiText"></span></div>
+    <div class="card sim rv" data-delay="0.15" id="planSim" role="img" aria-label="ตัวอย่างการวางแผนเดือน พ.ย. 2569: ถ้าซื้อโน้ตบุ๊กเดือนนี้เงินจะติดลบ AI แนะนำให้เลื่อนไปเดือน ม.ค.">
+      <div class="sim-head"><small>PLAN SIMULATION · พ.ย. 2569</small><span class="pm-chip" id="simChip">รอคำนวณ</span></div>
+      <div class="sim-items" aria-hidden="true">
+        <span class="sim-it">เงินจากบ้าน <b class="pos">+฿7,500</b><em>วันที่ 1</em></span>
+        <span class="sim-it">ค่าหอ <b>−฿3,500</b><em>วันที่ 3</em></span>
+        <span class="sim-it">ค่ากิน <b>−฿150</b><em>ทุกวัน</em></span>
+        <span class="sim-it">สอนพิเศษ <b class="pos">+฿450</b><em>ทุกวันเสาร์</em></span>
+        <span class="sim-it">ค่าเทอม <b>−฿9,000</b><em>20 พ.ย.</em></span>
+        <span class="sim-it" id="simLaptop">ซื้อโน้ตบุ๊ก <b>−฿12,000</b><em>12 พ.ย.</em><strong>→ ม.ค.</strong></span>
+      </div>
+      <div class="pm-label" id="simLabel">ยอดต้นเดือน</div>
+      <div class="pm-big" id="simBig">฿17,169</div>
+      <div class="sim-chart" id="simChart"></div>
+      <p class="pm-call" id="simCall"></p>
+      <div class="sim-ai" id="simAi"><span class="ai-mark">AI</span><div><span id="simAiText"></span><span class="sim-apply" id="simApply">ใช้คำแนะนำนี้</span></div></div>
     </div>
   </section>
 
@@ -420,22 +590,73 @@
         <h2 class="two-tone">ผู้ช่วยการเงินครบ<span class="muted">ในแอปเดียว</span></h2>
       </div>
     </div>
-    <div class="features">
-      <div class="card feature rv"><div class="num">01</div>
-        <div class="fi"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
-        <h3>บันทึกในไม่กี่วินาที</h3><p>เลือกหมวดหมู่ ใส่จำนวนเงิน แล้วบันทึก สร้างหมวดหมู่ของตัวเองได้ทั้งรายรับและรายจ่าย</p></div>
-      <div class="card feature rv"><div class="num">02</div>
-        <div class="fi"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="m9 15 2 2 4-4"/></svg></div>
-        <h3>วางแผนล่วงหน้า 12 เดือน</h3><p>รายจ่ายประจำ รายวัน หรือครั้งเดียว รู้ก่อนว่าเดือนไหนเงินไม่พอ และวันไหนจะติดลบ</p></div>
-      <div class="card feature rv"><div class="num">03</div>
-        <div class="fi"><svg viewBox="0 0 24 24"><path d="M4 19V10M12 19V5M20 19v-6"/></svg></div>
-        <h3>Analytics แบบมืออาชีพ</h3><p>กราฟกระแสเงินสด สัดส่วนรายจ่าย จังหวะการใช้งบ และตารางหมวดหมู่ในหน้าเดียว</p></div>
-      <div class="card feature rv"><span class="tag">AI</span><div class="num">04</div><div class="fi ai">AI</div>
-        <h3>สรุปการใช้เงินให้อัตโนมัติ</h3><p>กดครั้งเดียว ให้ AI อ่านรายรับรายจ่ายแล้วสรุปสิ่งที่ทำได้ดี สิ่งที่ควรระวัง และคำแนะนำ</p></div>
-      <div class="card feature rv"><span class="tag">AI</span><div class="num">05</div><div class="fi ai">AI</div>
-        <h3>ถามได้ทุกเรื่องเงิน</h3><p>ถามเป็นภาษาไทยว่าเงินไปไหน จะเก็บเงินยังไง ให้ AI ตอบจากตัวเลขจริงของคุณ</p></div>
-      <div class="card feature rv"><span class="tag">AI</span><div class="num">06</div><div class="fi ai">AI</div>
-        <h3>คำแนะนำเมื่อใกล้ถึงงบ</h3><p>ใช้ไปเกิน 80% ของงบ กดขอคำแนะนำจาก AI ว่าควรลดอะไรในวันที่เหลือ</p></div>
+    <div class="bento">
+      <article class="card tile wide rv">
+        <div class="tile-stage sA" id="sA" aria-hidden="true">
+          <span class="rec-timer" id="recTimer">0.0 วิ</span>
+          <div class="rec-pad">
+            <div class="rec-amt"><span>฿</span><b id="recAmt">0</b><i></i></div>
+            <div class="rec-cats"><span>อาหาร</span><span>เดินทาง</span><span>ช้อปปิ้ง</span></div>
+            <div class="rec-save" id="recSave">บันทึก</div>
+          </div>
+          <div class="rec-list">
+            <div class="rec-row rec-new" id="recNew"><span class="mi" style="--c:var(--cat-food)"><svg viewBox="0 0 24 24"><path d="M4 12h16a8 8 0 0 1-16 0z"/><path d="M9 20.5h6"/><path d="M13.5 9.5 18 4M10.5 9.5 15 4"/></svg></span><span class="rec-info"><b>ข้าวมันไก่</b><small>อาหาร · เมื่อกี้</small></span><span class="rec-v">−฿65</span></div>
+            <div class="rec-row"><span class="mi" style="--c:var(--cat-travel)"><svg viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/></svg></span><span class="rec-info"><b>ค่ารถไฟฟ้า</b><small>เดินทาง · 08:12</small></span><span class="rec-v">−฿42</span></div>
+            <div class="rec-row"><span class="mi" style="--c:var(--cat-food)"><svg viewBox="0 0 24 24"><path d="M4 12h16a8 8 0 0 1-16 0z"/><path d="M9 20.5h6"/><path d="M13.5 9.5 18 4M10.5 9.5 15 4"/></svg></span><span class="rec-info"><b>กาแฟเย็น</b><small>อาหาร · 07:40</small></span><span class="rec-v">−฿55</span></div>
+          </div>
+        </div>
+        <div class="tile-copy"><span class="num">01</span><h3>บันทึกในไม่กี่วินาที</h3><p>ใส่จำนวนเงิน เลือกหมวด แล้วกดบันทึก จบในไม่ถึง 3 วินาที สร้างหมวดของตัวเองได้ด้วย</p></div>
+      </article>
+      <article class="card tile rv">
+        <div class="tile-stage sB" id="sB" aria-hidden="true"><div class="mb" id="mbPlot"><span class="mb-pin" id="mbPin"></span></div></div>
+        <div class="tile-copy"><span class="num">02</span><h3>วางแผนล่วงหน้า 12 เดือน</h3><p>เห็นก่อนว่าเดือนไหนเงินไม่พอ แล้วปรับแผนก่อนถึงวันจริง</p></div>
+      </article>
+      <article class="card tile rv">
+        <div class="tile-stage sC" id="sC" aria-hidden="true">
+          <div class="dn"><svg viewBox="0 0 120 120"><circle class="dn-track" cx="60" cy="60" r="44"/><circle class="dn-seg" cx="60" cy="60" r="44" style="stroke:var(--cat-x1)"/><circle class="dn-seg" cx="60" cy="60" r="44" style="stroke:var(--cat-food)"/><circle class="dn-seg" cx="60" cy="60" r="44" style="stroke:var(--cat-travel)"/><circle class="dn-seg" cx="60" cy="60" r="44" style="stroke:var(--cat-shop)"/></svg><div class="dn-c"><small>เดือนนี้</small><b id="dnTotal">฿0</b></div></div>
+          <div class="dn-leg">
+            <div class="dl" style="--c:var(--cat-x1);--w:100%"><i></i><span>ค่าหอ</span><em>40%</em><u><s></s></u></div>
+            <div class="dl" style="--c:var(--cat-food);--w:85%"><i></i><span>อาหาร</span><em>34%</em><u><s></s></u></div>
+            <div class="dl" style="--c:var(--cat-travel);--w:35%"><i></i><span>เดินทาง</span><em>14%</em><u><s></s></u></div>
+            <div class="dl" style="--c:var(--cat-shop);--w:30%"><i></i><span>ช้อปปิ้ง</span><em>12%</em><u><s></s></u></div>
+          </div>
+        </div>
+        <div class="tile-copy"><span class="num">03</span><h3>Analytics แบบมืออาชีพ</h3><p>สัดส่วนรายจ่าย กระแสเงินสด และแนวโน้ม อ่านเข้าใจได้ในหน้าเดียว</p></div>
+      </article>
+      <article class="card tile wide rv"><span class="tag">AI</span>
+        <div class="tile-stage sD" id="sD" aria-hidden="true">
+          <div class="ins loading" id="insBox">
+            <div class="ins-top"><span class="ai-mark">AI</span><div><b>สรุปเดือนนี้</b><small id="insState">กำลังวิเคราะห์…</small></div></div>
+            <div class="ins-skel"><i style="width:68%"></i><i></i><i style="width:86%"></i><i style="width:74%"></i></div>
+            <p class="ins-head" id="insHead"></p>
+            <div class="ins-rows">
+              <div class="ins-row"><span class="t good">GOOD</span><span>ค่ากินลดลง ฿260 จากเดือนก่อน</span></div>
+              <div class="ins-row"><span class="t warn">WATCH</span><span>งบเหลือ ฿819 สำหรับอีก 9 วัน</span></div>
+              <div class="ins-row"><span class="t">TIP</span><span>ตั้งเพดานช้อปปิ้งไว้ ฿500 จนถึงสิ้นเดือน</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="tile-copy"><span class="num">04</span><h3>สรุปการใช้เงินให้อัตโนมัติ</h3><p>กดครั้งเดียว AI บอกสิ่งที่ทำได้ดี สิ่งที่ควรระวัง และคำแนะนำที่ทำได้จริง</p></div>
+      </article>
+      <article class="card tile rv"><span class="tag">AI</span>
+        <div class="tile-stage sE" id="sE" aria-hidden="true"><div class="ad-msg me" id="chQ"></div><div class="ad-msg bot" id="chA"></div></div>
+        <div class="tile-copy"><span class="num">05</span><h3>ถามได้ทุกเรื่องเงิน</h3><p>พิมพ์ถามเป็นภาษาไทย AI ตอบจากตัวเลขจริงของคุณ</p></div>
+      </article>
+      <article class="card tile w3 rv"><span class="tag">AI</span>
+        <div class="tile-stage sF" id="sF" aria-hidden="true">
+          <div class="gg">
+            <svg viewBox="0 0 200 110"><path class="gg-track" d="M20 100 A80 80 0 0 1 180 100"/><path class="gg-val" id="ggVal" d="M20 100 A80 80 0 0 1 180 100"/><g class="gg-needle" id="ggNeedle"><line x1="100" y1="100" x2="100" y2="40"/><circle cx="100" cy="100" r="6"/></g></svg>
+            <div class="gg-num"><b id="ggNum">0%</b><small>ใช้ไปแล้วของงบเดือนนี้</small></div>
+          </div>
+          <div class="gg-tips">
+            <small>คำแนะนำสำหรับวันที่เหลือ</small>
+            <div class="tip"><em>01</em><span>ใช้ได้อีกวันละ ฿91 จนถึงสิ้นเดือน</span></div>
+            <div class="tip"><em>02</em><span>ทำกับข้าวเอง 3 มื้อต่อสัปดาห์ ประหยัดได้ราว ฿400</span></div>
+            <div class="tip"><em>03</em><span>งดช้อปออนไลน์ไว้ก่อนจนถึงวันที่ 1</span></div>
+          </div>
+        </div>
+        <div class="tile-copy"><span class="num">06</span><h3>คำแนะนำเมื่อใกล้ถึงงบ</h3><p>ใช้ไปเกิน 80% ของงบ กดขอคำแนะนำ AI บอกว่าควรลดอะไรในวันที่เหลือ</p></div>
+      </article>
     </div>
   </section>
 
@@ -507,6 +728,7 @@
 
 <script src="js/motion.js"></script>
 <script src="js/cc.js"></script>
+<script src="js/showcase.js"></script>
 <script src="js/ai-core.js"></script>
 <script type="module" src="js/robot.js"></script>
 <script>
@@ -619,71 +841,6 @@
     });
   })();
 
-  /* ================= ตัวอย่างการวางแผน: กดเลือกเดือนได้ เส้นกราฟวาดตามการเลื่อน ================= */
-  (function () {
-    const MONTHS = [
-      { m: 'ต.ค.', title: 'ต.ค. 2569', start: 16019, end: 17169, status: 'ok', label: 'พอใช้',
-        pts: [[0, 16019], [1, 23369], [3, 19719], [5, 19119], [10, 18819], [17, 18169], [24, 17619], [31, 17169]],
-        call: 'ใช้นอกแผนได้อีกไม่เกิน <b>วันละ ฿553</b> โดยยอดไม่ติดลบ',
-        ai: 'เดือนนี้สบาย ๆ ลองกันไว้เป็นเงินเก็บ ฿2,000 เผื่อค่าเทอมเดือนหน้า' },
-      { m: 'พ.ย.', title: 'พ.ย. 2569', start: 17169, end: -2981, status: 'short', label: 'ไม่พอ',
-        pts: [[0, 17169], [1, 24519], [3, 20869], [5, 20269], [11, 19369], [12, 7219], [19, 6419], [20, 2719], [21, -2400], [30, -2981]],
-        call: 'เงินจะติดลบตั้งแต่ <b>21 พ.ย.</b> ขาดมากสุด <b>฿2,981</b>',
-        ai: 'ถ้าเลื่อนซื้อโน้ตบุ๊ก ฿12,000 ไปเดือน ม.ค. เดือนนี้จะเหลือ ฿9,019 และไม่ติดลบเลย' },
-      { m: 'ธ.ค.', title: 'ธ.ค. 2569', start: -2981, end: 2719, status: 'tight', label: 'ตึงมือ',
-        pts: [[0, -2981], [1, 4369], [3, 719], [5, 119], [14, 1319], [15, 6319], [24, 4519], [31, 2719]],
-        call: 'เหลือน้อย — ใช้นอกแผนได้อีกไม่เกิน <b>วันละ ฿4</b>',
-        ai: 'ทุน ฿5,000 วันที่ 15 ช่วยได้มาก แต่ช่วงต้นเดือนควรงดช้อปปิ้งไปก่อน' }
-    ];
-    const fmt = v => (v < 0 ? '−' : '') + '฿' + Math.abs(v).toLocaleString('en-US');
-    const short = v => (v < 0 ? '−' : '') + '฿' + (Math.abs(v) / 1000).toFixed(1) + 'k';
-    const box = document.getElementById('pmMonths');
-    let sel = 1, lineLen = 0;
-    box.innerHTML = MONTHS.map((x, i) => `<button type="button" class="pm-m ${x.status}" data-i="${i}"><span class="mn">${x.m}</span><span class="mv">${short(x.end)}</span></button>`).join('');
-    box.addEventListener('click', e => { const b = e.target.closest('.pm-m'); if (b) { sel = +b.dataset.i; paint(true); } });
-    const chart = document.getElementById('pmChart');
-    function paint(animate) {
-      const M = MONTHS[sel];
-      box.querySelectorAll('.pm-m').forEach((b, i) => b.classList.toggle('active', i === sel));
-      document.getElementById('pmTitle').textContent = 'FORECAST · ' + M.title;
-      const chip = document.getElementById('pmChip'); chip.className = 'pm-chip ' + M.status; chip.textContent = M.label;
-      const big = document.getElementById('pmBig'); big.classList.toggle('neg', M.end < 0);
-      if (animate && !Motion.reduced()) Motion.countUp(big, M.end, { from: 0, duration: 900, format: v => fmt(Math.round(v)) }); else big.textContent = fmt(M.end);
-      const call = document.getElementById('pmCall'); call.className = 'pm-call ' + M.status; call.innerHTML = M.call;
-      document.getElementById('pmAiText').textContent = M.ai;
-      // กราฟยอดเงินตลอดเดือน
-      const W = 460, H = 150, pad = 8, days = M.pts[M.pts.length - 1][0];
-      const vals = M.pts.map(p => p[1]), lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
-      const X = d => pad + (d / days) * (W - pad * 2), Y = v => pad + ((hi - v) / (hi - lo || 1)) * (H - pad * 2), y0 = Y(0);
-      const d = M.pts.map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(' ');
-      const area = `${d} L${X(days).toFixed(1)},${y0.toFixed(1)} L${X(0).toFixed(1)},${y0.toFixed(1)} Z`;
-      chart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" aria-hidden="true"><defs>
-          <clipPath id="pmPos"><rect x="0" y="-20" width="${W}" height="${(y0 + 20).toFixed(1)}"/></clipPath>
-          <clipPath id="pmNegC"><rect x="0" y="${y0.toFixed(1)}" width="${W}" height="${(H - y0 + 20).toFixed(1)}"/></clipPath></defs>
-        ${[0.25, 0.5, 0.75].map(f => `<line class="pm-grid" x1="0" x2="${W}" y1="${(H * f).toFixed(1)}" y2="${(H * f).toFixed(1)}"/>`).join('')}
-        <line class="pm-zero" x1="0" x2="${W}" y1="${y0.toFixed(1)}" y2="${y0.toFixed(1)}"/>
-        <path class="pm-neg" d="${area}" clip-path="url(#pmNegC)"/>
-        <path class="pm-line" id="pmLine" d="${d}" clip-path="url(#pmPos)"/>
-        <path class="pm-line neg" id="pmLineN" d="${d}" clip-path="url(#pmNegC)"/></svg>`;
-      const lines = [document.getElementById('pmLine'), document.getElementById('pmLineN')];
-      lineLen = lines[0].getTotalLength();
-      lines.forEach(l => { l.style.strokeDasharray = lineLen; l.style.strokeDashoffset = animate ? lineLen : lineLen * (1 - drawn); });
-      if (animate) requestAnimationFrame(() => requestAnimationFrame(() => lines.forEach(l => { l.style.transition = 'stroke-dashoffset 1.2s cubic-bezier(0.19, 1, 0.22, 1)'; l.style.strokeDashoffset = 0; })));
-    }
-    // เส้นกราฟวาดตามสัดส่วนที่เลื่อนผ่านการ์ด
-    let drawn = Motion.reduced() ? 1 : 0;
-    paint(false);
-    const mock = document.getElementById('planMock');
-    Motion.onScroll(() => {
-      const r = mock.getBoundingClientRect(), vh = window.innerHeight;
-      const f = clamp01((vh - r.top) / (vh * 0.7));
-      if (f > drawn) {
-        drawn = f;
-        ['pmLine', 'pmLineN'].forEach(id => { const l = document.getElementById(id); if (l && !l.style.transition) l.style.strokeDashoffset = lineLen * (1 - drawn); });
-      }
-    });
-  })();
-
   /* ================= บัตรเครดิต 3 มิติ: ลอยเข้ามา → พลิก → กางออก 3 ใบ ================= */
   (function () {
     const story = document.getElementById('cardStory');
@@ -714,15 +871,6 @@
       render(clamp01(-r.top / (r.height - window.innerHeight)));
     });
   })();
-
-  // สปอตไลต์ตามเมาส์บนการ์ดฟีเจอร์
-  document.querySelectorAll('.feature').forEach(card => {
-    card.addEventListener('pointermove', e => {
-      const r = card.getBoundingClientRect();
-      card.style.setProperty('--mx', `${e.clientX - r.left}px`);
-      card.style.setProperty('--my', `${e.clientY - r.top}px`);
-    });
-  });
 
   // แสงนุ่ม ๆ ตามเมาส์ทั้งหน้า
   (function () {
