@@ -7,6 +7,7 @@
 <meta name="description" content="บันทึกรายรับรายจ่าย ตั้งงบ วางแผนการเงินล่วงหน้า พร้อมผู้ช่วย AI คอยสรุปและแนะนำ ใช้ฟรี">
 <meta name="theme-color" content="#070809">
 <script src="js/theme.js"></script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -65,40 +66,41 @@
   .hero .points span{ display:flex; align-items:center; gap:10px; }
   .hero .points svg{ width:16px; height:16px; stroke:var(--accent); fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
 
-  /* ---- แกน AI ในส่วนหัว ---- */
+  /* ---- หุ่นยนต์ผู้ช่วย 3 มิติในส่วนหัว (วาดด้วย js/robot.js) ---- */
   .visual{ position:relative; }
-  .core{ position:relative; width:min(470px, 100%); aspect-ratio:1; margin:0 auto; perspective:900px; }
-  .core canvas{ position:absolute; left:-12%; top:-12%; width:124%; height:124%; }
-  .core .halo{
-    position:absolute; left:15%; top:15%; width:70%; height:70%; border-radius:50%;
-    border:1.5px solid color-mix(in srgb, var(--accent) 55%, transparent);
-    box-shadow: 0 0 30px 2px var(--accent-glow), inset 0 0 40px 0 var(--accent-glow); opacity:0.55;
+  .stage3d{ position:relative; width:min(470px, 100%); aspect-ratio:1; margin:0 auto; }
+  .stage3d .halo{
+    position:absolute; left:15%; top:6%; width:70%; height:70%; border-radius:50%;
+    border:1.5px solid color-mix(in srgb, var(--accent) 50%, transparent);
+    box-shadow: 0 0 30px 2px var(--accent-glow), inset 0 0 40px 0 var(--accent-glow); opacity:0.45;
     animation: halo-in 1.4s var(--spring-soft) both;
   }
+  .stage3d .halo::after{ content:""; position:absolute; inset:-70px; border-radius:50%; background: radial-gradient(closest-side, var(--accent-glow), transparent 70%); opacity:0.4; }
   @keyframes halo-in{ from{ opacity:0; transform: scale(0.85); } }
-  .orbit{
-    position:absolute; left:50%; top:50%; width:var(--s); height:var(--s); margin:calc(var(--s) / -2) 0 0 calc(var(--s) / -2);
-    border-radius:50%; border:1px solid rgba(var(--tint),0.1); pointer-events:none; transform-style:preserve-3d;
+  .bot-btn{ all:unset; position:absolute; inset:-6%; z-index:1; cursor:pointer; border-radius:50%; -webkit-tap-highlight-color:transparent; }
+  .bot-btn:focus-visible{ outline:2px solid var(--accent); outline-offset:-10%; }
+  .bot-btn canvas{ display:block; width:100%; height:100%; opacity:0; transform: translateY(24px) scale(0.94); transition: opacity 0.9s ease, transform 1.2s var(--spring-soft); }
+  .bot-btn canvas.ready{ opacity:1; transform:none; }
+  .stage3d.no-bot .bot-btn, .stage3d.no-bot .bot-hint{ display:none; }
+  .bot-hint{
+    position:absolute; left:50%; bottom:-3%; translate:-50% 0; z-index:2; display:flex; align-items:center; gap:7px;
+    font:500 0.6rem var(--mono); letter-spacing:0.16em; color:var(--text-faint); text-transform:uppercase; white-space:nowrap; pointer-events:none;
   }
-  .orbit i{ position:absolute; top:-3px; left:calc(50% - 3px); width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow: 0 0 12px 2px var(--accent-glow); }
-  .orbit.o1{ --s:92%; animation: orbit1 16s linear infinite; }
-  .orbit.o2{ --s:108%; animation: orbit2 24s linear infinite; border-style:dashed; border-color: rgba(var(--tint),0.07); }
-  .orbit.o2 i{ background:var(--text-soft); box-shadow:none; width:5px; height:5px; }
-  @keyframes orbit1{ from{ transform: rotateX(74deg) rotateZ(0deg); } to{ transform: rotateX(74deg) rotateZ(360deg); } }
-  @keyframes orbit2{ from{ transform: rotateX(68deg) rotateY(-22deg) rotateZ(360deg); } to{ transform: rotateX(68deg) rotateY(-22deg) rotateZ(0deg); } }
+  .bot-hint i{ width:5px; height:5px; border-radius:50%; background:var(--accent); animation: bot-ping 2s infinite; }
+  @keyframes bot-ping{ 0%{ box-shadow:0 0 0 0 var(--accent-glow); } 70%, 100%{ box-shadow:0 0 0 7px transparent; } }
 
   /* การ์ดข้อมูลลอยรอบแกน (ขยับตามเมาส์ตามระดับความลึก) */
   .ichip{
-    position:absolute; z-index:2; display:flex; flex-direction:column; gap:1px; padding:10px 14px; border-radius:14px; font-size:0.84rem;
+    position:absolute; z-index:3; display:flex; flex-direction:column; gap:1px; padding:10px 14px; border-radius:14px; font-size:0.84rem;
     transform: translate3d(var(--px, 0px), var(--py, 0px), 0); animation: bob 6s ease-in-out infinite;
   }
   .ichip small{ font:500 0.56rem var(--mono); letter-spacing:0.16em; color:var(--text-faint); }
   .ichip b{ font-weight:500; white-space:nowrap; }
   .ichip b.pos{ color:var(--emerald); }
   .ichip b.warn{ color:var(--amber); }
-  .ichip.c1{ top:6%; right:-4%; animation-delay:-1s; }
-  .ichip.c2{ top:40%; left:-9%; animation-delay:-3s; }
-  .ichip.c3{ bottom:14%; right:-2%; animation-delay:-4.5s; }
+  .ichip.c1{ top:12%; right:-6%; animation-delay:-1s; }
+  .ichip.c2{ top:3%; left:-4%; animation-delay:-3s; }
+  .ichip.c3{ top:56%; right:-10%; animation-delay:-4.5s; }
   @keyframes bob{ 50%{ translate: 0 -8px; } }
 
   /* ตัวอย่างแชท AI ที่พิมพ์เอง */
@@ -268,7 +270,8 @@
   }
   @media (min-width:960px){
     .hero{ grid-template-columns: 1fr 1.05fr; padding:70px 0 80px; min-height:100vh; }
-    .ai-demo{ position:absolute; left:-10%; bottom:-2%; width:300px; margin:0; }
+    .ai-demo{ position:absolute; left:-16%; bottom:-10%; width:300px; margin:0; }
+    .bot-hint{ left:auto; right:2%; translate:none; }
     .story-sticky{ grid-template-rows:none; grid-template-columns: 0.9fr 1.1fr; padding-top:0; }
     .plan-show{ grid-template-columns: 0.9fr 1.1fr; gap:56px; }
     .features{ grid-template-columns:repeat(3, 1fr); }
@@ -287,7 +290,7 @@
     .step{ position:static; opacity:1; translate:none; filter:none; margin-bottom:26px; }
     .story-progress, .stage-cap{ display:none; }
     .story-stage{ min-height:340px; }
-    .orbit, .ichip{ animation:none; }
+    .ichip, .bot-hint i{ animation:none; }
     .cursor-aura{ display:none; }
   }
 </style>
@@ -329,11 +332,12 @@
     </div>
 
     <div class="visual rv" data-delay="0.3" id="heroVisual">
-      <div class="core" id="core">
+      <div class="stage3d" id="stage3d">
         <div class="halo" aria-hidden="true"></div>
-        <div class="orbit o1" aria-hidden="true"><i></i></div>
-        <div class="orbit o2" aria-hidden="true"><i></i></div>
-        <canvas id="heroCore" aria-hidden="true"></canvas>
+        <button type="button" class="bot-btn" id="botBtn" aria-label="ทักทายผู้ช่วย MoneyMate">
+          <canvas id="botCanvas" aria-hidden="true"></canvas>
+        </button>
+        <div class="bot-hint" aria-hidden="true"><i></i>แตะหุ่นยนต์เพื่อทักทาย</div>
         <div class="card ichip c1" data-depth="26" aria-hidden="true"><small>INSIGHT</small><b class="pos">ค่ากินลดลง 8%</b></div>
         <div class="card ichip c2" data-depth="18" aria-hidden="true"><small>FORECAST</small><b>สิ้นเดือนเหลือ ฿3,120</b></div>
         <div class="card ichip c3" data-depth="34" aria-hidden="true"><small>SAFE / DAY</small><b class="warn">ใช้ได้อีกวันละ ฿91</b></div>
@@ -504,6 +508,7 @@
 <script src="js/motion.js"></script>
 <script src="js/cc.js"></script>
 <script src="js/ai-core.js"></script>
+<script type="module" src="js/robot.js"></script>
 <script>
   const clamp01 = v => Math.max(0, Math.min(1, v));
   const fine = window.matchMedia('(pointer: fine)').matches;
@@ -523,13 +528,9 @@
     `<span class="item" style="--c:${c}"><span class="ico"><svg viewBox="0 0 24 24">${icon}</svg></span>${name}<span class="sep"></span></span>`).join('');
   document.getElementById('marqueeTrack').innerHTML = tickerHtml + tickerHtml;
 
-  /* ================= แกน AI ในส่วนหัว: ลูกบอลอนุภาค → สลายเป็นฝุ่นตอนเลื่อนผ่าน ================= */
+  // หุ่นยนต์ในส่วนหัวอยู่ใน js/robot.js (โหลดแบบ module)
   const hero = document.getElementById('hero');
-  const heroCore = AICore.mount(document.getElementById('heroCore'), { shapes: ['sphere', 'cloud'], count: 1100, scale: 0.33, pointerTarget: hero });
-  Motion.onScroll(() => {
-    const r = hero.getBoundingClientRect();
-    heroCore.set(clamp01(-r.top / (r.height * 0.75)));
-  });
+  document.querySelectorAll('.cc[data-num]').forEach(card => CC.build(card)); // บัตรในเรื่องเล่าด้านล่าง
 
   // การ์ดข้อมูลลอย: ขยับตามเมาส์ตามระดับความลึก
   (function () {
@@ -684,7 +685,6 @@
   })();
 
   /* ================= บัตรเครดิต 3 มิติ: ลอยเข้ามา → พลิก → กางออก 3 ใบ ================= */
-  document.querySelectorAll('.cc[data-num]').forEach(card => CC.build(card));
   (function () {
     const story = document.getElementById('cardStory');
     const main = document.getElementById('ccMain'), left = document.getElementById('ccLeft'), right = document.getElementById('ccRight');
