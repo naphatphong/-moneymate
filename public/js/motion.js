@@ -1,5 +1,5 @@
 /* motion.js — แอนิเมชันตอนเลื่อนหน้าที่ใช้ร่วมกันหลายหน้า
-   - Motion.reveal(els)       ค่อย ๆ โผล่ขึ้นมาเมื่อเลื่อนมาถึง (เติม class "in" ให้ element ที่มี class "rv")
+   - Motion.reveal(els)       เลื่อนเข้ามาเมื่อเห็นบนจอ และเลื่อนออกเมื่อพ้นจอ ทั้งขาลงและขาขึ้น (class "rv" + "in"/"above")
    - Motion.countOnView(el)   ตัวเลขนับขึ้นเมื่อเลื่อนมาเห็น
    - Motion.scrubWords(el)    ไฮไลต์ทีละคำตามการเลื่อน (ตัดคำไทยด้วย Intl.Segmenter)
    - Motion.parallax(el, k)   เลื่อนช้า/เร็วกว่าหน้าเว็บเล็กน้อย
@@ -18,32 +18,65 @@
   window.addEventListener('resize', () => subs.forEach((fn) => fn()));
   M.onScroll = (fn) => { subs.push(fn); fn(); };
 
-  /* ---- reveal ---- */
-  let io = null;
-  M.reveal = (targets) => {
+  /* ---- reveal: เลื่อนเข้า–เลื่อนออกได้ทั้งสองทิศ ----
+     เห็นบนจอ → "in" | พ้นขอบบน → "above" (ลอยขึ้นแล้วจางหาย) | พ้นขอบล่าง → กลับไปรอด้านล่าง
+     ขอบบนของพื้นที่ตรวจหดเข้ามา 12% เพื่อให้เห็นจังหวะเลื่อนออก ไม่ใช่หายไปตอนพ้นจอแล้ว
+     element ที่มี class "lines" ใช้แอนิเมชันหัวข้อทีละบรรทัดแทน "rv"
+     ส่ง { once: true } ถ้าอยากให้โผล่ครั้งเดียวแล้วค้างไว้ */
+  const SHIFT = 36; // ระยะเลื่อนหลบ ต้องตรงกับ .rv / .rv.above ใน ui.css
+  const observers = {};
+  const seen = new WeakSet();
+  const observer = (once) => {
+    const key = once ? 'once' : 'both';
+    if (observers[key]) return observers[key];
+    const io = new IntersectionObserver((entries) => {
+      // element ที่โผล่มาพร้อมกันไล่ดีเลย์จากบนลงล่าง ซ้ายไปขวา
+      entries.filter((e) => e.isIntersecting)
+        .sort((a, b) => (a.boundingClientRect.top - b.boundingClientRect.top) || (a.boundingClientRect.left - b.boundingClientRect.left))
+        .forEach((e, i) => {
+          const el = e.target;
+          // data-delay ใช้แค่รอบแรก (จังหวะเปิดหน้า) รอบต่อ ๆ ไปไล่ดีเลย์สั้น ๆ ตามลำดับ
+          const d = el.dataset.delay && !seen.has(el) ? +el.dataset.delay : Math.min(i, 8) * 0.07;
+          el.style.setProperty('--d', `${d}s`);
+          seen.add(el);
+          el.classList.remove('above');
+          el.classList.add('in');
+          if (once) io.unobserve(el);
+        });
+      if (once) return;
+      entries.filter((e) => !e.isIntersecting).forEach((e) => {
+        const el = e.target, r = e.boundingClientRect;
+        // ถูกซ่อนด้วย display:none → กลับไปรอด้านล่าง
+        if (!r.height) { el.classList.remove('in', 'above', 'still'); return; }
+        const rb = e.rootBounds || { top: 0, bottom: window.innerHeight };
+        const up = r.top < rb.top; // ออกทางขอบบน
+        // ตำแหน่งจริงบนหน้า (ไม่นับระยะที่เลื่อนหลบอยู่) ใช้ดูว่าเลื่อนกลับมาถึงได้ไหม
+        const ty = parseFloat((getComputedStyle(el).translate || '').split(' ')[1]) || 0;
+        const top = r.top + window.scrollY - ty, bottom = r.bottom + window.scrollY - ty;
+        const end = document.documentElement.scrollHeight - window.innerHeight + rb.bottom;
+        const shift = SHIFT + (el.classList.contains('card') ? r.height * 0.02 : 0);
+        // อยู่ท้ายหน้าจนไม่มีวันเลื่อนถึงพื้นที่ตรวจ → โชว์ไว้เลย
+        if (!up && top >= end) { el.classList.add('in'); return; }
+        el.classList.remove('in');
+        el.classList.toggle('above', up);
+        // ชิดหัวหรือท้ายหน้า ถ้าเลื่อนหลบแล้วจะกลับเข้าพื้นที่ตรวจไม่ได้ → จางหายอยู่กับที่แทน
+        el.classList.toggle('still', up ? bottom - shift <= rb.top : top + shift >= end);
+      });
+    // threshold 0: โผล่ทันทีที่เห็นส่วนใดส่วนหนึ่ง (ถ้าใช้สัดส่วน element ที่สูงกว่าจอจะไม่มีวันถึงเกณฑ์)
+    }, { rootMargin: once ? '0px 0px -6% 0px' : '-12% 0px -6% 0px', threshold: 0 });
+    return (observers[key] = io);
+  };
+  M.reveal = (targets, { once = false } = {}) => {
     const els = typeof targets === 'string' ? document.querySelectorAll(targets) : targets;
+    const mark = (el) => { if (!el.classList.contains('lines')) el.classList.add('rv'); };
     if (M.reduced() || !('IntersectionObserver' in window)) {
-      els.forEach((el) => el.classList.add('rv', 'in'));
+      els.forEach((el) => { mark(el); el.classList.add('in'); });
       return;
     }
-    if (!io) {
-      io = new IntersectionObserver((entries) => {
-        // element ที่โผล่มาพร้อมกันไล่ดีเลย์จากบนลงล่าง ซ้ายไปขวา
-        entries.filter((e) => e.isIntersecting)
-          .sort((a, b) => (a.boundingClientRect.top - b.boundingClientRect.top) || (a.boundingClientRect.left - b.boundingClientRect.left))
-          .forEach((e, i) => {
-            const el = e.target;
-            if (!el.dataset.delay) el.style.setProperty('--d', `${Math.min(i, 8) * 0.07}s`);
-            el.classList.add('in');
-            io.unobserve(el);
-          });
-      // threshold 0: โผล่ทันทีที่เห็นส่วนใดส่วนหนึ่ง (ถ้าใช้สัดส่วน element ที่สูงกว่าจอจะไม่มีวันถึงเกณฑ์)
-      }, { rootMargin: '0px 0px -6% 0px', threshold: 0 });
-    }
+    const io = observer(once);
     els.forEach((el) => {
-      if (el.classList.contains('in')) return;
-      el.classList.add('rv');
-      if (el.dataset.delay) el.style.setProperty('--d', `${el.dataset.delay}s`);
+      if (once && el.classList.contains('in')) return;
+      mark(el);
       io.observe(el);
     });
   };

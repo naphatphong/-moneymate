@@ -90,19 +90,28 @@
   .bot-hint i{ width:5px; height:5px; border-radius:50%; background:var(--accent); animation: bot-ping 2s infinite; }
   @keyframes bot-ping{ 0%{ box-shadow:0 0 0 0 var(--accent-glow); } 70%, 100%{ box-shadow:0 0 0 7px transparent; } }
 
-  /* การ์ดข้อมูลลอยรอบแกน (ขยับตามเมาส์ตามระดับความลึก) */
-  .ichip{
-    position:absolute; z-index:3; display:flex; flex-direction:column; gap:1px; padding:10px 14px; border-radius:14px; font-size:0.84rem;
-    transform: translate3d(var(--px, 0px), var(--py, 0px), 0); animation: bob 6s ease-in-out infinite;
-  }
-  .ichip small{ font:500 0.56rem var(--mono); letter-spacing:0.16em; color:var(--text-faint); }
-  .ichip b{ font-weight:500; white-space:nowrap; }
-  .ichip b.pos{ color:var(--emerald); }
-  .ichip b.warn{ color:var(--amber); }
-  .ichip.c1{ top:12%; right:-6%; animation-delay:-1s; }
-  .ichip.c2{ top:3%; left:-4%; animation-delay:-3s; }
-  .ichip.c3{ top:56%; right:-10%; animation-delay:-4.5s; }
-  @keyframes bob{ 50%{ translate: 0 -8px; } }
+  /* ฉากหลังหุ่นยนต์: บัตรเครดิต + การ์ดกราฟยอดเงิน (ขยับตามเมาส์ตามระดับความลึก) */
+  .back-layer{ position:absolute; z-index:0; pointer-events:none; transform: translate3d(var(--px, 0px), var(--py, 0px), 0); }
+  .hero-cc-wrap{ top:6%; left:-2%; perspective:1200px; animation: cc-float 6s ease-in-out infinite; }
+  .hero-cc-wrap .cc{ --w: 250px; transform: rotateZ(-14deg) rotateX(var(--tx, 8deg)) rotateY(var(--ty, -10deg)); transition: transform 0.6s var(--spring-soft); }
+  @keyframes cc-float{ 50%{ translate: 0 -12px; } }
+  .hero-chart{ top:26%; right:-3%; width:250px; padding:18px; border-radius:var(--r-xl); rotate:5deg; animation: cc-float 7s ease-in-out -2.5s infinite; }
+  .hero-chart .row1{ display:flex; justify-content:space-between; align-items:center; }
+  .hero-chart .label{ font-size:0.74rem; color:var(--text-soft); display:flex; align-items:center; gap:8px; white-space:nowrap; }
+  .hero-chart .live-dot{ width:7px; height:7px; border-radius:50%; background:var(--accent); box-shadow: 0 0 0 4px var(--accent-dim); }
+  .hero-chart .balance{ font-size:1.7rem; font-weight:300; letter-spacing:-0.03em; margin:6px 0 2px; font-variant-numeric: tabular-nums; }
+  .hero-chart .balance span{ color:var(--accent); font-weight:400; margin-right:3px; }
+  .hero-chart svg{ width:100%; height:auto; display:block; margin-top:8px; }
+  .hero-chart .chart-line{ stroke-dasharray:500; stroke-dashoffset:500; }
+  .hero-chart .chart-area{ opacity:0; transition: opacity 0.8s ease; }
+  .visual.in .hero-chart .chart-line{ animation: draw 1.8s var(--spring-soft) 0.5s forwards; }
+  .visual.in .hero-chart .chart-area{ opacity:1; transition-delay:1.2s; }
+  @keyframes draw{ to{ stroke-dashoffset:0; } }
+  .mini-heat{ display:grid; grid-template-columns:repeat(18, 1fr); grid-auto-flow:column; grid-template-rows:repeat(5, 1fr); gap:3px; margin-top:12px; }
+  .mini-heat i{ aspect-ratio:1; border-radius:2px; background: rgba(var(--tint),0.06); }
+  .mini-heat i.l1{ background: color-mix(in srgb, var(--accent) 30%, transparent); }
+  .mini-heat i.l2{ background: color-mix(in srgb, var(--accent) 55%, transparent); }
+  .mini-heat i.l3{ background: var(--accent); }
 
   /* ตัวอย่างแชท AI ที่พิมพ์เอง */
   .ai-demo{ position:relative; z-index:3; width:min(360px, 100%); margin:-28px auto 0; padding:14px; border-radius:18px; }
@@ -163,12 +172,6 @@
   .story-stage{ position:relative; height:100%; min-height:300px; display:flex; align-items:center; justify-content:center; perspective:1400px; }
   .story-stage .glow{ position:absolute; width:70%; aspect-ratio:1; border-radius:50%; background: radial-gradient(closest-side, var(--accent-glow), transparent 70%); opacity:0.35; filter: blur(10px); }
   .ai-stage canvas{ position:absolute; inset:0; width:100%; height:100%; }
-  .stage-cap{
-    position:absolute; left:50%; bottom:9%; translate:-50% 0; z-index:2; display:flex; align-items:center; gap:10px;
-    padding:9px 14px 9px 9px; border-radius:14px; white-space:nowrap; transition: opacity 0.35s;
-  }
-  .stage-cap small{ display:block; font:500 0.56rem var(--mono); letter-spacing:0.16em; color:var(--text-faint); }
-  .stage-cap b{ display:block; font-size:0.84rem; font-weight:500; }
   .story-cards{ position:relative; transform-style:preserve-3d; }
   .story-cards .cc{ --w: min(400px, 78vw); }
   .story-cards .cc.side{ position:absolute; inset:0; opacity:0; }
@@ -268,7 +271,26 @@
   .sec-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:28px; }
   .sec-head h2{ font-size:clamp(1.7rem, 4vw, 2.4rem); }
   .sec-head .eyebrow{ margin-bottom:12px; }
-  .bento{ display:grid; grid-template-columns:1fr; gap:14px; perspective:1600px; }
+  /* การ์ดฟีเจอร์เลื่อนแนวนอน: ส่วนนี้ค้างไว้กลางจอ แล้วการเลื่อนลงพาการ์ดไหลไปทางซ้าย (js ตั้งความสูงให้พอดีระยะ) */
+  .h-scroll{ position:relative; }
+  .h-sticky{ position:sticky; top:0; height:100vh; display:flex; flex-direction:column; justify-content:center; overflow:hidden; padding:96px 20px 24px; margin:0 -20px; }
+  .h-sticky .sec-head{ margin-bottom:24px; }
+  .h-meta{ display:flex; align-items:center; gap:14px; font:500 0.66rem var(--mono); letter-spacing:0.16em; color:var(--text-faint); }
+  .h-meta b{ color:var(--text); font-weight:500; }
+  .h-bar{ width:120px; height:2px; border-radius:2px; background: rgba(var(--tint),0.12); overflow:hidden; }
+  .h-bar i{ display:block; height:100%; background:var(--accent); transform-origin:left; transform:scaleX(var(--p, 0)); }
+  .h-track{ display:flex; gap:16px; perspective:1400px; will-change:transform; transform-origin:50% 50%; }
+  .h-track .tile{ flex:0 0 min(380px, 82vw); will-change:translate, rotate, scale, opacity; }
+  /* แสงเงาบนการ์ดที่อยู่นอกจุดโฟกัส (js ตั้ง --dim) */
+  .h-track .tile::before{ content:""; position:absolute; inset:0; z-index:5; pointer-events:none; border-radius:inherit; background: rgba(0,0,0,0.55); opacity: var(--dim, 0); }
+  .h-track .tile.wide, .h-track .tile.w3{ flex-basis:min(560px, 86vw); }
+  /* สำรอง: ลดการเคลื่อนไหว / จอเตี้ย → ปัดเลื่อนเองแบบธรรมดา */
+  .h-scroll.native{ height:auto !important; }
+  .h-scroll.native .h-sticky{ position:relative; height:auto; padding-top:0; }
+  .h-scroll.native .h-track{ overflow-x:auto; scroll-snap-type:x mandatory; padding:6px 0 12px; transform:none !important; scrollbar-width:none; }
+  .h-scroll.native .h-track::-webkit-scrollbar{ display:none; }
+  .h-scroll.native .tile{ scroll-snap-align:start; }
+  .h-scroll.native .h-bar{ display:none; }
   .tile{
     position:relative; overflow:hidden; display:flex; flex-direction:column; padding:0;
     transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform 0.55s var(--spring-soft), border-color 0.25s;
@@ -423,8 +445,6 @@
     .stat{ border-bottom:none; }
     .stat:nth-child(2n){ border-right:1px solid var(--line); }
     .stat:last-child{ border-right:none; }
-    .bento{ grid-template-columns:repeat(2, 1fr); }
-    .tile.wide{ grid-column: span 2; }
   }
   @media (min-width:960px){
     .hero{ grid-template-columns: 1fr 1.05fr; padding:70px 0 80px; min-height:100vh; }
@@ -432,17 +452,33 @@
     .bot-hint{ left:auto; right:2%; translate:none; }
     .story-sticky{ grid-template-rows:none; grid-template-columns: 0.9fr 1.1fr; padding-top:0; }
     .plan-show{ grid-template-columns: 0.9fr 1.1fr; gap:56px; }
-    .bento{ grid-template-columns:repeat(3, 1fr); }
-    .tile.w3{ grid-column: span 2; }
   }
   @media (max-width:520px){
     .nav-links .text-link{ display:none; }
-    .ichip{ padding:8px 11px; font-size:0.76rem; }
-    .ichip.c1{ right:0; } .ichip.c2{ left:0; } .ichip.c3{ right:0; }
+    /* แถบสถิติ: บนมือถือย่อให้อยู่แถวเดียว 4 ช่อง */
+    .stats{ grid-template-columns:repeat(4, 1fr); }
+    .stat{ padding:16px 6px; border-bottom:none; border-right:1px solid var(--line); }
+    .stat:nth-child(2n){ border-right:1px solid var(--line); }
+    .stat:last-child{ border-right:none; }
+    .stat .v{ font-size:1.2rem; white-space:nowrap; }
+    .stat .k{ margin-top:5px; font-size:0.62rem; line-height:1.4; }
+    .hero-cc-wrap{ left:-4%; top:4%; }
+    .hero-cc-wrap .cc{ --w: 170px; }
+    .hero-chart{ right:-3%; width:172px; padding:12px; }
+    .hero-chart .balance{ font-size:1.15rem; }
+    .hero-chart .label{ font-size:0.62rem; }
+    .hero-chart .chip{ display:none; }
+    .mini-heat{ display:none; }
     .pm-big{ font-size:2rem; }
-    .sA{ grid-template-columns:1fr; }
+    .sA{ grid-template-columns:1fr; padding:38px 14px 14px; gap:10px; }
+    .sA .rec-row:not(.rec-new){ display:none; }
+    .h-sticky{ padding-top:84px; }
+    .h-sticky .sec-head{ margin-bottom:16px; }
+    .h-track .tile{ flex-basis:80vw; }
+    .h-track .tile.wide, .h-track .tile.w3{ flex-basis:84vw; }
     .sF{ grid-template-columns:1fr; }
-    .gg{ width:190px; margin:0 auto; }
+    .gg{ width:160px; margin:0 auto; }
+    .sF .tip ~ .tip{ display:none; }
   }
   @media (max-width:440px){ .nav-links .btn-ghost{ display:none; } }
   @media (prefers-reduced-motion: reduce){
@@ -450,9 +486,10 @@
     .story-sticky{ position:relative; height:auto; padding:40px 0; }
     .story-steps{ min-height:0; }
     .step{ position:static; opacity:1; translate:none; filter:none; margin-bottom:26px; }
-    .story-progress, .stage-cap{ display:none; }
+    .story-progress{ display:none; }
     .story-stage{ min-height:340px; }
-    .ichip, .bot-hint i, .ins-skel i, .rec-amt i{ animation:none; }
+    .back-layer, .bot-hint i, .ins-skel i, .rec-amt i{ animation:none; }
+    .hero-chart .chart-line{ stroke-dashoffset:0; } .hero-chart .chart-area{ opacity:1; }
     .tile, .sim{ transform:none; }
     .cursor-aura{ display:none; }
   }
@@ -497,13 +534,21 @@
     <div class="visual rv" data-delay="0.3" id="heroVisual">
       <div class="stage3d" id="stage3d">
         <div class="halo" aria-hidden="true"></div>
+        <div class="back-layer hero-cc-wrap" data-depth="-22" aria-hidden="true"><div class="cc obsidian" id="heroCard" data-type="Debit" data-num="4721 •••• •••• 0386"></div></div>
+        <div class="back-layer card hero-chart" data-depth="-14" aria-hidden="true">
+          <div class="row1"><div class="label"><span class="live-dot"></span>ยอดเงินคงเหลือ</div><span class="chip accent">↑ 12.4%</span></div>
+          <div class="balance"><span>฿</span>36,907</div>
+          <svg viewBox="0 0 300 100">
+            <defs><linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--accent)" stop-opacity="0.35"/><stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+            <path class="chart-area" d="M0,78 L35,64 L70,71 L105,42 L140,53 L175,24 L210,37 L245,14 L300,18 L300,100 L0,100 Z" fill="url(#areaGrad)"/>
+            <path class="chart-line" d="M0,78 L35,64 L70,71 L105,42 L140,53 L175,24 L210,37 L245,14 L300,18" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div class="mini-heat" id="miniHeat"></div>
+        </div>
         <button type="button" class="bot-btn" id="botBtn" aria-label="ทักทายผู้ช่วย MoneyMate">
           <canvas id="botCanvas" aria-hidden="true"></canvas>
         </button>
         <div class="bot-hint" aria-hidden="true"><i></i>แตะหุ่นยนต์เพื่อทักทาย</div>
-        <div class="card ichip c1" data-depth="26" aria-hidden="true"><small>INSIGHT</small><b class="pos">ค่ากินลดลง 8%</b></div>
-        <div class="card ichip c2" data-depth="18" aria-hidden="true"><small>FORECAST</small><b>สิ้นเดือนเหลือ ฿3,120</b></div>
-        <div class="card ichip c3" data-depth="34" aria-hidden="true"><small>SAFE / DAY</small><b class="warn">ใช้ได้อีกวันละ ฿91</b></div>
       </div>
       <div class="card ai-demo" id="aiDemo" aria-hidden="true">
         <div class="ad-head"><span class="ai-mark">AI</span><div><b>ถาม MoneyMate AI</b><small>ตอบจากตัวเลขของคุณเอง</small></div></div>
@@ -512,6 +557,18 @@
       </div>
     </div>
   </div>
+
+  <div class="card stats rv">
+    <div class="stat rv"><div class="v">ฟรี</div><div class="k">ไม่มีค่าใช้จ่าย ไม่มีโฆษณา</div></div>
+    <div class="stat rv"><div class="v"><span data-count="4">4</span></div><div class="k">ผู้ช่วย AI ในแอป</div></div>
+    <div class="stat rv"><div class="v"><span data-count="12">12</span> เดือน</div><div class="k">คาดการณ์ล่วงหน้า</div></div>
+    <div class="stat rv"><div class="v"><span data-count="2">2</span> ภาษา</div><div class="k">ไทย · English</div></div>
+  </div>
+
+  <section class="manifesto">
+    <div class="eyebrow rv">Manifesto</div>
+    <p class="rv" id="manifestoText">เราเชื่อว่าการจัดการเงินไม่ควรยุ่งยาก MoneyMate จึงออกแบบให้บันทึกได้ในไม่กี่วินาที เห็นภาพรวมได้ในแวบเดียว และมีผู้ช่วย AI คอยช่วยวางแผนเมื่อคุณต้องการ เพื่อให้ตัดสินใจเรื่องเงินได้อย่างมั่นใจทุกวัน</p>
+  </section>
 </div>
 
 <div class="ticker rv">
@@ -523,7 +580,7 @@
   <!-- ===== AI STORY: อนุภาคเปลี่ยนรูปตามการเลื่อน ===== -->
   <section class="card-story ai-story" id="ai" aria-label="ผู้ช่วย AI ของ MoneyMate ทำอะไรได้บ้าง">
     <div class="story-sticky">
-      <div class="story-copy">
+      <div class="story-copy rv">
         <div class="eyebrow">A little help when you need it</div>
         <div class="story-steps">
           <div class="step on">
@@ -544,21 +601,52 @@
         </div>
         <div class="story-progress" aria-hidden="true"><i></i><i></i><i></i></div>
       </div>
-      <div class="story-stage ai-stage" aria-hidden="true">
+      <div class="story-stage ai-stage rv" aria-hidden="true">
         <div class="glow"></div>
         <canvas id="storyCore"></canvas>
-        <div class="card stage-cap" id="stageCap"><span class="ai-mark">AI</span><div><small id="capK">MONTHLY SPEND</small><b id="capV">รายจ่าย 7 เดือนล่าสุด</b></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CARD STORY ===== -->
+  <section class="card-story" id="cardStory" aria-label="บัตรกี่ใบก็จดไว้ที่เดียว">
+    <div class="story-sticky">
+      <div class="story-copy rv">
+        <div class="eyebrow">Every swipe counts</div>
+        <div class="story-steps">
+          <div class="step on">
+            <h2 class="two-tone">บัตรกี่ใบ<span class="muted">ก็จดไว้ที่เดียว</span></h2>
+            <p>จ่ายด้วยบัตรไหน เงินสด หรือโอน ก็บันทึกลง MoneyMate ได้ในไม่กี่วินาที แยกหมวดหมู่ให้เห็นชัด</p>
+          </div>
+          <div class="step">
+            <h2 class="two-tone">รู้ยอดที่รูดไป<span class="muted">ก่อนบิลจะมา</span></h2>
+            <p>ดูรายจ่ายเดือนนี้เทียบกับงบที่ตั้งไว้ได้ตลอด ไม่ต้องรอสรุปยอดตอนสิ้นเดือน</p>
+          </div>
+          <div class="step">
+            <h2 class="two-tone">เห็นภาพรวม<span class="muted">ในหน้าเดียว</span></h2>
+            <p>รายรับเทียบรายจ่าย สัดส่วนตามหมวดหมู่ และอัตราการออม ยิ่งบันทึกครบ ยิ่งวางแผนได้แม่นยำขึ้น</p>
+          </div>
+        </div>
+        <div class="story-progress" aria-hidden="true"><i></i><i></i><i></i></div>
+      </div>
+      <div class="story-stage rv" aria-hidden="true">
+        <div class="glow"></div>
+        <div class="story-cards">
+          <div class="cc titanium side" id="ccLeft" data-type="Credit" data-num="5190 •••• •••• 7743"></div>
+          <div class="cc aurora side" id="ccRight" data-type="Travel" data-num="3782 •••• •••• 1004"></div>
+          <div class="cc obsidian" id="ccMain" data-type="Debit" data-num="4721 •••• •••• 0386" data-back="1"></div>
+        </div>
       </div>
     </div>
   </section>
 
   <!-- ===== PLANNING ===== -->
   <section class="plan-show" id="plan">
-    <div class="plan-copy rv">
-      <div class="eyebrow">Plan ahead</div>
-      <h2 class="two-tone">รู้ก่อนว่าเงินพอไหม<span class="muted">ล่วงหน้า 12 เดือน</span></h2>
-      <p>ดูตัวอย่างได้เลย ระบบรวมรายการประจำของคุณ ไล่คำนวณยอดเงินทีละวัน แล้วบอกล่วงหน้าว่าวันไหนเงินจะไม่พอ</p>
-      <ol class="plan-list" id="planSteps">
+    <div class="plan-copy">
+      <div class="eyebrow rv">Plan ahead</div>
+      <h2 class="two-tone lines"><span class="ln"><span>รู้ก่อนว่าเงินพอไหม</span></span><span class="ln muted"><span style="--d:0.1s">ล่วงหน้า 12 เดือน</span></span></h2>
+      <p class="rv">ดูตัวอย่างได้เลย ระบบรวมรายการประจำของคุณ ไล่คำนวณยอดเงินทีละวัน แล้วบอกล่วงหน้าว่าวันไหนเงินจะไม่พอ</p>
+      <ol class="plan-list rv" id="planSteps">
         <li><span class="n">01</span><div><b>ใส่รายการประจำครั้งเดียว</b>ค่าหอ ค่ากินรายวัน ค่าเทอม หรือของที่อยากซื้อ</div><i class="pbar" aria-hidden="true"></i></li>
         <li><span class="n">02</span><div><b>ระบบไล่คำนวณทีละวัน</b>เห็นทันทีว่าวันไหนจะติดลบ และขาดเท่าไร</div><i class="pbar" aria-hidden="true"></i></li>
         <li><span class="n">03</span><div><b>ให้ AI ช่วยปรับแผน</b>กดใช้คำแนะนำ แล้วดูยอดทั้งเดือนเปลี่ยนตาม</div><i class="pbar" aria-hidden="true"></i></li>
@@ -583,15 +671,17 @@
   </section>
 
   <!-- ===== FEATURES ===== -->
-  <section id="features">
-    <div class="sec-head rv">
+  <section class="h-scroll" id="features">
+   <div class="h-sticky">
+    <div class="sec-head">
       <div>
-        <div class="eyebrow">What you get</div>
-        <h2 class="two-tone">ผู้ช่วยการเงินครบ<span class="muted">ในแอปเดียว</span></h2>
+        <div class="eyebrow rv">What you get</div>
+        <h2 class="two-tone lines"><span class="ln"><span>ผู้ช่วยการเงินครบ</span></span><span class="ln muted"><span style="--d:0.1s">ในแอปเดียว</span></span></h2>
       </div>
+      <div class="h-meta rv" aria-hidden="true"><span><b id="hNow">01</b> / 06</span><span class="h-bar"><i id="hBar"></i></span><span>SCROLL</span></div>
     </div>
-    <div class="bento">
-      <article class="card tile wide rv">
+    <div class="h-track" id="hTrack">
+      <article class="card tile wide">
         <div class="tile-stage sA" id="sA" aria-hidden="true">
           <span class="rec-timer" id="recTimer">0.0 วิ</span>
           <div class="rec-pad">
@@ -607,11 +697,11 @@
         </div>
         <div class="tile-copy"><span class="num">01</span><h3>บันทึกในไม่กี่วินาที</h3><p>ใส่จำนวนเงิน เลือกหมวด แล้วกดบันทึก จบในไม่ถึง 3 วินาที สร้างหมวดของตัวเองได้ด้วย</p></div>
       </article>
-      <article class="card tile rv">
+      <article class="card tile">
         <div class="tile-stage sB" id="sB" aria-hidden="true"><div class="mb" id="mbPlot"><span class="mb-pin" id="mbPin"></span></div></div>
         <div class="tile-copy"><span class="num">02</span><h3>วางแผนล่วงหน้า 12 เดือน</h3><p>เห็นก่อนว่าเดือนไหนเงินไม่พอ แล้วปรับแผนก่อนถึงวันจริง</p></div>
       </article>
-      <article class="card tile rv">
+      <article class="card tile">
         <div class="tile-stage sC" id="sC" aria-hidden="true">
           <div class="dn"><svg viewBox="0 0 120 120"><circle class="dn-track" cx="60" cy="60" r="44"/><circle class="dn-seg" cx="60" cy="60" r="44" style="stroke:var(--cat-x1)"/><circle class="dn-seg" cx="60" cy="60" r="44" style="stroke:var(--cat-food)"/><circle class="dn-seg" cx="60" cy="60" r="44" style="stroke:var(--cat-travel)"/><circle class="dn-seg" cx="60" cy="60" r="44" style="stroke:var(--cat-shop)"/></svg><div class="dn-c"><small>เดือนนี้</small><b id="dnTotal">฿0</b></div></div>
           <div class="dn-leg">
@@ -623,7 +713,7 @@
         </div>
         <div class="tile-copy"><span class="num">03</span><h3>Analytics แบบมืออาชีพ</h3><p>สัดส่วนรายจ่าย กระแสเงินสด และแนวโน้ม อ่านเข้าใจได้ในหน้าเดียว</p></div>
       </article>
-      <article class="card tile wide rv"><span class="tag">AI</span>
+      <article class="card tile wide"><span class="tag">AI</span>
         <div class="tile-stage sD" id="sD" aria-hidden="true">
           <div class="ins loading" id="insBox">
             <div class="ins-top"><span class="ai-mark">AI</span><div><b>สรุปเดือนนี้</b><small id="insState">กำลังวิเคราะห์…</small></div></div>
@@ -638,11 +728,11 @@
         </div>
         <div class="tile-copy"><span class="num">04</span><h3>สรุปการใช้เงินให้อัตโนมัติ</h3><p>กดครั้งเดียว AI บอกสิ่งที่ทำได้ดี สิ่งที่ควรระวัง และคำแนะนำที่ทำได้จริง</p></div>
       </article>
-      <article class="card tile rv"><span class="tag">AI</span>
+      <article class="card tile"><span class="tag">AI</span>
         <div class="tile-stage sE" id="sE" aria-hidden="true"><div class="ad-msg me" id="chQ"></div><div class="ad-msg bot" id="chA"></div></div>
         <div class="tile-copy"><span class="num">05</span><h3>ถามได้ทุกเรื่องเงิน</h3><p>พิมพ์ถามเป็นภาษาไทย AI ตอบจากตัวเลขจริงของคุณ</p></div>
       </article>
-      <article class="card tile w3 rv"><span class="tag">AI</span>
+      <article class="card tile w3"><span class="tag">AI</span>
         <div class="tile-stage sF" id="sF" aria-hidden="true">
           <div class="gg">
             <svg viewBox="0 0 200 110"><path class="gg-track" d="M20 100 A80 80 0 0 1 180 100"/><path class="gg-val" id="ggVal" d="M20 100 A80 80 0 0 1 180 100"/><g class="gg-needle" id="ggNeedle"><line x1="100" y1="100" x2="100" y2="40"/><circle cx="100" cy="100" r="6"/></g></svg>
@@ -658,62 +748,19 @@
         <div class="tile-copy"><span class="num">06</span><h3>คำแนะนำเมื่อใกล้ถึงงบ</h3><p>ใช้ไปเกิน 80% ของงบ กดขอคำแนะนำ AI บอกว่าควรลดอะไรในวันที่เหลือ</p></div>
       </article>
     </div>
+   </div>
   </section>
-
-  <!-- ===== CARD STORY ===== -->
-  <section class="card-story" id="cardStory" aria-label="บัตรกี่ใบก็จดไว้ที่เดียว">
-    <div class="story-sticky">
-      <div class="story-copy">
-        <div class="eyebrow">Every swipe counts</div>
-        <div class="story-steps">
-          <div class="step on">
-            <h2 class="two-tone">บัตรกี่ใบ<span class="muted">ก็จดไว้ที่เดียว</span></h2>
-            <p>จ่ายด้วยบัตรไหน เงินสด หรือโอน ก็บันทึกลง MoneyMate ได้ในไม่กี่วินาที แยกหมวดหมู่ให้เห็นชัด</p>
-          </div>
-          <div class="step">
-            <h2 class="two-tone">รู้ยอดที่รูดไป<span class="muted">ก่อนบิลจะมา</span></h2>
-            <p>ดูรายจ่ายเดือนนี้เทียบกับงบที่ตั้งไว้ได้ตลอด ไม่ต้องรอสรุปยอดตอนสิ้นเดือน</p>
-          </div>
-          <div class="step">
-            <h2 class="two-tone">เห็นภาพรวม<span class="muted">ในหน้าเดียว</span></h2>
-            <p>รายรับเทียบรายจ่าย สัดส่วนตามหมวดหมู่ และอัตราการออม ยิ่งบันทึกครบ ยิ่งวางแผนได้แม่นยำขึ้น</p>
-          </div>
-        </div>
-        <div class="story-progress" aria-hidden="true"><i></i><i></i><i></i></div>
-      </div>
-      <div class="story-stage" aria-hidden="true">
-        <div class="glow"></div>
-        <div class="story-cards">
-          <div class="cc titanium side" id="ccLeft" data-type="Credit" data-num="5190 •••• •••• 7743"></div>
-          <div class="cc aurora side" id="ccRight" data-type="Travel" data-num="3782 •••• •••• 1004"></div>
-          <div class="cc obsidian" id="ccMain" data-type="Debit" data-num="4721 •••• •••• 0386" data-back="1"></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="manifesto">
-    <div class="eyebrow rv">Manifesto</div>
-    <p id="manifestoText">เราเชื่อว่าการจัดการเงินไม่ควรยุ่งยาก MoneyMate จึงออกแบบให้บันทึกได้ในไม่กี่วินาที เห็นภาพรวมได้ในแวบเดียว และมีผู้ช่วย AI คอยช่วยวางแผนเมื่อคุณต้องการ เพื่อให้ตัดสินใจเรื่องเงินได้อย่างมั่นใจทุกวัน</p>
-  </section>
-
-  <div class="card stats rv">
-    <div class="stat"><div class="v">ฟรี</div><div class="k">ไม่มีค่าใช้จ่าย ไม่มีโฆษณา</div></div>
-    <div class="stat"><div class="v"><span data-count="4">4</span></div><div class="k">ผู้ช่วย AI ในแอป</div></div>
-    <div class="stat"><div class="v"><span data-count="12">12</span> เดือน</div><div class="k">คาดการณ์ล่วงหน้า</div></div>
-    <div class="stat"><div class="v"><span data-count="2">2</span> ภาษา</div><div class="k">ไทย · English</div></div>
-  </div>
 
   <section>
     <div class="card cta-band rv">
-      <div class="eyebrow" style="margin-bottom:16px;">Let's start</div>
-      <h2 class="two-tone">เริ่มจัดการเงิน<span class="muted">ตั้งแต่วันนี้</span></h2>
-      <p>สมัครฟรี ใช้เวลาไม่ถึงนาที หรือเข้าสู่ระบบด้วยบัญชี Google มีผู้ช่วย AI ให้เปิดใช้เพิ่มเติมเมื่อคุณต้องการ</p>
-      <a class="btn btn-primary magnetic" href="register.html">สร้างบัญชีฟรี<span class="arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
+      <div class="eyebrow rv" style="margin-bottom:16px;">Let's start</div>
+      <h2 class="two-tone lines"><span class="ln"><span>เริ่มจัดการเงิน</span></span><span class="ln muted"><span style="--d:0.1s">ตั้งแต่วันนี้</span></span></h2>
+      <p class="rv">สมัครฟรี ใช้เวลาไม่ถึงนาที หรือเข้าสู่ระบบด้วยบัญชี Google มีผู้ช่วย AI ให้เปิดใช้เพิ่มเติมเมื่อคุณต้องการ</p>
+      <a class="btn btn-primary magnetic rv" href="register.html">สร้างบัญชีฟรี<span class="arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
     </div>
   </section>
 
-  <footer>
+  <footer class="rv">
     <a class="brand-mark" href="/">
       <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="9"/><path d="M9.5 21.5v-11l6.5 6 6.5-6v11"/></svg>
       <span class="wordmark">Money<span class="accent">Mate</span></span>
@@ -752,16 +799,30 @@
 
   // หุ่นยนต์ในส่วนหัวอยู่ใน js/robot.js (โหลดแบบ module)
   const hero = document.getElementById('hero');
-  document.querySelectorAll('.cc[data-num]').forEach(card => CC.build(card)); // บัตรในเรื่องเล่าด้านล่าง
+  document.querySelectorAll('.cc[data-num]').forEach(card => CC.build(card)); // บัตรหลังหุ่นยนต์ + เรื่องเล่าด้านล่าง
 
-  // การ์ดข้อมูลลอย: ขยับตามเมาส์ตามระดับความลึก
+  // ตารางกิจกรรมตัวอย่างในการ์ดกราฟ
   (function () {
-    const chips = [...document.querySelectorAll('.ichip')];
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    document.getElementById('miniHeat').innerHTML = Array.from({ length: 18 * 5 }, (_, i) => {
+      const r = rnd() * (0.5 + i / 180);
+      return `<i class="${r > 0.62 ? 'l3' : r > 0.42 ? 'l2' : r > 0.26 ? 'l1' : ''}"></i>`;
+    }).join('');
+  })();
+
+  // ฉากหลังหุ่นยนต์: ขยับสวนเมาส์ตามระดับความลึก บัตรเอียงตามเมาส์
+  (function () {
+    const layers = [...document.querySelectorAll('.back-layer')];
+    const card = document.getElementById('heroCard');
     if (Motion.reduced() || !fine) return;
     let mx = 0, my = 0, cx = 0, cy = 0, raf = 0;
     const tick = () => {
       cx += (mx - cx) * 0.08; cy += (my - cy) * 0.08;
-      chips.forEach(c => { const d = +c.dataset.depth; c.style.setProperty('--px', `${(cx * d).toFixed(2)}px`); c.style.setProperty('--py', `${(cy * d).toFixed(2)}px`); });
+      layers.forEach(c => { const d = +c.dataset.depth; c.style.setProperty('--px', `${(cx * d).toFixed(2)}px`); c.style.setProperty('--py', `${(cy * d).toFixed(2)}px`); });
+      card.style.setProperty('--ty', `${(cx * 26 - 10).toFixed(1)}deg`);
+      card.style.setProperty('--tx', `${(8 - cy * 22).toFixed(1)}deg`);
+      card.style.setProperty('--sheen', (0.5 + cx * 0.8).toFixed(2));
       raf = Math.abs(mx - cx) + Math.abs(my - cy) > 0.001 ? requestAnimationFrame(tick) : 0;
     };
     hero.addEventListener('pointermove', e => {
@@ -806,12 +867,6 @@
     const story = document.getElementById('ai');
     const core = AICore.mount(document.getElementById('storyCore'), { shapes: ['sphere', 'bars', 'gauge', 'bubble'], count: 1000, scale: 0.34, pointerTarget: story });
     const steps = [...story.querySelectorAll('.step')], bars = [...story.querySelectorAll('.story-progress i')];
-    const CAPS = [
-      ['MONTHLY SPEND', 'รายจ่าย 7 เดือนล่าสุด · เดือนนี้สูงสุด'],
-      ['BUDGET USED', 'ใช้ไป 86% ของงบ · เหลือวันละ ฿91'],
-      ['ASK ANYTHING', 'ถามอะไรก็ได้ ตอบเป็นภาษาไทย']
-    ];
-    const capK = document.getElementById('capK'), capV = document.getElementById('capV'), cap = document.getElementById('stageCap');
     // [ตำแหน่งการเลื่อน, รูปทรง] — หยุดค้างที่แต่ละรูปช่วงหนึ่งก่อนเปลี่ยน
     const KEYS = [[0, 0], [0.08, 0], [0.3, 1], [0.4, 1], [0.62, 2], [0.72, 2], [0.94, 3], [1, 3]];
     const shapeAt = p => {
@@ -828,8 +883,6 @@
       const step = Math.max(0, Math.min(2, Math.round(s) - 1));
       if (step !== lastStep) {
         steps.forEach((el, i) => el.classList.toggle('on', i === step));
-        cap.style.opacity = 0;
-        setTimeout(() => { capK.textContent = CAPS[step][0]; capV.textContent = CAPS[step][1]; cap.style.opacity = 1; }, lastStep < 0 ? 0 : 220);
         lastStep = step;
       }
       bars.forEach((b, i) => b.style.setProperty('--f', clamp01((s - 1 - i) + 1).toFixed(3)));
@@ -872,6 +925,94 @@
     });
   })();
 
+  /* ================= การ์ดฟีเจอร์เลื่อนแนวนอนตามการเลื่อนลง =================
+     - ส่วนนี้ค้างกลางจอ การเลื่อนลงพาแถวการ์ดไหลไปทางซ้าย (ไหลตามแบบมีแรงเฉื่อย)
+     - จุดโฟกัสเดินจากใบแรกไปใบสุดท้าย: ใบที่อยู่ห่างโฟกัสจะเล็กลง หมุนเข้าหาจอ และมืดลงเล็กน้อย
+     - เลื่อนเร็ว แถวการ์ดเอียงตามความเร็ว แล้วค่อย ๆ ตั้งตรง
+     - ตอนเลื่อนมาถึง การ์ดบินเข้ามาจากขวาทีละใบ */
+  (function () {
+    const sec = document.getElementById('features'), track = document.getElementById('hTrack');
+    const sticky = sec.querySelector('.h-sticky');
+    const bar = document.getElementById('hBar'), now = document.getElementById('hNow');
+    const tiles = [...track.children];
+    const reduced = Motion.reduced();
+    let dist = 0, isNative = false, x = 0, tx = 0, skew = 0, raf = 0, enter = 1, lastIdx = -1;
+
+    const layout = () => {
+      // จอเตี้ยจนการ์ดล้นจอ → ใช้แบบปัดเลื่อนเอง
+      sec.classList.remove('native');
+      sec.style.height = '';
+      isNative = reduced || sticky.scrollHeight > window.innerHeight + 1;
+      sec.classList.toggle('native', isNative);
+      if (isNative) { track.style.transform = ''; x = tx = 0; fx(); return; }
+      dist = Math.max(0, track.scrollWidth - track.clientWidth);
+      sec.style.height = `${window.innerHeight + dist}px`;
+      read(); x = tx; draw();
+    };
+
+    // อ่านตำแหน่งการเลื่อน → เป้าหมายของแถวการ์ด
+    const read = () => {
+      const r = sec.getBoundingClientRect(), vh = window.innerHeight;
+      const p = clamp01(-r.top / (r.height - vh || 1));
+      tx = -p * dist;
+      enter = clamp01((vh - r.top) / (vh * 0.75)); // 0 = เพิ่งโผล่ขอบล่าง, 1 = ถึงแล้ว
+      bar.style.setProperty('--p', p.toFixed(3));
+    };
+
+    // เอฟเฟกต์รายใบ: ระยะห่างจากจุดโฟกัส (หน่วย = ความกว้างการ์ด)
+    const fx = () => {
+      if (reduced) return;
+      const box = track.getBoundingClientRect();
+      const scrollX = isNative ? track.scrollLeft : -x;
+      const max = isNative ? Math.max(1, track.scrollWidth - track.clientWidth) : Math.max(1, dist);
+      const p = clamp01(scrollX / max);
+      const first = tiles[0], last = tiles[tiles.length - 1];
+      // จุดโฟกัสบนจอ: เริ่มที่กลางใบแรก จบที่กลางใบสุดท้าย
+      const f0 = box.left + first.offsetWidth / 2, f1 = box.left + track.clientWidth - last.offsetWidth / 2;
+      const focus = f0 + (f1 - f0) * p;
+      let best = 0, bestD = Infinity;
+      tiles.forEach((t, i) => {
+        const c = box.left + t.offsetLeft - scrollX + t.offsetWidth / 2;
+        const d = (c - focus) / (t.offsetWidth + 16);
+        const a = Math.min(Math.abs(d), 1.6);
+        if (Math.abs(d) < bestD) { bestD = Math.abs(d); best = i; }
+        // บินเข้ามาทีละใบตอนเลื่อนมาถึง
+        const late = isNative ? 0 : 1 - clamp01(enter * 1.6 - i * 0.12);
+        const ex = late * (140 + i * 60), eo = 1 - late;
+        t.style.translate = `${ex.toFixed(1)}px ${(a * a * 10).toFixed(1)}px`;
+        t.style.rotate = `y ${Math.max(-16, Math.min(16, -d * 11)).toFixed(2)}deg`;
+        t.style.scale = (1 - a * 0.07).toFixed(3);
+        t.style.opacity = eo.toFixed(3);
+        t.style.setProperty('--dim', (clamp01(a - 0.35) * 0.55).toFixed(3));
+      });
+      if (best !== lastIdx) { lastIdx = best; now.textContent = String(best + 1).padStart(2, '0'); }
+    };
+
+    const draw = () => {
+      track.style.transform = `translate3d(${x.toFixed(1)}px, 0, 0) skewX(${skew.toFixed(2)}deg)`;
+      fx();
+    };
+    // แรงเฉื่อย: ไหลตามเป้าหมายนุ่ม ๆ และเอียงตามความเร็ว
+    const tick = () => {
+      const v = tx - x;
+      x += v * 0.14;
+      skew += (Math.max(-5, Math.min(5, v * 0.035)) - skew) * 0.2;
+      draw();
+      raf = Math.abs(v) > 0.2 || Math.abs(skew) > 0.02 ? requestAnimationFrame(tick) : 0;
+      if (!raf) { x = tx; skew = 0; draw(); }
+    };
+
+    layout();
+    window.addEventListener('resize', layout);
+    track.addEventListener('scroll', () => { if (isNative) requestAnimationFrame(fx); }, { passive: true });
+    Motion.onScroll(() => {
+      if (isNative) return;
+      read();
+      if (reduced) { x = tx; draw(); return; }
+      if (!raf) raf = requestAnimationFrame(tick);
+    });
+  })();
+
   // แสงนุ่ม ๆ ตามเมาส์ทั้งหน้า
   (function () {
     const aura = document.getElementById('cursorAura');
@@ -888,8 +1029,7 @@
 
   // ---- แอนิเมชันตอนเลื่อน ----
   window.addEventListener('DOMContentLoaded', () => Motion.smoothScroll()); // Lenis โหลดแบบ defer
-  Motion.reveal(document.querySelectorAll('.rv'));
-  requestAnimationFrame(() => document.getElementById('heroTitle').classList.add('in'));
+  Motion.reveal(document.querySelectorAll('.rv, .lines')); // เลื่อนเข้าเมื่อเห็น เลื่อนออกเมื่อพ้นจอ ทั้งขาลงและขาขึ้น
   document.querySelectorAll('[data-count]').forEach(el => Motion.countOnView(el, { duration: 1600 }));
   Motion.scrubWords(document.getElementById('manifestoText'));
   document.querySelectorAll('.magnetic').forEach(el => Motion.magnetic(el));
