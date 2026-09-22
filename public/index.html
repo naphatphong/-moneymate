@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MoneyMate — ผู้ช่วยการเงินด้วย AI</title>
-<meta name="description" content="บันทึกรายรับรายจ่าย ให้ AI ช่วยวิเคราะห์ วางแผนล่วงหน้า และแนะนำเมื่อใกล้ถึงงบ ใช้ฟรี">
+<title>MoneyMate — บันทึกรายรับรายจ่าย วางแผนการเงิน</title>
+<meta name="description" content="บันทึกรายรับรายจ่าย ตั้งงบ วางแผนการเงินล่วงหน้า พร้อมผู้ช่วย AI คอยสรุปและแนะนำ ใช้ฟรี">
 <meta name="theme-color" content="#070809">
 <script src="js/theme.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -140,7 +140,7 @@
 
   /* ---- ส่วนเล่าเรื่องที่ติดหน้าจอขณะเลื่อน (ใช้ทั้งเรื่อง AI และเรื่องบัตร) ---- */
   .card-story{ position:relative; height:340vh; margin-bottom:60px; }
-  .ai-story{ height:440vh; }
+  .ai-story{ height:340vh; }
   .story-sticky{ position:sticky; top:0; height:100vh; display:grid; grid-template-rows:auto 1fr; align-items:center; gap:10px; padding-top:92px; }
   .story-copy{ position:relative; min-height:200px; isolation:isolate; }
   .story-copy::before{
@@ -303,9 +303,9 @@
       <span class="wordmark">Money<span class="accent">Mate</span></span>
     </a>
     <div class="nav-links">
-      <a class="text-link" href="#ai">AI</a>
-      <a class="text-link" href="#plan">วางแผน</a>
       <a class="text-link" href="#features">ฟีเจอร์</a>
+      <a class="text-link" href="#plan">วางแผน</a>
+      <a class="text-link" href="#ai">AI</a>
       <a class="btn btn-ghost" href="login.html">เข้าสู่ระบบ</a>
       <a class="btn btn-primary" href="register.html">เริ่มใช้งาน</a>
     </div>
@@ -314,15 +314,15 @@
   <!-- ===== HERO ===== -->
   <div class="hero" id="hero">
     <div class="hero-copy">
-      <div class="eyebrow rv" data-delay="0.1">AI money assistant · ใช้ฟรี</div>
-      <h1 class="lines" id="heroTitle"><span class="ln"><span style="--d:0.15s">ให้ <span class="accent">AI</span> ช่วยคิด</span></span><span class="ln muted"><span style="--d:0.27s">เรื่องเงินทุกเดือน</span></span></h1>
-      <p class="lead rv blur" data-delay="0.45">บันทึกรายรับรายจ่าย แล้วให้ AI สรุปการใช้เงิน วางแผนล่วงหน้า และแนะนำเมื่อใกล้ถึงงบ รู้ก่อนว่าเดือนนี้เงินพอไหม ไม่ต้องรอให้หมดก่อนสิ้นเดือน</p>
+      <div class="eyebrow rv" data-delay="0.1">Personal finance · ใช้ฟรี</div>
+      <h1 class="lines" id="heroTitle"><span class="ln"><span style="--d:0.15s">รู้ทันทุก<span class="accent">บาท</span></span></span><span class="ln muted"><span style="--d:0.27s">ใช้เงินอย่างมีแผน</span></span></h1>
+      <p class="lead rv blur" data-delay="0.45">บันทึกรายรับรายจ่าย ตั้งงบ และวางแผนล่วงหน้าได้ในที่เดียว พร้อมผู้ช่วย AI คอยสรุปและแนะนำเมื่อจำเป็น รู้ก่อนว่าเดือนนี้เงินพอไหม ไม่ต้องรอให้หมดก่อนสิ้นเดือน</p>
       <div class="ctas rv" data-delay="0.6">
         <a class="btn btn-primary magnetic" href="register.html">เริ่มใช้งานฟรี<span class="arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
-        <a class="btn btn-ghost" href="#ai">ดู AI ทำงาน</a>
+        <a class="btn btn-ghost" href="#ai">ดูวิธีทำงาน</a>
       </div>
       <div class="points rv" data-delay="0.72">
-        <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>AI วิเคราะห์และแนะนำเป็นภาษาไทย</span>
+        <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>บันทึกรายรับรายจ่ายได้ในไม่กี่วินาที</span>
         <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>วางแผนล่วงหน้า 12 เดือน รู้ว่าวันไหนเงินจะไม่พอ</span>
         <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>ใช้ฟรี ไม่มีโฆษณา · เข้าสู่ระบบด้วย Google ได้</span>
       </div>
@@ -354,33 +354,28 @@
 
 <div class="page">
   <!-- ===== AI STORY: อนุภาคเปลี่ยนรูปตามการเลื่อน ===== -->
-  <section class="card-story ai-story" id="ai" aria-label="AI ของ MoneyMate ทำอะไรได้บ้าง">
+  <section class="card-story ai-story" id="ai" aria-label="ผู้ช่วย AI ของ MoneyMate ทำอะไรได้บ้าง">
     <div class="story-sticky">
       <div class="story-copy">
-        <div class="eyebrow">Your money, understood by AI</div>
+        <div class="eyebrow">A little help when you need it</div>
         <div class="story-steps">
           <div class="step on">
             <span class="idx">01 · ANALYSE</span>
-            <h2 class="two-tone">AI อ่านตัวเลขให้<span class="muted">แล้วสรุปใน 10 วินาที</span></h2>
-            <p>กดครั้งเดียว AI จะสรุปว่าเดือนนี้อะไรทำได้ดี อะไรควรระวัง พร้อมคำแนะนำที่ทำได้จริง จากรายรับรายจ่ายของคุณเอง</p>
+            <h2 class="two-tone">อ่านตัวเลขให้<span class="muted">แล้วสรุปใน 10 วินาที</span></h2>
+            <p>กดครั้งเดียว ให้ผู้ช่วย AI สรุปว่าเดือนนี้อะไรทำได้ดี อะไรควรระวัง พร้อมคำแนะนำที่ทำได้จริง จากรายรับรายจ่ายของคุณเอง</p>
           </div>
           <div class="step">
-            <span class="idx">02 · PLAN</span>
-            <h2 class="two-tone">วางแผนล่วงหน้า<span class="muted">รู้ก่อนว่าเงินพอไหม</span></h2>
-            <p>ใส่ค่าหอ ค่าเน็ต ค่ากินรายวัน และรายรับที่คาดไว้ ระบบคำนวณยอดทีละวันไปอีก 12 เดือน บอกวันที่เงินจะติดลบ และใช้ได้อีกวันละเท่าไร</p>
+            <span class="idx">02 · ADVISE</span>
+            <h2 class="two-tone">ใกล้ถึงงบเมื่อไร<span class="muted">มีคำแนะนำให้ทันที</span></h2>
+            <p>เมื่อใช้ไปเกิน 80% ของงบ กดขอคำแนะนำจาก AI ได้ทันที บอกว่าควรลดอะไร ตามหมวดที่คุณใช้จริง ไม่ใช่คำแนะนำลอย ๆ</p>
           </div>
           <div class="step">
-            <span class="idx">03 · ADVISE</span>
-            <h2 class="two-tone">ใกล้ถึงงบเมื่อไร<span class="muted">AI ช่วยคิดทางออก</span></h2>
-            <p>เมื่อใช้ไปเกิน 80% ของงบ กดขอคำแนะนำได้ทันที AI บอกว่าควรลดอะไร ตามหมวดที่คุณใช้จริง ไม่ใช่คำแนะนำลอย ๆ</p>
-          </div>
-          <div class="step">
-            <span class="idx">04 · ASK</span>
+            <span class="idx">03 · ASK</span>
             <h2 class="two-tone">ถามได้ทุกเรื่องเงิน<span class="muted">เหมือนมีเพื่อนที่เก่งเลข</span></h2>
             <p>เดือนนี้ใช้อะไรเยอะ จะเก็บเงินหมื่นยังไง หรือเดือนหน้าพอไหม ถามเป็นภาษาไทยได้เลย</p>
           </div>
         </div>
-        <div class="story-progress" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+        <div class="story-progress" aria-hidden="true"><i></i><i></i><i></i></div>
       </div>
       <div class="story-stage ai-stage" aria-hidden="true">
         <div class="glow"></div>
@@ -399,7 +394,7 @@
       <ul class="plan-list">
         <li><span class="n">01</span><div><b>ใส่รายจ่ายประจำครั้งเดียว</b>ค่าหอ ค่าเน็ต ค่ากินรายวัน หรือค่าเทอมที่จ่ายครั้งเดียว</div></li>
         <li><span class="n">02</span><div><b>เห็นยอดเงินล่วงหน้าทุกวัน</b>รู้ว่าวันไหนจะติดลบ และใช้ได้อีกวันละเท่าไร</div></li>
-        <li><span class="n">03</span><div><b>ให้ AI ช่วยปรับแผน</b>บอกเป้าหมาย เช่น เก็บเงินซื้อโน้ตบุ๊ก AI เสนอแผนให้กดเพิ่มได้ทันที</div></li>
+        <li><span class="n">03</span><div><b>ให้ AI ช่วยปรับแผน</b>บอกเป้าหมาย เช่น เก็บเงินซื้อโน้ตบุ๊ก แล้วเลือกเพิ่มรายการที่เสนอมาได้ทันที</div></li>
       </ul>
     </div>
     <div class="card plan-mock rv" data-delay="0.15" id="planMock">
@@ -422,21 +417,21 @@
       </div>
     </div>
     <div class="features">
-      <div class="card feature rv"><span class="tag">AI</span><div class="num">01</div><div class="fi ai">AI</div>
-        <h3>AI สรุปการใช้เงิน</h3><p>กดครั้งเดียว AI อ่านรายรับรายจ่ายแล้วสรุปสิ่งที่ทำได้ดี สิ่งที่ควรระวัง และคำแนะนำ</p></div>
-      <div class="card feature rv"><span class="tag">AI</span><div class="num">02</div><div class="fi ai">AI</div>
-        <h3>ถาม AI ได้ทุกเรื่อง</h3><p>ถามเป็นภาษาไทยว่าเงินไปไหน จะเก็บเงินยังไง AI ตอบจากตัวเลขจริงของคุณ</p></div>
-      <div class="card feature rv"><span class="tag">AI</span><div class="num">03</div><div class="fi ai">AI</div>
-        <h3>AI ช่วยวางแผน</h3><p>บอกเป้าหมาย เช่น เก็บเงิน 5,000 ใน 3 เดือน แล้วเลือกเพิ่มแผนที่ AI เสนอได้ทันที</p></div>
-      <div class="card feature rv"><div class="num">04</div>
+      <div class="card feature rv"><div class="num">01</div>
+        <div class="fi"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+        <h3>บันทึกในไม่กี่วินาที</h3><p>เลือกหมวดหมู่ ใส่จำนวนเงิน แล้วบันทึก สร้างหมวดหมู่ของตัวเองได้ทั้งรายรับและรายจ่าย</p></div>
+      <div class="card feature rv"><div class="num">02</div>
         <div class="fi"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="m9 15 2 2 4-4"/></svg></div>
         <h3>วางแผนล่วงหน้า 12 เดือน</h3><p>รายจ่ายประจำ รายวัน หรือครั้งเดียว รู้ก่อนว่าเดือนไหนเงินไม่พอ และวันไหนจะติดลบ</p></div>
-      <div class="card feature rv"><div class="num">05</div>
-        <div class="fi"><svg viewBox="0 0 24 24"><path d="M4 16a8 8 0 1 1 16 0"/><path d="m12 16 4-5"/><path d="M4 20h16"/></svg></div>
-        <h3>คำแนะนำเมื่อใกล้ถึงงบ</h3><p>ใช้ไปเกิน 80% ของงบ กดขอคำแนะนำจาก AI ว่าควรลดอะไรในวันที่เหลือ</p></div>
-      <div class="card feature rv"><div class="num">06</div>
+      <div class="card feature rv"><div class="num">03</div>
         <div class="fi"><svg viewBox="0 0 24 24"><path d="M4 19V10M12 19V5M20 19v-6"/></svg></div>
         <h3>Analytics แบบมืออาชีพ</h3><p>กราฟกระแสเงินสด สัดส่วนรายจ่าย จังหวะการใช้งบ และตารางหมวดหมู่ในหน้าเดียว</p></div>
+      <div class="card feature rv"><span class="tag">AI</span><div class="num">04</div><div class="fi ai">AI</div>
+        <h3>สรุปการใช้เงินให้อัตโนมัติ</h3><p>กดครั้งเดียว ให้ AI อ่านรายรับรายจ่ายแล้วสรุปสิ่งที่ทำได้ดี สิ่งที่ควรระวัง และคำแนะนำ</p></div>
+      <div class="card feature rv"><span class="tag">AI</span><div class="num">05</div><div class="fi ai">AI</div>
+        <h3>ถามได้ทุกเรื่องเงิน</h3><p>ถามเป็นภาษาไทยว่าเงินไปไหน จะเก็บเงินยังไง ให้ AI ตอบจากตัวเลขจริงของคุณ</p></div>
+      <div class="card feature rv"><span class="tag">AI</span><div class="num">06</div><div class="fi ai">AI</div>
+        <h3>คำแนะนำเมื่อใกล้ถึงงบ</h3><p>ใช้ไปเกิน 80% ของงบ กดขอคำแนะนำจาก AI ว่าควรลดอะไรในวันที่เหลือ</p></div>
     </div>
   </section>
 
@@ -455,8 +450,8 @@
             <p>ดูรายจ่ายเดือนนี้เทียบกับงบที่ตั้งไว้ได้ตลอด ไม่ต้องรอสรุปยอดตอนสิ้นเดือน</p>
           </div>
           <div class="step">
-            <h2 class="two-tone">ข้อมูลครบ<span class="muted">AI ก็แนะนำได้แม่น</span></h2>
-            <p>ยิ่งบันทึกครบ AI ยิ่งเห็นภาพชัด สรุปและวางแผนให้ตรงกับชีวิตจริงของคุณ</p>
+            <h2 class="two-tone">เห็นภาพรวม<span class="muted">ในหน้าเดียว</span></h2>
+            <p>รายรับเทียบรายจ่าย สัดส่วนตามหมวดหมู่ และอัตราการออม ยิ่งบันทึกครบ ยิ่งวางแผนได้แม่นยำขึ้น</p>
           </div>
         </div>
         <div class="story-progress" aria-hidden="true"><i></i><i></i><i></i></div>
@@ -474,7 +469,7 @@
 
   <section class="manifesto">
     <div class="eyebrow rv">Manifesto</div>
-    <p id="manifestoText">เราเชื่อว่าการจัดการเงินไม่ควรยุ่งยาก MoneyMate จึงให้ AI ช่วยอ่านตัวเลข วางแผนล่วงหน้า และบอกทางออกก่อนเงินจะหมด เพื่อให้คุณตัดสินใจเรื่องเงินได้อย่างมั่นใจทุกวัน</p>
+    <p id="manifestoText">เราเชื่อว่าการจัดการเงินไม่ควรยุ่งยาก MoneyMate จึงออกแบบให้บันทึกได้ในไม่กี่วินาที เห็นภาพรวมได้ในแวบเดียว และมีผู้ช่วย AI คอยช่วยวางแผนเมื่อคุณต้องการ เพื่อให้ตัดสินใจเรื่องเงินได้อย่างมั่นใจทุกวัน</p>
   </section>
 
   <div class="card stats rv">
@@ -487,8 +482,8 @@
   <section>
     <div class="card cta-band rv">
       <div class="eyebrow" style="margin-bottom:16px;">Let's start</div>
-      <h2 class="two-tone">ให้ AI ช่วยดูแลเงิน<span class="muted">ตั้งแต่วันนี้</span></h2>
-      <p>สมัครฟรี ใช้เวลาไม่ถึงนาที หรือเข้าสู่ระบบด้วยบัญชี Google ผู้ช่วย AI เปิดใช้เมื่อคุณกดยินยอมเท่านั้น</p>
+      <h2 class="two-tone">เริ่มจัดการเงิน<span class="muted">ตั้งแต่วันนี้</span></h2>
+      <p>สมัครฟรี ใช้เวลาไม่ถึงนาที หรือเข้าสู่ระบบด้วยบัญชี Google มีผู้ช่วย AI ให้เปิดใช้เพิ่มเติมเมื่อคุณต้องการ</p>
       <a class="btn btn-primary magnetic" href="register.html">สร้างบัญชีฟรี<span class="arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
     </div>
   </section>
@@ -586,17 +581,16 @@
   /* ================= เรื่องเล่า AI: อนุภาคเปลี่ยนรูปตามการเลื่อน ================= */
   (function () {
     const story = document.getElementById('ai');
-    const core = AICore.mount(document.getElementById('storyCore'), { shapes: ['sphere', 'bars', 'calendar', 'gauge', 'bubble'], count: 1000, scale: 0.34, pointerTarget: story });
+    const core = AICore.mount(document.getElementById('storyCore'), { shapes: ['sphere', 'bars', 'gauge', 'bubble'], count: 1000, scale: 0.34, pointerTarget: story });
     const steps = [...story.querySelectorAll('.step')], bars = [...story.querySelectorAll('.story-progress i')];
     const CAPS = [
       ['MONTHLY SPEND', 'รายจ่าย 7 เดือนล่าสุด · เดือนนี้สูงสุด'],
-      ['PLAN CALENDAR', 'รายจ่ายประจำ 5 รายการในเดือนนี้'],
       ['BUDGET USED', 'ใช้ไป 86% ของงบ · เหลือวันละ ฿91'],
-      ['ASK AI', 'ถามอะไรก็ได้ ตอบเป็นภาษาไทย']
+      ['ASK ANYTHING', 'ถามอะไรก็ได้ ตอบเป็นภาษาไทย']
     ];
     const capK = document.getElementById('capK'), capV = document.getElementById('capV'), cap = document.getElementById('stageCap');
     // [ตำแหน่งการเลื่อน, รูปทรง] — หยุดค้างที่แต่ละรูปช่วงหนึ่งก่อนเปลี่ยน
-    const KEYS = [[0, 0], [0.06, 0], [0.2, 1], [0.3, 1], [0.44, 2], [0.54, 2], [0.68, 3], [0.78, 3], [0.92, 4], [1, 4]];
+    const KEYS = [[0, 0], [0.08, 0], [0.3, 1], [0.4, 1], [0.62, 2], [0.72, 2], [0.94, 3], [1, 3]];
     const shapeAt = p => {
       for (let i = 0; i < KEYS.length - 1; i++) {
         const [a, sa] = KEYS[i], [b, sb] = KEYS[i + 1];
@@ -608,7 +602,7 @@
     const render = p => {
       const s = shapeAt(p);
       core.set(s);
-      const step = Math.max(0, Math.min(3, Math.round(s) - 1));
+      const step = Math.max(0, Math.min(2, Math.round(s) - 1));
       if (step !== lastStep) {
         steps.forEach((el, i) => el.classList.toggle('on', i === step));
         cap.style.opacity = 0;
