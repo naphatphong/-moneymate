@@ -10,6 +10,10 @@
 //   npm run seed:demo -- --reset          (ลบบัญชีตัวอย่างเดิมแล้วสร้างใหม่)
 //
 // ถ้าไม่ใส่ --password จะสุ่มรหัสผ่านให้และแสดงตอนจบ
+//
+// เพิ่มแผนการเงินตัวอย่างให้บัญชีที่มีอยู่แล้ว (ข้ามรายการที่มีชื่อซ้ำ):
+//   npm run seed:demo -- --plan-only --url https://<เว็บของคุณ> --username demo --password <รหัสผ่าน>
+//   npm run seed:demo -- --plan-only --username demo       (แบบตรงเข้าฐานข้อมูล ไม่ต้องใช้รหัสผ่าน)
 require('dotenv').config();
 
 const crypto = require('crypto');
@@ -31,6 +35,7 @@ const randomPassword = () => {
 };
 const PASSWORD = opt('password') || randomPassword();
 const RESET = args.includes('--reset');
+const PLAN_ONLY = args.includes('--plan-only');
 const URL_BASE = (opt('url') || '').replace(/\/+$/, '');
 
 // ---------- สุ่มแบบกำหนด seed (รันกี่ครั้งก็ได้ข้อมูลชุดเดิม) ----------
@@ -113,8 +118,32 @@ function generate(today) {
   return txs;
 }
 
+// ---------- แผนการเงินตัวอย่าง (รายการประจำ + รายการครั้งเดียวที่กำลังจะมาถึง) ----------
+// วันที่ของรายการครั้งเดียว = ครั้งถัดไปของเดือน/วันนั้นนับจากวันนี้
+function upcoming(month, day, today = new Date()) {
+  let y = today.getFullYear();
+  const d = new Date(y, month - 1, day);
+  if (d < new Date(today.getFullYear(), today.getMonth(), today.getDate())) y++;
+  return `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+function planItems(today = new Date()) {
+  return [
+    { type: 'income', name: 'ค่าขนมประจำเดือน', amount: 7500, freq: 'monthly', day: 1, cat: 'allowance' },
+    { type: 'income', name: 'สอนพิเศษวันเสาร์', amount: 750, freq: 'weekly', day: 6, cat: 'parttime' },
+    { type: 'expense', name: 'ค่าหอพัก + ค่าน้ำไฟ', amount: 3600, freq: 'monthly', day: 3, cat: 'ค่าหอ' },
+    { type: 'expense', name: 'ค่าโทรศัพท์รายเดือน', amount: 299, freq: 'monthly', day: 5, cat: 'other' },
+    { type: 'expense', name: 'ค่ากินรายวัน', amount: 150, freq: 'daily', cat: 'food' },
+    { type: 'expense', name: 'ค่าเดินทางรายวัน', amount: 40, freq: 'daily', cat: 'travel' },
+    { type: 'expense', name: 'Spotify', amount: 69, freq: 'monthly', day: 10, cat: 'entertainment' },
+    { type: 'income', name: 'ทุนเรียนดี (ภาคเรียน)', amount: 10000, freq: 'once', onDate: upcoming(11, 15, today), cat: 'scholarship' },
+    { type: 'expense', name: 'ค่าบำรุงการศึกษา', amount: 9000, freq: 'once', onDate: upcoming(11, 20, today), cat: 'ค่าเทอม' },
+    { type: 'expense', name: 'ซื้อโน้ตบุ๊กเครื่องใหม่', amount: 18000, freq: 'once', onDate: upcoming(12, 12, today), cat: 'shopping' },
+    { type: 'expense', name: 'ตั๋วรถกลับบ้านช่วงปีใหม่', amount: 1200, freq: 'once', onDate: upcoming(12, 28, today), cat: 'travel' }
+  ].map((i) => ({ day: null, onDate: null, ...i }));
+}
+
 // ---------- แบบที่ 1: ผ่าน API ของเว็บ ----------
-async function seedViaApi() {
+function apiClient() {
   let cookie = '';
   const call = async (method, path, body, attempt = 0) => {
     let res;
@@ -139,6 +168,23 @@ async function seedViaApi() {
     if (!res.ok) throw new Error(`${method} ${path} ตอบกลับ ${res.status}: ${data.error || 'ไม่ทราบสาเหตุ'}`);
     return data;
   };
+  return call;
+}
+
+// เพิ่มแผนตัวอย่าง ข้ามรายการที่มีชื่อนี้อยู่แล้ว — คืนจำนวนที่เพิ่ม
+async function addPlan(existingNames, create) {
+  const have = new Set(existingNames);
+  let added = 0;
+  for (const item of planItems()) {
+    if (have.has(item.name)) continue;
+    await create(item);
+    added++;
+  }
+  return added;
+}
+
+async function seedViaApi() {
+  const call = apiClient();
 
   await call('POST', '/api/register', { username: USERNAME, email: EMAIL, password: PASSWORD });
   await call('PUT', '/api/settings', { openingBalance: 12000, budget: 9500 });
@@ -171,7 +217,27 @@ async function seedViaApi() {
     const budget = m.getMonth() === 11 ? 12000 : m.getMonth() === 3 ? 11000 : 9500;
     await call('PUT', '/api/budgets', { year: m.getFullYear(), month: m.getMonth() + 1, budget });
   }
+  await addPlan([], (item) => call('POST', '/api/plan', item));
   return txs;
+}
+
+async function planOnly() {
+  let added, total;
+  if (URL_BASE) {
+    if (!opt('password')) { console.error('แบบผ่านหน้าเว็บต้องใส่ --password ของบัญชีนั้น'); process.exit(1); }
+    const call = apiClient();
+    await call('POST', '/api/login', { username: USERNAME, password: PASSWORD });
+    const { items } = await call('GET', '/api/plan');
+    added = await addPlan(items.map((i) => i.name), (item) => call('POST', '/api/plan', item));
+    total = items.length + added;
+  } else {
+    const user = await db.findByLogin(USERNAME);
+    if (!user) { console.error(`ไม่พบบัญชี "${USERNAME}"`); process.exit(1); }
+    const items = await db.getPlanItems(user.id);
+    added = await addPlan(items.map((i) => i.name), (item) => db.createPlanItem(user.id, item));
+    total = items.length + added;
+  }
+  console.log(`เพิ่มแผนการเงินให้ ${USERNAME} แล้ว ${added} รายการ (รวมทั้งหมด ${total} รายการ)`);
 }
 
 function printSummary(txs) {
@@ -188,6 +254,7 @@ function printSummary(txs) {
 }
 
 async function main() {
+  if (PLAN_ONLY && URL_BASE) return planOnly();
   if (URL_BASE) {
     if (RESET) {
       console.error('แบบผ่านหน้าเว็บลบบัญชีเดิมไม่ได้ — ใช้ --username ชื่อใหม่ หรือใช้แบบที่ 2 (DATABASE_URL) กับ --reset');
@@ -202,6 +269,7 @@ async function main() {
     process.exit(1);
   }
   await db.init();
+  if (PLAN_ONLY) return planOnly();
 
   // ถ้ามีบัญชีนี้อยู่แล้ว: ลบได้เฉพาะเมื่อสั่ง --reset และทั้งชื่อผู้ใช้กับอีเมลตรงกัน (กันลบบัญชีคนอื่น)
   const byName = await db.findByLogin(USERNAME);
@@ -240,6 +308,7 @@ async function main() {
     const budget = m.getMonth() === 11 ? 12000 : m.getMonth() === 3 ? 11000 : 9500;
     await db.upsertBudget(user.id, m.getFullYear(), m.getMonth() + 1, budget);
   }
+  await addPlan([], (item) => db.createPlanItem(user.id, item));
 
   printSummary(txs);
 }
