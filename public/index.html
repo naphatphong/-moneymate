@@ -3,16 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MoneyMate — บันทึกรายรับรายจ่าย</title>
+<title>MoneyMate — ผู้ช่วยการเงินด้วย AI</title>
+<meta name="description" content="บันทึกรายรับรายจ่าย ให้ AI ช่วยวิเคราะห์ วางแผนล่วงหน้า และแนะนำเมื่อใกล้ถึงงบ ใช้ฟรี">
 <meta name="theme-color" content="#070809">
 <script src="js/theme.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/ui.css">
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.min.js" defer></script>
 <style>
   .page{ position:relative; z-index:1; max-width:1120px; margin:0 auto; padding:0 20px; }
+
+  /* ---- แสงตามเมาส์ทั้งหน้า ---- */
+  .cursor-aura{
+    position:fixed; left:0; top:0; z-index:0; width:520px; height:520px; margin:-260px 0 0 -260px; border-radius:50%; pointer-events:none;
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 16%, transparent), transparent 72%);
+    opacity:0; transition: opacity 0.6s; will-change: transform;
+  }
+  .cursor-aura.on{ opacity:1; }
 
   /* ---- nav: แคปซูลลอยด้านบน กลายเป็นแก้วเมื่อเลื่อนลง ---- */
   .nav{
@@ -25,73 +34,90 @@
     -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%);
     box-shadow: inset 0 1px 0 rgba(var(--tint),0.06), 0 14px 34px -20px var(--shadow);
   }
-  .nav-links{ display:flex; align-items:center; gap:8px; }
+  .nav-links{ display:flex; align-items:center; gap:4px; }
   .nav-links .text-link{ font-size:0.9rem; color:var(--text-soft); text-decoration:none; padding:0 10px; }
   .nav-links .text-link:hover{ color:var(--text); }
-  .nav .btn{ height:40px; padding:0 18px; font-size:0.86rem; }
+  .nav .btn{ height:40px; padding:0 18px; font-size:0.86rem; margin-left:4px; }
+
+  /* ป้าย "AI" แบบตัวอักษร (ใช้แทนไอคอนประกาย) */
+  .ai-mark{
+    width:30px; height:30px; flex-shrink:0; border-radius:9px; display:grid; place-items:center;
+    font:600 0.6rem var(--mono); letter-spacing:0.08em; color:var(--text);
+    background: linear-gradient(180deg, rgba(var(--tint),0.1), rgba(var(--tint),0.03));
+    border:1px solid var(--line-strong); box-shadow: inset 0 1px 0 rgba(var(--tint),0.1), 0 0 0 3px var(--accent-dim);
+  }
 
   /* ---- hero ---- */
-  .hero{ display:grid; grid-template-columns:1fr; gap:48px; align-items:center; padding:118px 0 70px; }
-  /* พื้นเข้มจาง ๆ หลังข้อความ ให้อ่านง่ายตอนคลื่นพื้นหลังวิ่งผ่าน */
-  .hero > div:first-child{ position:relative; isolation:isolate; }
-  .hero > div:first-child::before{
+  .hero{ display:grid; grid-template-columns:1fr; gap:40px; align-items:center; padding:118px 0 60px; }
+  .hero-copy{ position:relative; isolation:isolate; }
+  .hero-copy::before{
     content:""; position:absolute; inset:-60px -80px; z-index:-1; pointer-events:none;
     background: radial-gradient(closest-side, var(--bg) 45%, color-mix(in srgb, var(--bg) 60%, transparent) 70%, transparent);
   }
   .hero .eyebrow{ margin-bottom:22px; display:flex; align-items:center; gap:10px; }
   .hero .eyebrow::before{ content:""; width:28px; height:1px; background:var(--line-strong); }
-  .hero h1{ font-size:clamp(2.5rem, 7.2vw, 4.4rem); font-weight:300; letter-spacing:-0.035em; line-height:1.2; margin:0; }
+  .hero h1{ font-size:clamp(2.5rem, 7vw, 4.3rem); font-weight:300; letter-spacing:-0.035em; line-height:1.2; margin:0; }
   .hero h1 .accent{ color:var(--accent); font-weight:400; }
   .hero h1 .muted{ color:var(--text-soft); }
-  .hero .lead{ font-size:1.05rem; color:var(--text-soft); line-height:1.75; max-width:460px; margin:24px 0 32px; }
+  .hero .lead{ font-size:1.05rem; color:var(--text-soft); line-height:1.75; max-width:480px; margin:24px 0 32px; }
   .hero .ctas{ display:flex; gap:12px; flex-wrap:wrap; }
   .hero .points{ display:flex; flex-direction:column; gap:10px; margin-top:34px; font-size:0.9rem; color:var(--text-soft); }
   .hero .points span{ display:flex; align-items:center; gap:10px; }
   .hero .points svg{ width:16px; height:16px; stroke:var(--accent); fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
-  @keyframes rise{ to{ opacity:1; transform:none; } }
 
-  /* ---- hero visual: halo + stacked cards ---- */
-  .visual{ position:relative; height:440px; }
-  .visual-inner{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
-  .halo{
-    position:absolute; width:380px; height:380px; border-radius:50%;
-    border:1.5px solid color-mix(in srgb, var(--accent) 70%, #fff 30%);
-    box-shadow: 0 0 30px 4px var(--accent-glow), inset 0 0 40px 0 var(--accent-glow);
+  /* ---- แกน AI ในส่วนหัว ---- */
+  .visual{ position:relative; }
+  .core{ position:relative; width:min(470px, 100%); aspect-ratio:1; margin:0 auto; perspective:900px; }
+  .core canvas{ position:absolute; left:-12%; top:-12%; width:124%; height:124%; }
+  .core .halo{
+    position:absolute; left:15%; top:15%; width:70%; height:70%; border-radius:50%;
+    border:1.5px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    box-shadow: 0 0 30px 2px var(--accent-glow), inset 0 0 40px 0 var(--accent-glow); opacity:0.55;
     animation: halo-in 1.4s var(--spring-soft) both;
   }
-  .halo::after{ content:""; position:absolute; inset:-80px; border-radius:50%; background: radial-gradient(closest-side, var(--accent-glow), transparent 70%); opacity:0.5; }
-  @keyframes halo-in{ from{ opacity:0; transform: scale(0.85); } to{ opacity:1; transform:none; } }
-  .preview{ position:relative; width:100%; max-width:360px; padding:22px; border-radius:var(--r-xl); }
-  .preview .row1{ display:flex; justify-content:space-between; align-items:center; }
-  .preview .label{ font-size:0.8rem; color:var(--text-soft); display:flex; align-items:center; gap:8px; }
-  .preview .live-dot{ width:7px; height:7px; border-radius:50%; background:var(--accent); box-shadow: 0 0 0 4px var(--accent-dim); }
-  .preview .balance{ font-size:2.4rem; font-weight:300; letter-spacing:-0.03em; margin:8px 0 6px; font-variant-numeric: tabular-nums; }
-  .preview .balance span{ color:var(--accent); font-weight:400; margin-right:4px; }
-  .chart-wrap{ margin-top:14px; }
-  .chart-wrap svg{ width:100%; height:auto; display:block; }
-  #chartLine{ stroke-dasharray:500; stroke-dashoffset:500; animation: draw 1.8s var(--spring-soft) 0.9s forwards; }
-  @keyframes draw{ to{ stroke-dashoffset:0; } }
-  .chart-area{ opacity:0; animation: rise 0.8s ease 1.6s forwards; }
-  .mini-heat{ display:grid; grid-template-columns:repeat(18, 1fr); grid-auto-flow:column; grid-template-rows:repeat(7, 1fr); gap:3px; margin-top:16px; }
-  .mini-heat i{ aspect-ratio:1; border-radius:2px; background: rgba(var(--tint),0.06); }
-  .mini-heat i.l1{ background: color-mix(in srgb, var(--accent) 30%, transparent); }
-  .mini-heat i.l2{ background: color-mix(in srgb, var(--accent) 55%, transparent); }
-  .mini-heat i.l3{ background: var(--accent); }
-  .float{
-    position:absolute; display:flex; align-items:center; gap:10px; padding:10px 14px 10px 10px; border-radius:16px;
-    font-size:0.82rem; opacity:0; animation: rise 0.7s var(--spring) forwards;
+  @keyframes halo-in{ from{ opacity:0; transform: scale(0.85); } }
+  .orbit{
+    position:absolute; left:50%; top:50%; width:var(--s); height:var(--s); margin:calc(var(--s) / -2) 0 0 calc(var(--s) / -2);
+    border-radius:50%; border:1px solid rgba(var(--tint),0.1); pointer-events:none; transform-style:preserve-3d;
   }
-  .float .ico{ width:32px; height:32px; border-radius:10px; display:flex; align-items:center; justify-content:center; }
-  .float .ico svg{ width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
-  .float b{ display:block; font-weight:500; font-variant-numeric: tabular-nums; }
-  .float small{ color:var(--text-soft); font-size:0.72rem; }
-  .float.in{ top:34px; right:-6px; animation-delay:1.9s; }
-  .float.in .ico{ background: color-mix(in srgb, var(--emerald) 15%, transparent); color:var(--emerald); }
-  .float.in b{ color:var(--emerald); }
-  .float.out{ bottom:40px; left:-10px; animation-delay:2.15s; }
-  .float.out .ico{ background: color-mix(in srgb, var(--amber) 15%, transparent); color:var(--amber); }
+  .orbit i{ position:absolute; top:-3px; left:calc(50% - 3px); width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow: 0 0 12px 2px var(--accent-glow); }
+  .orbit.o1{ --s:92%; animation: orbit1 16s linear infinite; }
+  .orbit.o2{ --s:108%; animation: orbit2 24s linear infinite; border-style:dashed; border-color: rgba(var(--tint),0.07); }
+  .orbit.o2 i{ background:var(--text-soft); box-shadow:none; width:5px; height:5px; }
+  @keyframes orbit1{ from{ transform: rotateX(74deg) rotateZ(0deg); } to{ transform: rotateX(74deg) rotateZ(360deg); } }
+  @keyframes orbit2{ from{ transform: rotateX(68deg) rotateY(-22deg) rotateZ(360deg); } to{ transform: rotateX(68deg) rotateY(-22deg) rotateZ(0deg); } }
 
-  /* ---- stats strip ---- */
+  /* การ์ดข้อมูลลอยรอบแกน (ขยับตามเมาส์ตามระดับความลึก) */
+  .ichip{
+    position:absolute; z-index:2; display:flex; flex-direction:column; gap:1px; padding:10px 14px; border-radius:14px; font-size:0.84rem;
+    transform: translate3d(var(--px, 0px), var(--py, 0px), 0); animation: bob 6s ease-in-out infinite;
+  }
+  .ichip small{ font:500 0.56rem var(--mono); letter-spacing:0.16em; color:var(--text-faint); }
+  .ichip b{ font-weight:500; white-space:nowrap; }
+  .ichip b.pos{ color:var(--emerald); }
+  .ichip b.warn{ color:var(--amber); }
+  .ichip.c1{ top:6%; right:-4%; animation-delay:-1s; }
+  .ichip.c2{ top:40%; left:-9%; animation-delay:-3s; }
+  .ichip.c3{ bottom:14%; right:-2%; animation-delay:-4.5s; }
+  @keyframes bob{ 50%{ translate: 0 -8px; } }
+
+  /* ตัวอย่างแชท AI ที่พิมพ์เอง */
+  .ai-demo{ position:relative; z-index:3; width:min(360px, 100%); margin:-28px auto 0; padding:14px; border-radius:18px; }
+  .ad-head{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .ad-head b{ display:block; font-size:0.86rem; font-weight:500; }
+  .ad-head small{ display:block; font-size:0.68rem; color:var(--text-faint); }
+  .ad-msg{ max-width:88%; padding:8px 12px; border-radius:14px; font-size:0.82rem; line-height:1.6; opacity:0; transform: translateY(6px); transition: opacity 0.4s, transform 0.5s var(--spring-soft); }
+  .ad-msg.show{ opacity:1; transform:none; }
+  .ad-msg.me{ margin-left:auto; background: var(--accent-dim); border:1px solid color-mix(in srgb, var(--accent) 30%, transparent); border-bottom-right-radius:5px; }
+  .ad-msg.bot{ margin-top:8px; background: rgba(var(--tint),0.04); border:1px solid var(--line); border-bottom-left-radius:5px; min-height:38px; }
+  .ad-msg.bot .caret{ display:inline-block; width:2px; height:1em; margin-left:2px; vertical-align:-2px; background:var(--accent); animation: blink 1s steps(1) infinite; }
+  .ad-dots{ display:inline-flex; gap:4px; padding:4px 0; }
+  .ad-dots i{ width:5px; height:5px; border-radius:50%; background:var(--text-faint); animation: dot 1.1s infinite ease-in-out; }
+  .ad-dots i:nth-child(2){ animation-delay:0.15s; } .ad-dots i:nth-child(3){ animation-delay:0.3s; }
+  @keyframes dot{ 0%, 80%, 100%{ opacity:0.3; transform:none; } 40%{ opacity:1; transform: translateY(-3px); } }
+  @keyframes blink{ 50%{ opacity:0; } }
+
+  /* ---- stats ---- */
   .stats{ display:grid; grid-template-columns:repeat(2, 1fr); border-radius:var(--r-xl); overflow:hidden; margin-bottom:90px; }
   .stat{ padding:26px 22px; text-align:center; border-right:1px solid var(--line); border-bottom:1px solid var(--line); }
   .stat:nth-child(2n){ border-right:none; }
@@ -100,27 +126,21 @@
   .stat .k{ margin-top:8px; font-size:0.8rem; color:var(--text-soft); }
 
   /* ---- marquee ---- */
-  .ticker{ position:relative; z-index:1; margin:-40px 0 90px; }
+  .ticker{ position:relative; z-index:1; margin:0 0 90px; }
   .ticker .eyebrow{ text-align:center; margin-bottom:22px; }
   .ticker .item{ display:flex; align-items:center; gap:14px; padding:0 26px; font-size:clamp(1.3rem, 3vw, 1.9rem); font-weight:300; color:var(--text-soft); white-space:nowrap; }
   .ticker .item .ico{ width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; background: linear-gradient(180deg, rgba(var(--tint),0.07), rgba(var(--tint),0.02)); border:1px solid var(--line); box-shadow: inset 0 1px 0 rgba(var(--tint),0.06); color: var(--c); }
   .ticker .item .ico svg{ width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
   .ticker .sep{ width:4px; height:4px; border-radius:1px; background:var(--line-strong); }
 
-  /* ---- manifesto: ไฮไลต์ทีละคำตามการเลื่อน ---- */
+  /* ---- manifesto ---- */
   .manifesto{ max-width:900px; margin:0 auto 110px; text-align:center; }
   .manifesto .eyebrow{ margin-bottom:26px; }
   .manifesto p{ font-size:clamp(1.5rem, 4.2vw, 2.6rem); font-weight:400; line-height:1.55; letter-spacing:-0.01em; margin:0; }
 
-  /* ---- บัตรในส่วนหัว: ลอยอยู่หลังการ์ดพรีวิว เอียงตามเมาส์ ---- */
-  .hero-cc-wrap{ position:absolute; z-index:0; top:2%; left:-6%; perspective:1200px; animation: cc-float 6s ease-in-out infinite; }
-  .hero-cc-wrap .cc{ --w: 290px; transform: rotateZ(-14deg) rotateX(var(--tx, 8deg)) rotateY(var(--ty, -10deg)); transition: transform 0.6s var(--spring-soft); }
-  @keyframes cc-float{ 50%{ translate: 0 -12px; } }
-  .preview{ z-index:1; }
-  .float{ z-index:2; }
-
-  /* ---- ส่วนเล่าเรื่องด้วยบัตร: ติดหน้าจอขณะเลื่อน ---- */
+  /* ---- ส่วนเล่าเรื่องที่ติดหน้าจอขณะเลื่อน (ใช้ทั้งเรื่อง AI และเรื่องบัตร) ---- */
   .card-story{ position:relative; height:340vh; margin-bottom:60px; }
+  .ai-story{ height:440vh; }
   .story-sticky{ position:sticky; top:0; height:100vh; display:grid; grid-template-rows:auto 1fr; align-items:center; gap:10px; padding-top:92px; }
   .story-copy{ position:relative; min-height:200px; isolation:isolate; }
   .story-copy::before{
@@ -131,45 +151,73 @@
   .story-steps{ position:relative; min-height:236px; }
   .step{ position:absolute; inset:0 auto auto 0; max-width:460px; opacity:0; translate:0 24px; filter:blur(6px); transition: opacity 0.6s var(--ease-expo), translate 0.8s var(--ease-expo), filter 0.6s; pointer-events:none; }
   .step.on{ opacity:1; translate:none; filter:none; }
+  .step .idx{ display:block; font:500 0.66rem var(--mono); letter-spacing:0.16em; color:var(--accent); margin-bottom:12px; }
   .step h2{ font-size:clamp(1.7rem, 4.6vw, 2.8rem); margin-bottom:14px; }
   .step p{ color:var(--text-soft); line-height:1.75; margin:0; font-size:0.98rem; }
   .story-progress{ display:flex; gap:6px; margin-top:8px; }
   .story-progress i{ width:28px; height:3px; border-radius:3px; background: rgba(var(--tint),0.14); overflow:hidden; position:relative; }
   .story-progress i::after{ content:""; position:absolute; inset:0; background:var(--accent); transform-origin:left; transform:scaleX(var(--f, 0)); }
   .story-stage{ position:relative; height:100%; min-height:300px; display:flex; align-items:center; justify-content:center; perspective:1400px; }
-  .story-stage .glow{ position:absolute; width:70%; aspect-ratio:1; border-radius:50%; background: radial-gradient(closest-side, var(--accent-glow), transparent 70%); opacity:0.45; filter: blur(10px); }
+  .story-stage .glow{ position:absolute; width:70%; aspect-ratio:1; border-radius:50%; background: radial-gradient(closest-side, var(--accent-glow), transparent 70%); opacity:0.35; filter: blur(10px); }
+  .ai-stage canvas{ position:absolute; inset:0; width:100%; height:100%; }
+  .stage-cap{
+    position:absolute; left:50%; bottom:9%; translate:-50% 0; z-index:2; display:flex; align-items:center; gap:10px;
+    padding:9px 14px 9px 9px; border-radius:14px; white-space:nowrap; transition: opacity 0.35s;
+  }
+  .stage-cap small{ display:block; font:500 0.56rem var(--mono); letter-spacing:0.16em; color:var(--text-faint); }
+  .stage-cap b{ display:block; font-size:0.84rem; font-weight:500; }
   .story-cards{ position:relative; transform-style:preserve-3d; }
   .story-cards .cc{ --w: min(400px, 78vw); }
   .story-cards .cc.side{ position:absolute; inset:0; opacity:0; }
 
-  /* สปอตไลต์ตามเมาส์บนการ์ดฟีเจอร์ */
-  .feature{ position:relative; overflow:hidden; }
-  .feature::before{
-    content:""; position:absolute; inset:0; pointer-events:none; opacity:0; transition: opacity 0.35s;
-    background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), var(--accent-dim), transparent 70%);
+  /* ---- โชว์การวางแผน ---- */
+  .plan-show{ display:grid; grid-template-columns:1fr; gap:34px; align-items:center; }
+  .plan-copy .eyebrow{ margin-bottom:12px; }
+  .plan-copy h2{ font-size:clamp(1.7rem, 4vw, 2.5rem); margin-bottom:16px; }
+  .plan-copy > p{ color:var(--text-soft); line-height:1.75; margin:0 0 22px; max-width:460px; }
+  .plan-list{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:14px; }
+  .plan-list li{ display:grid; grid-template-columns:28px 1fr; gap:12px; font-size:0.9rem; line-height:1.6; color:var(--text-soft); }
+  .plan-list li b{ color:var(--text); font-weight:500; display:block; }
+  .plan-list .n{ font:500 0.66rem var(--mono); color:var(--accent); padding-top:4px; }
+  .plan-mock{ padding:20px; border-radius:var(--r-xl); position:relative; overflow:hidden; }
+  .plan-mock::before{ content:""; position:absolute; left:10%; right:10%; top:0; height:1px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 75%, transparent), transparent); opacity:0.6; }
+  .pm-months{ display:flex; gap:8px; margin-bottom:16px; overflow-x:auto; scrollbar-width:none; }
+  .pm-months::-webkit-scrollbar{ display:none; }
+  .pm-m{
+    position:relative; overflow:hidden; flex:0 0 auto; min-width:78px; display:flex; flex-direction:column; align-items:flex-start; gap:2px;
+    padding:8px 12px 9px; border-radius:13px; border:1px solid var(--line); background: rgba(var(--tint),0.03); color:var(--text-soft);
+    font-family:var(--font); cursor:pointer; text-align:left; transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.25s var(--spring);
   }
-  .feature:hover::before{ opacity:1; }
-
-  @media (min-width:960px){
-    .story-sticky{ grid-template-rows:none; grid-template-columns: 0.9fr 1.1fr; padding-top:0; }
-    .hero-cc-wrap .cc{ --w: 320px; }
-  }
-  @media (max-width:520px){
-    /* จอแคบ: ขยายพื้นที่ส่วนภาพ ให้บัตรโผล่เหนือการ์ดพรีวิว */
-    .visual{ height:520px; }
-    .visual-inner{ padding-top:96px; }
-    .hero-cc-wrap{ left:0; top:0; }
-    .hero-cc-wrap .cc{ --w: 240px; }
-  }
-  @media (prefers-reduced-motion: reduce){
-    .card-story{ height:auto; }
-    .story-sticky{ position:relative; height:auto; padding:40px 0; }
-    .story-steps{ min-height:0; }
-    .step{ position:static; opacity:1; translate:none; filter:none; margin-bottom:26px; }
-    .story-progress{ display:none; }
-    .story-stage{ min-height:320px; }
-    .hero-cc-wrap{ animation:none; }
-  }
+  .pm-m:hover{ border-color:var(--line-strong); color:var(--text); }
+  .pm-m:active{ transform:scale(0.96); }
+  .pm-m .mn{ font-size:0.8rem; font-weight:500; }
+  .pm-m .mv{ font:500 0.7rem var(--mono); }
+  .pm-m.short .mv{ color:var(--coral); } .pm-m.tight .mv{ color:var(--amber); }
+  .pm-m::after{ content:""; position:absolute; left:12px; right:12px; bottom:0; height:2px; border-radius:2px; }
+  .pm-m.short::after{ background:var(--coral); } .pm-m.tight::after{ background: color-mix(in srgb, var(--amber) 70%, transparent); }
+  .pm-m.active{ border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: var(--accent-dim); color:var(--text); }
+  .pm-top{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .pm-top small{ font:500 0.6rem var(--mono); letter-spacing:0.16em; color:var(--text-soft); }
+  .pm-chip{ font:500 0.66rem var(--mono); padding:3px 8px; border-radius:6px; }
+  .pm-chip.ok{ color:var(--emerald); background: color-mix(in srgb, var(--emerald) 13%, transparent); }
+  .pm-chip.short{ color:var(--coral); background: color-mix(in srgb, var(--coral) 13%, transparent); }
+  .pm-chip.tight{ color:var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); }
+  .pm-label{ margin-top:14px; font-size:0.8rem; color:var(--text-soft); }
+  .pm-big{ font-size:2.4rem; font-weight:300; letter-spacing:-0.035em; line-height:1.15; font-variant-numeric:tabular-nums; }
+  .pm-big.neg{ color:var(--coral); }
+  .pm-chart{ margin:12px 0 4px; }
+  .pm-chart svg{ display:block; width:100%; height:auto; overflow:visible; }
+  .pm-grid{ stroke:var(--line); stroke-dasharray:2 5; }
+  .pm-zero{ stroke:var(--line-strong); }
+  .pm-line{ fill:none; stroke:var(--accent); stroke-width:2.4; stroke-linejoin:round; stroke-linecap:round; }
+  .pm-line.neg{ stroke:var(--coral); }
+  .pm-neg{ fill: color-mix(in srgb, var(--coral) 18%, transparent); }
+  .pm-call{ margin:10px 0 0; padding-left:12px; border-left:2px solid var(--emerald); font-size:0.84rem; line-height:1.6; color:var(--text-soft); }
+  .pm-call b{ color:var(--text); font-weight:500; }
+  .pm-call.short{ border-color:var(--coral); } .pm-call.short b{ color:var(--coral); }
+  .pm-call.tight{ border-color:var(--amber); }
+  .pm-ai{ display:flex; gap:10px; align-items:flex-start; margin-top:12px; padding:10px 12px; border-radius:12px; border:1px dashed var(--line-strong); font-size:0.8rem; line-height:1.6; color:var(--text-soft); }
+  .pm-ai .ai-mark{ width:24px; height:24px; border-radius:7px; font-size:0.5rem; }
 
   /* ---- features ---- */
   section{ margin-bottom:90px; }
@@ -177,16 +225,23 @@
   .sec-head h2{ font-size:clamp(1.7rem, 4vw, 2.4rem); }
   .sec-head .eyebrow{ margin-bottom:12px; }
   .features{ display:grid; grid-template-columns:1fr; gap:14px; }
-  .feature{ padding:24px; transition: transform 0.35s var(--spring-soft), border-color 0.25s; }
+  .feature{ position:relative; overflow:hidden; padding:24px; transition: transform 0.35s var(--spring-soft), border-color 0.25s; }
+  .feature::before{
+    content:""; position:absolute; inset:0; pointer-events:none; opacity:0; transition: opacity 0.35s;
+    background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), var(--accent-dim), transparent 70%);
+  }
+  .feature:hover::before{ opacity:1; }
   .feature:hover{ transform: translateY(-4px); border-color: var(--line-strong); }
   .feature .num{ font-family:var(--mono); font-size:0.72rem; color:var(--text-faint); }
   .feature .fi{
     width:44px; height:44px; border-radius:13px; margin:18px 0 20px; display:flex; align-items:center; justify-content:center;
-    background: var(--accent-dim); color: var(--accent);
+    background: linear-gradient(180deg, rgba(var(--tint),0.08), rgba(var(--tint),0.02)); border:1px solid var(--line); color: var(--text);
   }
-  .feature .fi svg{ width:21px; height:21px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+  .feature .fi svg{ width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
+  .feature .fi.ai{ font:600 0.7rem var(--mono); letter-spacing:0.08em; box-shadow: inset 0 1px 0 rgba(var(--tint),0.1), 0 0 0 3px var(--accent-dim); border-color:var(--line-strong); }
   .feature h3{ margin:0 0 8px; font-size:1.05rem; font-weight:500; }
   .feature p{ margin:0; font-size:0.88rem; color:var(--text-soft); line-height:1.7; }
+  .feature .tag{ position:absolute; top:22px; right:22px; font:500 0.56rem var(--mono); letter-spacing:0.16em; color:var(--accent); }
 
   /* ---- CTA band ---- */
   .cta-band{ position:relative; overflow:hidden; padding:48px 28px; text-align:center; border-radius:var(--r-xl); }
@@ -196,7 +251,7 @@
   }
   .cta-band > *{ position:relative; }
   .cta-band h2{ font-size:clamp(1.7rem, 4.4vw, 2.6rem); margin-bottom:14px; }
-  .cta-band p{ color:var(--text-soft); margin:0 auto 26px; max-width:420px; line-height:1.7; }
+  .cta-band p{ color:var(--text-soft); margin:0 auto 26px; max-width:440px; line-height:1.7; }
 
   /* ---- footer ---- */
   footer{ border-top:1px solid var(--line); padding:26px 0 34px; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; font-size:0.8rem; color:var(--text-faint); }
@@ -212,23 +267,34 @@
     .features{ grid-template-columns:repeat(2, 1fr); }
   }
   @media (min-width:960px){
-    .hero{ grid-template-columns: 1.1fr 1fr; padding:60px 0 90px; }
-    .visual{ height:500px; }
-    .halo{ width:440px; height:440px; }
-    .features{ grid-template-columns:repeat(4, 1fr); }
-  }
-  @media (max-width:440px){
-    /* จอแคบ: ซ่อนปุ่มเข้าสู่ระบบบนแถบเมนู (มีปุ่ม "มีบัญชีอยู่แล้ว" ในส่วนหัวอยู่แล้ว) */
-    .nav-links .btn-ghost{ display:none; }
+    .hero{ grid-template-columns: 1fr 1.05fr; padding:70px 0 80px; min-height:100vh; }
+    .ai-demo{ position:absolute; left:-10%; bottom:-2%; width:300px; margin:0; }
+    .story-sticky{ grid-template-rows:none; grid-template-columns: 0.9fr 1.1fr; padding-top:0; }
+    .plan-show{ grid-template-columns: 0.9fr 1.1fr; gap:56px; }
+    .features{ grid-template-columns:repeat(3, 1fr); }
   }
   @media (max-width:520px){
     .nav-links .text-link{ display:none; }
-    .float.in{ right:0; } .float.out{ left:0; }
+    .ichip{ padding:8px 11px; font-size:0.76rem; }
+    .ichip.c1{ right:0; } .ichip.c2{ left:0; } .ichip.c3{ right:0; }
+    .pm-big{ font-size:2rem; }
+  }
+  @media (max-width:440px){ .nav-links .btn-ghost{ display:none; } }
+  @media (prefers-reduced-motion: reduce){
+    .card-story, .ai-story{ height:auto; }
+    .story-sticky{ position:relative; height:auto; padding:40px 0; }
+    .story-steps{ min-height:0; }
+    .step{ position:static; opacity:1; translate:none; filter:none; margin-bottom:26px; }
+    .story-progress, .stage-cap{ display:none; }
+    .story-stage{ min-height:340px; }
+    .orbit, .ichip{ animation:none; }
+    .cursor-aura{ display:none; }
   }
 </style>
 </head>
 <body>
 <div class="ambient"></div>
+<div class="cursor-aura" id="cursorAura" aria-hidden="true"></div>
 
 <div class="page">
   <header class="nav">
@@ -237,66 +303,47 @@
       <span class="wordmark">Money<span class="accent">Mate</span></span>
     </a>
     <div class="nav-links">
+      <a class="text-link" href="#ai">AI</a>
+      <a class="text-link" href="#plan">วางแผน</a>
       <a class="text-link" href="#features">ฟีเจอร์</a>
       <a class="btn btn-ghost" href="login.html">เข้าสู่ระบบ</a>
       <a class="btn btn-primary" href="register.html">เริ่มใช้งาน</a>
     </div>
   </header>
 
-  <div class="hero">
-    <div>
-      <div class="eyebrow rv" data-delay="0.1">Personal finance · Free</div>
-      <h1 class="lines" id="heroTitle"><span class="ln"><span style="--d:0.15s">รู้ทันทุก<span class="accent">บาท</span></span></span><span class="ln muted"><span style="--d:0.27s">ใช้เงินอย่างมีแผน</span></span></h1>
-      <p class="lead rv blur" data-delay="0.45">บันทึกรายรับรายจ่าย ตั้งงบประมาณ และดูภาพรวมการเงินของคุณได้ในที่เดียว ไม่หมดก่อนสิ้นเดือนอีกต่อไป</p>
+  <!-- ===== HERO ===== -->
+  <div class="hero" id="hero">
+    <div class="hero-copy">
+      <div class="eyebrow rv" data-delay="0.1">AI money assistant · ใช้ฟรี</div>
+      <h1 class="lines" id="heroTitle"><span class="ln"><span style="--d:0.15s">ให้ <span class="accent">AI</span> ช่วยคิด</span></span><span class="ln muted"><span style="--d:0.27s">เรื่องเงินทุกเดือน</span></span></h1>
+      <p class="lead rv blur" data-delay="0.45">บันทึกรายรับรายจ่าย แล้วให้ AI สรุปการใช้เงิน วางแผนล่วงหน้า และแนะนำเมื่อใกล้ถึงงบ รู้ก่อนว่าเดือนนี้เงินพอไหม ไม่ต้องรอให้หมดก่อนสิ้นเดือน</p>
       <div class="ctas rv" data-delay="0.6">
         <a class="btn btn-primary magnetic" href="register.html">เริ่มใช้งานฟรี<span class="arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
-        <a class="btn btn-ghost" href="login.html">มีบัญชีอยู่แล้ว</a>
+        <a class="btn btn-ghost" href="#ai">ดู AI ทำงาน</a>
       </div>
       <div class="points rv" data-delay="0.72">
-        <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>ใช้ฟรี ไม่มีโฆษณา</span>
-        <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>เข้าสู่ระบบด้วย Google ได้</span>
+        <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>AI วิเคราะห์และแนะนำเป็นภาษาไทย</span>
+        <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>วางแผนล่วงหน้า 12 เดือน รู้ว่าวันไหนเงินจะไม่พอ</span>
+        <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>ใช้ฟรี ไม่มีโฆษณา · เข้าสู่ระบบด้วย Google ได้</span>
       </div>
     </div>
 
-    <div class="visual"><div class="visual-inner" id="heroVisual">
-      <div class="halo" aria-hidden="true"></div>
-      <div class="hero-cc-wrap rv" data-delay="0.35" aria-hidden="true"><div class="cc obsidian" id="heroCard" data-type="Debit" data-num="4721 •••• •••• 0386"></div></div>
-      <div class="card preview rv blur" data-delay="0.5">
-        <div class="row1">
-          <div class="label"><span class="live-dot"></span>ยอดเงินคงเหลือ</div>
-          <span class="chip accent">↑ 12.4%</span>
-        </div>
-        <div class="balance"><span>฿</span>36,907.00</div>
-        <div class="chart-wrap">
-          <svg viewBox="0 0 300 100" aria-hidden="true">
-            <defs>
-              <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.35"/>
-                <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
-              </linearGradient>
-            </defs>
-            <path class="chart-area" d="M0,78 L35,64 L70,71 L105,42 L140,53 L175,24 L210,37 L245,14 L300,18 L300,100 L0,100 Z" fill="url(#areaGrad)"/>
-            <path id="chartLine" d="M0,78 L35,64 L70,71 L105,42 L140,53 L175,24 L210,37 L245,14 L300,18" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-        <div class="mini-heat" id="miniHeat" aria-hidden="true"></div>
+    <div class="visual rv" data-delay="0.3" id="heroVisual">
+      <div class="core" id="core">
+        <div class="halo" aria-hidden="true"></div>
+        <div class="orbit o1" aria-hidden="true"><i></i></div>
+        <div class="orbit o2" aria-hidden="true"><i></i></div>
+        <canvas id="heroCore" aria-hidden="true"></canvas>
+        <div class="card ichip c1" data-depth="26" aria-hidden="true"><small>INSIGHT</small><b class="pos">ค่ากินลดลง 8%</b></div>
+        <div class="card ichip c2" data-depth="18" aria-hidden="true"><small>FORECAST</small><b>สิ้นเดือนเหลือ ฿3,120</b></div>
+        <div class="card ichip c3" data-depth="34" aria-hidden="true"><small>SAFE / DAY</small><b class="warn">ใช้ได้อีกวันละ ฿91</b></div>
       </div>
-      <div class="card float in">
-        <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M4 19.5h16"/></svg></div>
-        <div><b>+฿5,999.00</b><small>ค่าขนมประจำเดือน</small></div>
+      <div class="card ai-demo" id="aiDemo" aria-hidden="true">
+        <div class="ad-head"><span class="ai-mark">AI</span><div><b>ถาม MoneyMate AI</b><small>ตอบจากตัวเลขของคุณเอง</small></div></div>
+        <div class="ad-msg me" id="adQ"></div>
+        <div class="ad-msg bot" id="adA"></div>
       </div>
-      <div class="card float out">
-        <div class="ico"><svg viewBox="0 0 24 24"><path d="M6 3v7a2 2 0 0 0 4 0V3M8 12v9"/><path d="M17 21V3c-2 1.2-3 3.6-3 7 0 2 1 3 3 3"/></svg></div>
-        <div><b>−฿65.00</b><small>ข้าวมันไก่ · อาหาร</small></div>
-      </div>
-    </div></div>
-  </div>
-
-  <div class="card stats rv">
-    <div class="stat"><div class="v">ฟรี</div><div class="k">ไม่มีค่าใช้จ่าย</div></div>
-    <div class="stat"><div class="v"><span data-count="6">6</span> เดือน</div><div class="k">กราฟรายงานย้อนหลัง</div></div>
-    <div class="stat"><div class="v"><span data-count="7">7</span>+</div><div class="k">ธีมสี เลือกเองได้</div></div>
-    <div class="stat"><div class="v"><span data-count="2">2</span> ภาษา</div><div class="k">ไทย · English</div></div>
+    </div>
   </div>
 </div>
 
@@ -306,11 +353,94 @@
 </div>
 
 <div class="page">
-  <section class="manifesto">
-    <div class="eyebrow rv">Manifesto</div>
-    <p id="manifestoText">เราเชื่อว่าการจัดการเงินไม่ควรเป็นเรื่องน่าเบื่อหรือยุ่งยาก ทุกบาทที่ใช้ไปควรมีที่มาที่ไป MoneyMate จึงถูกออกแบบให้บันทึกได้ในไม่กี่วินาที เห็นภาพรวมได้ในแวบเดียว และช่วยให้คุณตัดสินใจเรื่องเงินได้อย่างมั่นใจทุกวัน</p>
+  <!-- ===== AI STORY: อนุภาคเปลี่ยนรูปตามการเลื่อน ===== -->
+  <section class="card-story ai-story" id="ai" aria-label="AI ของ MoneyMate ทำอะไรได้บ้าง">
+    <div class="story-sticky">
+      <div class="story-copy">
+        <div class="eyebrow">Your money, understood by AI</div>
+        <div class="story-steps">
+          <div class="step on">
+            <span class="idx">01 · ANALYSE</span>
+            <h2 class="two-tone">AI อ่านตัวเลขให้<span class="muted">แล้วสรุปใน 10 วินาที</span></h2>
+            <p>กดครั้งเดียว AI จะสรุปว่าเดือนนี้อะไรทำได้ดี อะไรควรระวัง พร้อมคำแนะนำที่ทำได้จริง จากรายรับรายจ่ายของคุณเอง</p>
+          </div>
+          <div class="step">
+            <span class="idx">02 · PLAN</span>
+            <h2 class="two-tone">วางแผนล่วงหน้า<span class="muted">รู้ก่อนว่าเงินพอไหม</span></h2>
+            <p>ใส่ค่าหอ ค่าเน็ต ค่ากินรายวัน และรายรับที่คาดไว้ ระบบคำนวณยอดทีละวันไปอีก 12 เดือน บอกวันที่เงินจะติดลบ และใช้ได้อีกวันละเท่าไร</p>
+          </div>
+          <div class="step">
+            <span class="idx">03 · ADVISE</span>
+            <h2 class="two-tone">ใกล้ถึงงบเมื่อไร<span class="muted">AI ช่วยคิดทางออก</span></h2>
+            <p>เมื่อใช้ไปเกิน 80% ของงบ กดขอคำแนะนำได้ทันที AI บอกว่าควรลดอะไร ตามหมวดที่คุณใช้จริง ไม่ใช่คำแนะนำลอย ๆ</p>
+          </div>
+          <div class="step">
+            <span class="idx">04 · ASK</span>
+            <h2 class="two-tone">ถามได้ทุกเรื่องเงิน<span class="muted">เหมือนมีเพื่อนที่เก่งเลข</span></h2>
+            <p>เดือนนี้ใช้อะไรเยอะ จะเก็บเงินหมื่นยังไง หรือเดือนหน้าพอไหม ถามเป็นภาษาไทยได้เลย</p>
+          </div>
+        </div>
+        <div class="story-progress" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      </div>
+      <div class="story-stage ai-stage" aria-hidden="true">
+        <div class="glow"></div>
+        <canvas id="storyCore"></canvas>
+        <div class="card stage-cap" id="stageCap"><span class="ai-mark">AI</span><div><small id="capK">MONTHLY SPEND</small><b id="capV">รายจ่าย 7 เดือนล่าสุด</b></div></div>
+      </div>
+    </div>
   </section>
 
+  <!-- ===== PLANNING ===== -->
+  <section class="plan-show" id="plan">
+    <div class="plan-copy rv">
+      <div class="eyebrow">Plan ahead</div>
+      <h2 class="two-tone">รู้ก่อนว่าเงินพอไหม<span class="muted">ล่วงหน้า 12 เดือน</span></h2>
+      <p>ไม่ต้องรอให้เงินหมดแล้วค่อยรู้ตัว ระบบวางแผนของ MoneyMate คำนวณยอดเงินทีละวันจากรายการประจำของคุณ แล้วบอกล่วงหน้าว่าเดือนไหนตึงมือ</p>
+      <ul class="plan-list">
+        <li><span class="n">01</span><div><b>ใส่รายจ่ายประจำครั้งเดียว</b>ค่าหอ ค่าเน็ต ค่ากินรายวัน หรือค่าเทอมที่จ่ายครั้งเดียว</div></li>
+        <li><span class="n">02</span><div><b>เห็นยอดเงินล่วงหน้าทุกวัน</b>รู้ว่าวันไหนจะติดลบ และใช้ได้อีกวันละเท่าไร</div></li>
+        <li><span class="n">03</span><div><b>ให้ AI ช่วยปรับแผน</b>บอกเป้าหมาย เช่น เก็บเงินซื้อโน้ตบุ๊ก AI เสนอแผนให้กดเพิ่มได้ทันที</div></li>
+      </ul>
+    </div>
+    <div class="card plan-mock rv" data-delay="0.15" id="planMock">
+      <div class="pm-months" id="pmMonths"></div>
+      <div class="pm-top"><small id="pmTitle">FORECAST</small><span class="pm-chip" id="pmChip"></span></div>
+      <div class="pm-label">คาดว่าจะเหลือสิ้นเดือน</div>
+      <div class="pm-big" id="pmBig">฿0</div>
+      <div class="pm-chart" id="pmChart"></div>
+      <p class="pm-call" id="pmCall"></p>
+      <div class="pm-ai" id="pmAi"><span class="ai-mark">AI</span><span id="pmAiText"></span></div>
+    </div>
+  </section>
+
+  <!-- ===== FEATURES ===== -->
+  <section id="features">
+    <div class="sec-head rv">
+      <div>
+        <div class="eyebrow">What you get</div>
+        <h2 class="two-tone">ผู้ช่วยการเงินครบ<span class="muted">ในแอปเดียว</span></h2>
+      </div>
+    </div>
+    <div class="features">
+      <div class="card feature rv"><span class="tag">AI</span><div class="num">01</div><div class="fi ai">AI</div>
+        <h3>AI สรุปการใช้เงิน</h3><p>กดครั้งเดียว AI อ่านรายรับรายจ่ายแล้วสรุปสิ่งที่ทำได้ดี สิ่งที่ควรระวัง และคำแนะนำ</p></div>
+      <div class="card feature rv"><span class="tag">AI</span><div class="num">02</div><div class="fi ai">AI</div>
+        <h3>ถาม AI ได้ทุกเรื่อง</h3><p>ถามเป็นภาษาไทยว่าเงินไปไหน จะเก็บเงินยังไง AI ตอบจากตัวเลขจริงของคุณ</p></div>
+      <div class="card feature rv"><span class="tag">AI</span><div class="num">03</div><div class="fi ai">AI</div>
+        <h3>AI ช่วยวางแผน</h3><p>บอกเป้าหมาย เช่น เก็บเงิน 5,000 ใน 3 เดือน แล้วเลือกเพิ่มแผนที่ AI เสนอได้ทันที</p></div>
+      <div class="card feature rv"><div class="num">04</div>
+        <div class="fi"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="m9 15 2 2 4-4"/></svg></div>
+        <h3>วางแผนล่วงหน้า 12 เดือน</h3><p>รายจ่ายประจำ รายวัน หรือครั้งเดียว รู้ก่อนว่าเดือนไหนเงินไม่พอ และวันไหนจะติดลบ</p></div>
+      <div class="card feature rv"><div class="num">05</div>
+        <div class="fi"><svg viewBox="0 0 24 24"><path d="M4 16a8 8 0 1 1 16 0"/><path d="m12 16 4-5"/><path d="M4 20h16"/></svg></div>
+        <h3>คำแนะนำเมื่อใกล้ถึงงบ</h3><p>ใช้ไปเกิน 80% ของงบ กดขอคำแนะนำจาก AI ว่าควรลดอะไรในวันที่เหลือ</p></div>
+      <div class="card feature rv"><div class="num">06</div>
+        <div class="fi"><svg viewBox="0 0 24 24"><path d="M4 19V10M12 19V5M20 19v-6"/></svg></div>
+        <h3>Analytics แบบมืออาชีพ</h3><p>กราฟกระแสเงินสด สัดส่วนรายจ่าย จังหวะการใช้งบ และตารางหมวดหมู่ในหน้าเดียว</p></div>
+    </div>
+  </section>
+
+  <!-- ===== CARD STORY ===== -->
   <section class="card-story" id="cardStory" aria-label="บัตรกี่ใบก็จดไว้ที่เดียว">
     <div class="story-sticky">
       <div class="story-copy">
@@ -325,8 +455,8 @@
             <p>ดูรายจ่ายเดือนนี้เทียบกับงบที่ตั้งไว้ได้ตลอด ไม่ต้องรอสรุปยอดตอนสิ้นเดือน</p>
           </div>
           <div class="step">
-            <h2 class="two-tone">เห็นภาพรวม<span class="muted">ในหน้าเดียว</span></h2>
-            <p>รายรับเทียบรายจ่าย 6 เดือน อัตราการออม และสรุปตามหมวดหมู่ ช่วยวางแผนเดือนหน้าได้ง่ายขึ้น</p>
+            <h2 class="two-tone">ข้อมูลครบ<span class="muted">AI ก็แนะนำได้แม่น</span></h2>
+            <p>ยิ่งบันทึกครบ AI ยิ่งเห็นภาพชัด สรุปและวางแผนให้ตรงกับชีวิตจริงของคุณ</p>
           </div>
         </div>
         <div class="story-progress" aria-hidden="true"><i></i><i></i><i></i></div>
@@ -342,47 +472,24 @@
     </div>
   </section>
 
-  <section id="features">
-    <div class="sec-head rv">
-      <div>
-        <div class="eyebrow">What you get</div>
-        <h2 class="two-tone">ทุกอย่างที่ต้องใช้<span class="muted">ในการคุมเงินรายวัน</span></h2>
-      </div>
-    </div>
-    <div class="features">
-      <div class="card feature rv">
-        <div class="num">01</div>
-        <div class="fi"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
-        <h3>บันทึกในไม่กี่วินาที</h3>
-        <p>เลือกหมวดหมู่ ใส่จำนวนเงิน แล้วบันทึก สร้างหมวดหมู่ของตัวเองได้ทั้งรายรับและรายจ่าย</p>
-      </div>
-      <div class="card feature rv">
-        <div class="num">02</div>
-        <div class="fi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></div>
-        <h3>งบประมาณรายเดือน</h3>
-        <p>ตั้งงบแต่ละเดือน แล้วดูแถบความคืบหน้า รู้ทันทีเมื่อใช้เกินงบ</p>
-      </div>
-      <div class="card feature rv">
-        <div class="num">03</div>
-        <div class="fi"><svg viewBox="0 0 24 24"><path d="M4 19V10M12 19V5M20 19v-6"/></svg></div>
-        <h3>รายงานและกราฟ</h3>
-        <p>รายรับเทียบรายจ่าย 6 เดือน อัตราการออม และสรุปตามหมวดหมู่ในหน้าเดียว</p>
-      </div>
-      <div class="card feature rv">
-        <div class="num">04</div>
-        <div class="fi"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg></div>
-        <h3>เห็นนิสัยการใช้เงิน</h3>
-        <p>ตารางกิจกรรมรายวันบอกว่าวันไหนใช้มาก พร้อมจำนวนวันที่บันทึกต่อเนื่อง</p>
-      </div>
-    </div>
+  <section class="manifesto">
+    <div class="eyebrow rv">Manifesto</div>
+    <p id="manifestoText">เราเชื่อว่าการจัดการเงินไม่ควรยุ่งยาก MoneyMate จึงให้ AI ช่วยอ่านตัวเลข วางแผนล่วงหน้า และบอกทางออกก่อนเงินจะหมด เพื่อให้คุณตัดสินใจเรื่องเงินได้อย่างมั่นใจทุกวัน</p>
   </section>
+
+  <div class="card stats rv">
+    <div class="stat"><div class="v">ฟรี</div><div class="k">ไม่มีค่าใช้จ่าย ไม่มีโฆษณา</div></div>
+    <div class="stat"><div class="v"><span data-count="4">4</span></div><div class="k">ผู้ช่วย AI ในแอป</div></div>
+    <div class="stat"><div class="v"><span data-count="12">12</span> เดือน</div><div class="k">คาดการณ์ล่วงหน้า</div></div>
+    <div class="stat"><div class="v"><span data-count="2">2</span> ภาษา</div><div class="k">ไทย · English</div></div>
+  </div>
 
   <section>
     <div class="card cta-band rv">
       <div class="eyebrow" style="margin-bottom:16px;">Let's start</div>
-      <h2 class="two-tone">เริ่มจัดการเงิน<span class="muted">ตั้งแต่วันนี้</span></h2>
-      <p>สมัครฟรี ใช้เวลาไม่ถึงนาที หรือเข้าสู่ระบบด้วยบัญชี Google</p>
-      <a class="btn btn-primary magnetic" href="register.html">สร้างบัญชี<span class="arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
+      <h2 class="two-tone">ให้ AI ช่วยดูแลเงิน<span class="muted">ตั้งแต่วันนี้</span></h2>
+      <p>สมัครฟรี ใช้เวลาไม่ถึงนาที หรือเข้าสู่ระบบด้วยบัญชี Google ผู้ช่วย AI เปิดใช้เมื่อคุณกดยินยอมเท่านั้น</p>
+      <a class="btn btn-primary magnetic" href="register.html">สร้างบัญชีฟรี<span class="arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
     </div>
   </section>
 
@@ -401,17 +508,12 @@
 
 <script src="js/motion.js"></script>
 <script src="js/cc.js"></script>
+<script src="js/ai-core.js"></script>
 <script>
-  // ตารางกิจกรรมตัวอย่างในการ์ดพรีวิว
-  const heat = document.getElementById('miniHeat');
-  let seed = 7;
-  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  heat.innerHTML = Array.from({ length: 18 * 7 }, (_, i) => {
-    const r = rnd() * (0.5 + i / 250);
-    return `<i class="${r > 0.62 ? 'l3' : r > 0.42 ? 'l2' : r > 0.26 ? 'l1' : ''}"></i>`;
-  }).join('');
+  const clamp01 = v => Math.max(0, Math.min(1, v));
+  const fine = window.matchMedia('(pointer: fine)').matches;
 
-  // แถบวิ่ง: หมวดหมู่ต่าง ๆ (ใส่ซ้ำสองชุดเพื่อให้วนต่อเนื่อง)
+  // ---- แถบวิ่ง: หมวดหมู่ต่าง ๆ (ใส่ซ้ำสองชุดเพื่อให้วนต่อเนื่อง) ----
   const TICKER = [
     ['อาหาร', 'var(--cat-food)', '<path d="M4 12h16a8 8 0 0 1-16 0z"/><path d="M9 20.5h6"/><path d="M13.5 9.5 18 4M10.5 9.5 15 4"/>'],
     ['เดินทาง', 'var(--cat-travel)', '<circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/>'],
@@ -426,41 +528,180 @@
     `<span class="item" style="--c:${c}"><span class="ico"><svg viewBox="0 0 24 24">${icon}</svg></span>${name}<span class="sep"></span></span>`).join('');
   document.getElementById('marqueeTrack').innerHTML = tickerHtml + tickerHtml;
 
+  /* ================= แกน AI ในส่วนหัว: ลูกบอลอนุภาค → สลายเป็นฝุ่นตอนเลื่อนผ่าน ================= */
+  const hero = document.getElementById('hero');
+  const heroCore = AICore.mount(document.getElementById('heroCore'), { shapes: ['sphere', 'cloud'], count: 1100, scale: 0.33, pointerTarget: hero });
+  Motion.onScroll(() => {
+    const r = hero.getBoundingClientRect();
+    heroCore.set(clamp01(-r.top / (r.height * 0.75)));
+  });
 
-  // ---- บัตรเครดิต: สร้างหน้า/หลังบัตรจาก data-* ----
+  // การ์ดข้อมูลลอย: ขยับตามเมาส์ตามระดับความลึก
+  (function () {
+    const chips = [...document.querySelectorAll('.ichip')];
+    if (Motion.reduced() || !fine) return;
+    let mx = 0, my = 0, cx = 0, cy = 0, raf = 0;
+    const tick = () => {
+      cx += (mx - cx) * 0.08; cy += (my - cy) * 0.08;
+      chips.forEach(c => { const d = +c.dataset.depth; c.style.setProperty('--px', `${(cx * d).toFixed(2)}px`); c.style.setProperty('--py', `${(cy * d).toFixed(2)}px`); });
+      raf = Math.abs(mx - cx) + Math.abs(my - cy) > 0.001 ? requestAnimationFrame(tick) : 0;
+    };
+    hero.addEventListener('pointermove', e => {
+      mx = e.clientX / window.innerWidth - 0.5; my = e.clientY / window.innerHeight - 0.5;
+      if (!raf) raf = requestAnimationFrame(tick);
+    });
+  })();
+
+  // ตัวอย่างแชท AI: คำถาม → จุดกำลังพิมพ์ → คำตอบพิมพ์ทีละตัว วนไปเรื่อย ๆ
+  (function () {
+    const DEMO = [
+      ['เดือนหน้าเงินพอใช้ไหม', 'พอครับ คาดว่าสิ้นเดือนจะเหลือ ฿3,120 ถ้าคุมค่ากินไม่เกินวันละ ฿150'],
+      ['เดือนนี้ใช้อะไรเยอะสุด', 'ค่าหอ ฿3,500 รองลงมาคืออาหาร ฿2,980 ซึ่งลดลงจากเดือนก่อน 8% แล้ว'],
+      ['อยากเก็บเงิน 5,000 ใน 3 เดือน', 'เก็บเดือนละ ฿1,700 ก็ถึงครับ ลองตั้งเพดานค่ากินวันละ ฿130']
+    ];
+    const q = document.getElementById('adQ'), a = document.getElementById('adA');
+    const seg = window.Intl && Intl.Segmenter ? new Intl.Segmenter('th', { granularity: 'grapheme' }) : null;
+    const chars = s => (seg ? [...seg.segment(s)].map(x => x.segment) : [...s]);
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    if (Motion.reduced()) { q.textContent = DEMO[0][0]; a.textContent = DEMO[0][1]; q.classList.add('show'); a.classList.add('show'); return; }
+    let visible = true;
+    new IntersectionObserver(([e]) => { visible = e.isIntersecting; }).observe(document.getElementById('aiDemo'));
+    (async function run(i) {
+      while (!visible || document.hidden) await wait(500);
+      const [question, answer] = DEMO[i % DEMO.length];
+      q.classList.remove('show'); a.classList.remove('show');
+      await wait(450);
+      q.textContent = question; q.classList.add('show');
+      await wait(700);
+      a.innerHTML = '<span class="ad-dots"><i></i><i></i><i></i></span>'; a.classList.add('show');
+      await wait(1100);
+      const cs = chars(answer);
+      for (let k = 1; k <= cs.length; k++) { a.innerHTML = ''; a.textContent = cs.slice(0, k).join(''); a.insertAdjacentHTML('beforeend', '<span class="caret"></span>'); await wait(28); }
+      await wait(1200); a.textContent = answer;
+      await wait(3400);
+      run(i + 1);
+    })(0);
+  })();
+
+  /* ================= เรื่องเล่า AI: อนุภาคเปลี่ยนรูปตามการเลื่อน ================= */
+  (function () {
+    const story = document.getElementById('ai');
+    const core = AICore.mount(document.getElementById('storyCore'), { shapes: ['sphere', 'bars', 'calendar', 'gauge', 'bubble'], count: 1000, scale: 0.34, pointerTarget: story });
+    const steps = [...story.querySelectorAll('.step')], bars = [...story.querySelectorAll('.story-progress i')];
+    const CAPS = [
+      ['MONTHLY SPEND', 'รายจ่าย 7 เดือนล่าสุด · เดือนนี้สูงสุด'],
+      ['PLAN CALENDAR', 'รายจ่ายประจำ 5 รายการในเดือนนี้'],
+      ['BUDGET USED', 'ใช้ไป 86% ของงบ · เหลือวันละ ฿91'],
+      ['ASK AI', 'ถามอะไรก็ได้ ตอบเป็นภาษาไทย']
+    ];
+    const capK = document.getElementById('capK'), capV = document.getElementById('capV'), cap = document.getElementById('stageCap');
+    // [ตำแหน่งการเลื่อน, รูปทรง] — หยุดค้างที่แต่ละรูปช่วงหนึ่งก่อนเปลี่ยน
+    const KEYS = [[0, 0], [0.06, 0], [0.2, 1], [0.3, 1], [0.44, 2], [0.54, 2], [0.68, 3], [0.78, 3], [0.92, 4], [1, 4]];
+    const shapeAt = p => {
+      for (let i = 0; i < KEYS.length - 1; i++) {
+        const [a, sa] = KEYS[i], [b, sb] = KEYS[i + 1];
+        if (p <= b) return sa + (sb - sa) * clamp01((p - a) / (b - a || 1));
+      }
+      return KEYS[KEYS.length - 1][1];
+    };
+    let lastStep = -1;
+    const render = p => {
+      const s = shapeAt(p);
+      core.set(s);
+      const step = Math.max(0, Math.min(3, Math.round(s) - 1));
+      if (step !== lastStep) {
+        steps.forEach((el, i) => el.classList.toggle('on', i === step));
+        cap.style.opacity = 0;
+        setTimeout(() => { capK.textContent = CAPS[step][0]; capV.textContent = CAPS[step][1]; cap.style.opacity = 1; }, lastStep < 0 ? 0 : 220);
+        lastStep = step;
+      }
+      bars.forEach((b, i) => b.style.setProperty('--f', clamp01((s - 1 - i) + 1).toFixed(3)));
+    };
+    if (Motion.reduced()) { core.set(1); steps.forEach(s => s.classList.add('on')); return; }
+    Motion.onScroll(() => {
+      const r = story.getBoundingClientRect();
+      render(clamp01(-r.top / (r.height - window.innerHeight)));
+    });
+  })();
+
+  /* ================= ตัวอย่างการวางแผน: กดเลือกเดือนได้ เส้นกราฟวาดตามการเลื่อน ================= */
+  (function () {
+    const MONTHS = [
+      { m: 'ต.ค.', title: 'ต.ค. 2569', start: 16019, end: 17169, status: 'ok', label: 'พอใช้',
+        pts: [[0, 16019], [1, 23369], [3, 19719], [5, 19119], [10, 18819], [17, 18169], [24, 17619], [31, 17169]],
+        call: 'ใช้นอกแผนได้อีกไม่เกิน <b>วันละ ฿553</b> โดยยอดไม่ติดลบ',
+        ai: 'เดือนนี้สบาย ๆ ลองกันไว้เป็นเงินเก็บ ฿2,000 เผื่อค่าเทอมเดือนหน้า' },
+      { m: 'พ.ย.', title: 'พ.ย. 2569', start: 17169, end: -2981, status: 'short', label: 'ไม่พอ',
+        pts: [[0, 17169], [1, 24519], [3, 20869], [5, 20269], [11, 19369], [12, 7219], [19, 6419], [20, 2719], [21, -2400], [30, -2981]],
+        call: 'เงินจะติดลบตั้งแต่ <b>21 พ.ย.</b> ขาดมากสุด <b>฿2,981</b>',
+        ai: 'ถ้าเลื่อนซื้อโน้ตบุ๊ก ฿12,000 ไปเดือน ม.ค. เดือนนี้จะเหลือ ฿9,019 และไม่ติดลบเลย' },
+      { m: 'ธ.ค.', title: 'ธ.ค. 2569', start: -2981, end: 2719, status: 'tight', label: 'ตึงมือ',
+        pts: [[0, -2981], [1, 4369], [3, 719], [5, 119], [14, 1319], [15, 6319], [24, 4519], [31, 2719]],
+        call: 'เหลือน้อย — ใช้นอกแผนได้อีกไม่เกิน <b>วันละ ฿4</b>',
+        ai: 'ทุน ฿5,000 วันที่ 15 ช่วยได้มาก แต่ช่วงต้นเดือนควรงดช้อปปิ้งไปก่อน' }
+    ];
+    const fmt = v => (v < 0 ? '−' : '') + '฿' + Math.abs(v).toLocaleString('en-US');
+    const short = v => (v < 0 ? '−' : '') + '฿' + (Math.abs(v) / 1000).toFixed(1) + 'k';
+    const box = document.getElementById('pmMonths');
+    let sel = 1, lineLen = 0;
+    box.innerHTML = MONTHS.map((x, i) => `<button type="button" class="pm-m ${x.status}" data-i="${i}"><span class="mn">${x.m}</span><span class="mv">${short(x.end)}</span></button>`).join('');
+    box.addEventListener('click', e => { const b = e.target.closest('.pm-m'); if (b) { sel = +b.dataset.i; paint(true); } });
+    const chart = document.getElementById('pmChart');
+    function paint(animate) {
+      const M = MONTHS[sel];
+      box.querySelectorAll('.pm-m').forEach((b, i) => b.classList.toggle('active', i === sel));
+      document.getElementById('pmTitle').textContent = 'FORECAST · ' + M.title;
+      const chip = document.getElementById('pmChip'); chip.className = 'pm-chip ' + M.status; chip.textContent = M.label;
+      const big = document.getElementById('pmBig'); big.classList.toggle('neg', M.end < 0);
+      if (animate && !Motion.reduced()) Motion.countUp(big, M.end, { from: 0, duration: 900, format: v => fmt(Math.round(v)) }); else big.textContent = fmt(M.end);
+      const call = document.getElementById('pmCall'); call.className = 'pm-call ' + M.status; call.innerHTML = M.call;
+      document.getElementById('pmAiText').textContent = M.ai;
+      // กราฟยอดเงินตลอดเดือน
+      const W = 460, H = 150, pad = 8, days = M.pts[M.pts.length - 1][0];
+      const vals = M.pts.map(p => p[1]), lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
+      const X = d => pad + (d / days) * (W - pad * 2), Y = v => pad + ((hi - v) / (hi - lo || 1)) * (H - pad * 2), y0 = Y(0);
+      const d = M.pts.map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(' ');
+      const area = `${d} L${X(days).toFixed(1)},${y0.toFixed(1)} L${X(0).toFixed(1)},${y0.toFixed(1)} Z`;
+      chart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" aria-hidden="true"><defs>
+          <clipPath id="pmPos"><rect x="0" y="-20" width="${W}" height="${(y0 + 20).toFixed(1)}"/></clipPath>
+          <clipPath id="pmNegC"><rect x="0" y="${y0.toFixed(1)}" width="${W}" height="${(H - y0 + 20).toFixed(1)}"/></clipPath></defs>
+        ${[0.25, 0.5, 0.75].map(f => `<line class="pm-grid" x1="0" x2="${W}" y1="${(H * f).toFixed(1)}" y2="${(H * f).toFixed(1)}"/>`).join('')}
+        <line class="pm-zero" x1="0" x2="${W}" y1="${y0.toFixed(1)}" y2="${y0.toFixed(1)}"/>
+        <path class="pm-neg" d="${area}" clip-path="url(#pmNegC)"/>
+        <path class="pm-line" id="pmLine" d="${d}" clip-path="url(#pmPos)"/>
+        <path class="pm-line neg" id="pmLineN" d="${d}" clip-path="url(#pmNegC)"/></svg>`;
+      const lines = [document.getElementById('pmLine'), document.getElementById('pmLineN')];
+      lineLen = lines[0].getTotalLength();
+      lines.forEach(l => { l.style.strokeDasharray = lineLen; l.style.strokeDashoffset = animate ? lineLen : lineLen * (1 - drawn); });
+      if (animate) requestAnimationFrame(() => requestAnimationFrame(() => lines.forEach(l => { l.style.transition = 'stroke-dashoffset 1.2s cubic-bezier(0.19, 1, 0.22, 1)'; l.style.strokeDashoffset = 0; })));
+    }
+    // เส้นกราฟวาดตามสัดส่วนที่เลื่อนผ่านการ์ด
+    let drawn = Motion.reduced() ? 1 : 0;
+    paint(false);
+    const mock = document.getElementById('planMock');
+    Motion.onScroll(() => {
+      const r = mock.getBoundingClientRect(), vh = window.innerHeight;
+      const f = clamp01((vh - r.top) / (vh * 0.7));
+      if (f > drawn) {
+        drawn = f;
+        ['pmLine', 'pmLineN'].forEach(id => { const l = document.getElementById(id); if (l && !l.style.transition) l.style.strokeDashoffset = lineLen * (1 - drawn); });
+      }
+    });
+  })();
+
+  /* ================= บัตรเครดิต 3 มิติ: ลอยเข้ามา → พลิก → กางออก 3 ใบ ================= */
   document.querySelectorAll('.cc[data-num]').forEach(card => CC.build(card));
-
-  // บัตรในส่วนหัวเอียงตามเมาส์ (เฉพาะอุปกรณ์ที่มีเมาส์)
-  const heroCard = document.getElementById('heroCard');
-  if (!Motion.reduced() && window.matchMedia('(pointer: fine)').matches) {
-    document.querySelector('.visual').addEventListener('pointermove', e => {
-      const r = e.currentTarget.getBoundingClientRect();
-      const x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
-      heroCard.style.setProperty('--ty', `${(x * 26 - 10).toFixed(1)}deg`);
-      heroCard.style.setProperty('--tx', `${(8 - y * 22).toFixed(1)}deg`);
-      heroCard.style.setProperty('--sheen', (0.5 + x * 0.8).toFixed(2));
-    });
-    document.querySelector('.visual').addEventListener('pointerleave', () => {
-      heroCard.style.removeProperty('--ty'); heroCard.style.removeProperty('--tx'); heroCard.style.removeProperty('--sheen');
-    });
-  }
-
-  // ---- เรื่องเล่าด้วยบัตรตามการเลื่อน: ลอยเข้ามา → พลิกดูด้านหลัง → กางออก 3 ใบ ----
   (function () {
     const story = document.getElementById('cardStory');
     const main = document.getElementById('ccMain'), left = document.getElementById('ccLeft'), right = document.getElementById('ccRight');
     const steps = [...story.querySelectorAll('.step')], bars = [...story.querySelectorAll('.story-progress i')];
-    const clamp01 = v => Math.max(0, Math.min(1, v));
     const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     const seg = (p, a, b) => ease(clamp01((p - a) / (b - a)));
     let lastStep = -1;
     const render = (p) => {
       const enter = seg(p, 0, 0.26), flipA = seg(p, 0.3, 0.44), flipB = seg(p, 0.6, 0.72), fan = seg(p, 0.72, 0.94);
-      const rx = 60 - 50 * enter - 10 * fan;
-      const rz = -22 + 16 * enter + 6 * fan;
-      const ry = 180 * flipA + 180 * flipB;
-      const ty = (1 - enter) * 42;
-      const sc = 0.72 + 0.28 * enter - 0.06 * fan;
+      const rx = 60 - 50 * enter - 10 * fan, rz = -22 + 16 * enter + 6 * fan, ry = 180 * flipA + 180 * flipB;
+      const ty = (1 - enter) * 42, sc = 0.72 + 0.28 * enter - 0.06 * fan;
       main.style.transform = `translateY(${ty.toFixed(2)}vh) translateZ(${(fan * 40).toFixed(1)}px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) rotateZ(${rz.toFixed(2)}deg) scale(${sc.toFixed(3)})`;
       main.style.setProperty('--sheen', (((ry / 360) + p * 1.6) % 1).toFixed(3));
       const side = (el, dir) => {
@@ -468,8 +709,7 @@
         el.style.transform = `translateX(${(dir * fan * 36).toFixed(2)}%) translateY(${(fan * 7).toFixed(2)}%) translateZ(-90px) rotateZ(${(dir * fan * 13).toFixed(2)}deg) scale(${(0.86 + 0.04 * fan).toFixed(3)})`;
         el.style.setProperty('--sheen', (0.3 + dir * 0.2 + fan * 0.3).toFixed(3));
       };
-      side(left, -1);
-      side(right, 1);
+      side(left, -1); side(right, 1);
       const step = p < 0.34 ? 0 : p < 0.67 ? 1 : 2;
       if (step !== lastStep) { steps.forEach((s, i) => s.classList.toggle('on', i === step)); lastStep = step; }
       bars.forEach((b, i) => b.style.setProperty('--f', clamp01(p * 3 - i).toFixed(3)));
@@ -490,13 +730,26 @@
     });
   });
 
+  // แสงนุ่ม ๆ ตามเมาส์ทั้งหน้า
+  (function () {
+    const aura = document.getElementById('cursorAura');
+    if (Motion.reduced() || !fine) return;
+    let x = innerWidth / 2, y = innerHeight / 3, tx = x, ty = y, raf = 0;
+    const tick = () => {
+      x += (tx - x) * 0.12; y += (ty - y) * 0.12;
+      aura.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
+      raf = Math.abs(tx - x) + Math.abs(ty - y) > 0.5 ? requestAnimationFrame(tick) : 0;
+    };
+    window.addEventListener('pointermove', e => { tx = e.clientX; ty = e.clientY; aura.classList.add('on'); if (!raf) raf = requestAnimationFrame(tick); });
+    document.addEventListener('pointerleave', () => aura.classList.remove('on'));
+  })();
+
   // ---- แอนิเมชันตอนเลื่อน ----
   window.addEventListener('DOMContentLoaded', () => Motion.smoothScroll()); // Lenis โหลดแบบ defer
   Motion.reveal(document.querySelectorAll('.rv'));
   requestAnimationFrame(() => document.getElementById('heroTitle').classList.add('in'));
   document.querySelectorAll('[data-count]').forEach(el => Motion.countOnView(el, { duration: 1600 }));
   Motion.scrubWords(document.getElementById('manifestoText'));
-  Motion.parallax(document.getElementById('heroVisual'), 0.12);
   document.querySelectorAll('.magnetic').forEach(el => Motion.magnetic(el));
   const nav = document.querySelector('.nav');
   Motion.onScroll(() => nav.classList.toggle('scrolled', window.scrollY > 24));
