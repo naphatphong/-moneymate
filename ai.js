@@ -10,7 +10,10 @@
 
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
 const FALLBACK_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-2.5-flash-lite'];
+const MODEL_MS = 25000; // รอคำตอบต่อหนึ่งรุ่น
+const TOTAL_MS = 60000; // รอรวมทุกรุ่น (กันผู้ใช้รอนานเกินไป)
 let workingModel = null;
+let noThinking = true; // ปิดโหมด "คิดก่อนตอบ" ของ Gemini — คำตอบไวขึ้นมาก (ปิดเองถ้ารุ่นไหนไม่รองรับ)
 
 class AiError extends Error {
   constructor(code, message) {
@@ -29,17 +32,29 @@ function modelList() {
 }
 
 // เรียก Gemini (generateContent) — messages: [{ role: 'user'|'model', text }]
+// ถ้ารุ่นไหนช้าเกิน MODEL_MS หรือเชื่อมต่อไม่ได้ จะเปลี่ยนไปลองรุ่นถัดไปจนหมดเวลารวม
 async function generate({ system, messages, json = false, maxTokens = 2048, temperature = 0.6 }) {
   if (!enabled()) throw new AiError('config', 'GEMINI_API_KEY is not set');
   const body = {
     systemInstruction: { parts: [{ text: system }] },
     contents: messages.map((m) => ({ role: m.role === 'model' ? 'model' : 'user', parts: [{ text: m.text }] })),
-    generationConfig: { temperature, maxOutputTokens: maxTokens, ...(json ? { responseMimeType: 'application/json' } : {}) }
+    generationConfig: {
+      temperature,
+      maxOutputTokens: maxTokens,
+      ...(noThinking ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+      ...(json ? { responseMimeType: 'application/json' } : {})
+    }
   };
+  const deadline = Date.now() + TOTAL_MS;
   let lastErr = null;
-  for (const model of modelList()) {
+  const models = modelList();
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
+    const budget = Math.min(MODEL_MS, deadline - Date.now());
+    if (budget < 5000) break; // เหลือเวลาน้อยเกินกว่าจะลองรุ่นถัดไป
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 30000);
+    const timer = setTimeout(() => ctrl.abort(), budget);
+    const started = Date.now();
     let res;
     try {
       res = await fetch(`${API_BASE}${encodeURIComponent(model)}:generateContent`, {
@@ -50,17 +65,32 @@ async function generate({ system, messages, json = false, maxTokens = 2048, temp
       });
     } catch (err) {
       clearTimeout(timer);
-      throw new AiError(err.name === 'AbortError' ? 'timeout' : 'upstream', err.message);
+      const slow = err.name === 'AbortError';
+      console.warn(`[AI] ${model} ${slow ? `ไม่ตอบใน ${budget}ms` : err.message} — ลองรุ่นถัดไป`);
+      if (workingModel === model) workingModel = null; // อย่าติดอยู่กับรุ่นที่ช้า
+      lastErr = new AiError(slow ? 'timeout' : 'upstream', `${model}: ${err.message}`);
+      continue;
     }
     clearTimeout(timer);
+    const took = Date.now() - started;
     const data = await res.json().catch(() => ({}));
     if (res.status === 404) { lastErr = new AiError('config', `model ${model} not found`); continue; } // ลองรุ่นถัดไป
     if (res.status === 429) throw new AiError('quota', data.error && data.error.message);
     if (res.status === 400 || res.status === 401 || res.status === 403) {
-      console.error(`[AI] Gemini ${res.status}:`, data.error && data.error.message);
-      throw new AiError('config', data.error && data.error.message);
+      const msg = (data.error && data.error.message) || '';
+      // รุ่นเก่าบางรุ่นไม่รู้จัก thinkingConfig — เลิกส่งแล้วลองรุ่นเดิมอีกครั้ง
+      if (res.status === 400 && body.generationConfig.thinkingConfig && /thinking/i.test(msg)) {
+        delete body.generationConfig.thinkingConfig;
+        noThinking = false;
+        console.warn(`[AI] ${model} ไม่รองรับการปิดโหมดคิด — เรียกใหม่แบบปกติ`);
+        i--;
+        continue;
+      }
+      console.error(`[AI] Gemini ${res.status}:`, msg);
+      throw new AiError('config', msg);
     }
     if (!res.ok) throw new AiError('upstream', `Gemini ${res.status}: ${data.error && data.error.message}`);
+    if (took > 12000) console.warn(`[AI] ${model} ตอบช้า ${took}ms`);
 
     workingModel = model;
     if (data.promptFeedback && data.promptFeedback.blockReason) throw new AiError('blocked', data.promptFeedback.blockReason);
@@ -68,7 +98,7 @@ async function generate({ system, messages, json = false, maxTokens = 2048, temp
     const text = cand && cand.content && Array.isArray(cand.content.parts)
       ? cand.content.parts.filter((p) => typeof p.text === 'string' && !p.thought).map((p) => p.text).join('').trim()
       : '';
-    if (!text) throw new AiError(cand && cand.finishReason === 'SAFETY' ? 'blocked' : 'empty', cand && cand.finishReason);
+    if (!text) throw new AiError(cand && cand.finishReason === 'SAFETY' ? 'blocked' : 'empty', `${model} ${cand && cand.finishReason}`);
     if (!json) return text;
     return parseJson(text);
   }
